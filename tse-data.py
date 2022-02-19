@@ -119,10 +119,51 @@ class storage:
         self._data_dir = Path(value)
 
 
-class tse_rq:
-    def tse_instrument(self, DEven: str):
+# %% Class rq
+from urllib.parse import urlparse, urlencode
+import aiohttp
+import asyncio
+
+
+class rq:
+    def instrument(self, DEven: str):
         params = {
 			't': 'Instrument',
 			'a': DEven
 		}
         return self.make_request(params)
+    
+    def instrument_and_share(self, DEven: str, LastID: str='0'):
+        params = {
+            't': 'InstrumentAndShare',
+            'a': DEven,
+            'a2': LastID
+        }
+        return self.make_request(params)
+
+    def last_possible_deven(self):
+        params = {
+            't': 'LastPossibleDeven'
+        }
+        return self.make_request(params)
+
+    def closing_prices(self, ins_codes: str):
+        params = {
+            't': 'ClosingPrices',
+            'a': ins_codes
+        }
+        return self.make_request(params)
+
+    def make_request(self, params:dict):
+        # todo: remove line below
+        # url += ('&', '?')[urlparse(url).query == ''] + urlencode(params)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(API_URL, params=params) as response:
+                    if response.status == 200:
+                        ret_val = await response.text()
+                    else:
+                        ret_val = response.status + ' ' + response.reason
+        except Exception as e:
+            ret_val str(e)
+        return ret_val
