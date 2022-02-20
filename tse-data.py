@@ -31,7 +31,6 @@ DEFAULT_SETTINGS = {
 
 
 # %% Class storage
-from io import TextIOWrapper
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -342,10 +341,17 @@ def parse_shares(struct=False, arr=True):
 def cealn_fa(str) -> str:
     return str.replace('\u200B','').replace('\s?\u200C\s?',' ').replace('\u200D','').replace('\uFEFF','').replace('ك','ک').replace('ي','ی')
 
+
+# Class data_manager
+import jdatetime
+import datetime
+import re
 class data_manager:
+
     def __init__(self):
         self.last_devens = {}
         self.stored_prices = {}
+
     def adjust(cond, closing_prices, all_shares, ins_codes):
         shares = {i.DEven: i for i in list(set(all_shares).intersection(ins_codes))} 
         cp = closing_prices
@@ -395,3 +401,72 @@ class data_manager:
                     adjusted_cl_prices.push(adjusted_closing_price)
                 res = adjusted_cl_prices.reverse()
         return res
+
+    def get_cell(self, column_name, instrument, closing_price):
+        if column_name == 'dateshamsi':
+            return jdatetime.from_gregorian(instrument.DEven).tostring() # todo: is it working?
+        elif column_name == 'date':
+            return instrument.DEven
+        elif column_name == 'close':
+            return closing_price.PClosing
+        elif column_name == 'last':
+            return closing_price.PDrCotVal
+        elif column_name == 'low':
+            return closing_price.PriceMin
+        elif column_name == 'high':
+            return closing_price.PriceMax
+        elif column_name == 'yesterday':
+            return closing_price.PriceYesterday
+        elif column_name == 'open':
+            return closing_price.PriceFirst
+        elif column_name == 'count':
+            return closing_price.ZTotTran
+        elif column_name == 'vol':
+            return closing_price.QTotTran5J
+        elif column_name == 'value':
+            return closing_price.QTotCap
+        else:
+            return None
+
+    def should_update(self, deven, last_possible_deven):
+        if (not deven) or deven == '0':
+            return True #first time. never update
+        today = datetime.date.today()
+        today_deven = today.toString('yyyyMMdd')
+        days_passed = abs((deven - last_possible_deven).days)
+        in_weekend = today.getDay() in [4,5]
+        last_update_weekday = datetime.date.fromString(last_possible_deven, 'yyyyMMdd').getDay()
+        result = (
+            days_passed >= UPDATE_INTERVAL and
+            ((today.get_hour() > 16, True)[today_deven != last_possible_deven]) and # wait until the end of trading session
+            # No update needed if: we are in weekend but ONLY if last time we updated was on last day (wednesday) of THIS week
+            not (in_weekend and last_update_weekday != 3 and days_passed <= 3) # wait until the end of weekend
+        )
+        return result
+
+    async def get_last_possible_deven(self):
+        last_possible_deven = storage.get_item('tse.lastPossibleDeven')
+        if (not last_possible_deven) or self.should_update(datetime.today().strftime('%Y%m%d'), last_possible_deven):
+            try:
+                res = await rq.last_possible_deven()
+            except Exception as e:
+                return { 'title': 'Failed request: LastPossibleDeven', 'detail': str(e) }
+            pattern = re.compile("^\d{8};\d{8}$")
+            if not pattern.match(res):
+                return { 'title': 'Invalid server response: LastPossibleDeven' }
+            last_possible_deven = res.split(';')[0] or res.split(';')[1] # todo: is it working?
+            storage.set_item('tse.lastPossibleDeven', last_possible_deven)
+        return last_possible_deven
+
+    async def update_instruments(self):
+        last_update = storage.get_item('tse.lastInstrumentUpdate')
+        last_deven = None
+        last_id = None
+        current_instruments = None
+        current_shares = None
+        if not last_update:
+            last_deven = 0
+            last_id = 0
+        else:
+            current_instruments = utils.parse_instruments()
+            current_shares = utils.parse_shares()
