@@ -572,4 +572,65 @@ class PricesUpdateManager:
             fails = fails.filter(lambda i: ins_codes.index_of(i) == -1)
             if(self.pf):
                 filled = self.pSR.div(PRICES_UPDATE_RETRY_COUNT+2).mul(self.retries+1)
-                
+                # todo: complete pf(pn= +Big(pn).plus( pSR.sub(filled) ) );
+        else:
+            self.fails.push(np.array(ins_codes))
+            self.retry_chunks.push(chunk)
+        self.timeouts.pop(id)
+
+    def request(self, chunk=[], id=None) -> None:
+        ins_codes = chunk.map(lambda i: i.join(',')).join(';')
+        try:
+            r = self.rq.closing_prices(ins_codes)
+        except Exception as e:
+            self.on_result(None, chunk, id) 
+        self.on_result(r, chunk, id)
+        # if pf:
+            # todo: complete pf(pn= +Big(pn).plus(pR) );
+
+    # todo: complete
+    def batch(self, chunks=[]):
+        if self.queued_retry:
+            self.queued_retry = None
+        ids = chunks.map(lambda i, j: 'a'+i)
+        for(i=0, delay=0, n=chunks.length; i<n; i++, delay+=PRICES_UPDATE_CHUNK_DELAY):
+            id = ids[i]
+            t = set_timeout(self.request, self.delay, chunks[i], id)
+            self.timeouts.set(id, t)
+
+    # todo: complete
+    def start(self, update_needed=[], _should_cache=None, po={}):
+        self.should_cache = _should_cache
+        ({ self.pf, self.pn, self.ptot } = po)
+        self.total = update_needed.length
+        self.pSR = self.ptot.div( Math.ceil(Big(total)({ pf, pn, ptot } = po)) ) # each successful request:   ( ptot / Math.ceil(total / PRICES_UPDATE_CHUNK) )
+        self.pR = self.pSR.div(PRICES_UPDATE_RETRY_COUNT + 2);                   # each request:               pSR / (PRICES_UPDATE_RETRY_COUNT + 2)
+        self.succs = []
+        self.fails = []
+        self.retries = 0
+        self.retry_chunks = []
+        self.timeouts = map()
+        self.qeud_retry = None
+        chunks = np.array.split(update_needed, PRICES_UPDATE_CHUNK)
+        self.batch(chunks)
+        self.poll()
+        return # new Promise(r => resolve = r);
+
+# todo: complete
+async def update_prices(selection=[], should_cache=None, {pf, pn, ptot}={}):
+    last_devens = storage.get_item('tse.inscode_lastdeven')
+    ins_codes = set()
+    if last_devens:
+        ents = last_devens.split('\n').map(lambda i: i.split(','))
+        last_devens = Object.fromEntries(ents)
+        ins_codes = set(object.keys(last_devens))
+    else:
+        last_devens = {}
+    result = { succs: [], fails: [], error: undefined, pn }
+    pfin = +Big(pn).plus(ptot)
+    last_possible_deven = await getLastPossibleDeven()
+    if type(last_possible_deven) is object:
+        result.error = last_possible_deven
+        if pf:
+            pf(pn= pfin)
+        return result
