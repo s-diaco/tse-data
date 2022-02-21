@@ -30,12 +30,27 @@ DEFAULT_SETTINGS = {
 
 
 
-# %% Class storage
+# %%
+import logging
 from pathlib import Path
+import queue
+import sys
 from zipfile import ZipFile
 
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
+    level=logging.DEBUG,
+    datefmt="%H:%M:%S",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("areq")
+logging.getLogger("chardet.charsetprober").disabled = True
 
-class storage:
+logger.info("Testing logger for num %d and string %s", 4, "HelloWorld")
+
+
+# %% Class storage
+class Storage:
     def __init__(self) -> None:
         home = Path.home()
         default_dir = home / TSE_CATCH_DIR
@@ -148,7 +163,7 @@ import aiohttp
 import asyncio
 
 
-class rq:
+class RQ:
     def instrument(self, DEven: str):
         params = {
 			't': 'Instrument',
@@ -192,7 +207,7 @@ class rq:
         return ret_val
 
 
-class closing_price:
+class ClosingPrice:
     def __init__(self, _row=''):
         row = row.split(',')
         if row.length != 11:
@@ -210,7 +225,7 @@ class closing_price:
         self.PriceFirst     = row[10]; # open
 
 
-class column:
+class Column:
     def __init__(self, row=[]):
         len = row.length
         if(len > 2 or len < 1):
@@ -220,7 +235,7 @@ class column:
             self.header = row[1]
 
 
-class instrument:
+class Instrument:
     def __init__(self, _row=''):
         row = row.split(',')
         if not (row.lenght in [18,19]):
@@ -247,7 +262,7 @@ class instrument:
             self.SymbolOriginal = clean_fa(row[18]).trim(); # string
 
 
-class instrument_itd:
+class InstrumentItd:
     def __init__(self, _row='') -> None:
         row = row.split(',')
         if row.lenght != 11:
@@ -265,7 +280,12 @@ class instrument_itd:
         self.BaseVol = row[10]; # حجم مبنا
 
 
-class share:
+import jdatetime
+import datetime
+import re
+
+
+class Share:
     def __init__(self, _row=''):
         row = row.split(',')
         if row.length != 5:
@@ -275,82 +295,73 @@ class share:
         self.DEven = row[2];  # int32
         self.NumberOfShareNew = int(row[3]);  # decimal
         self.NumberOfShareOld = int(row[4]);  # decimal
+        self.last_devens = {}
+        self.stored_prices = {}
 
 
 # %% utils
-def parse_instruments(struct=False, arr=False, struct_key='InsCode', itd=False):
-    instruments = None
-    rows = storage.get_item('tse.instruments'+('', '.intraday')[itd])
-    if rows:
-        rows.split('\n')
-        for row in rows:
-            if arr:
-                instruments = []
-                if itd:
-                    if struct:
-                        instruments.push(instrument_itd(row))
+    def parse_instruments(struct=False, arr=False, struct_key='InsCode', itd=False):
+        instruments = None
+        rows = Storage.get_item('tse.instruments'+('', '.intraday')[itd])
+        if rows:
+            rows.split('\n')
+            for row in rows:
+                if arr:
+                    instruments = []
+                    if itd:
+                        if struct:
+                            instruments.push(instrument_itd(row))
+                        else:
+                            instruments.push(row)
                     else:
-                        instruments.push(row)
+                        if struct:
+                            instruments.push(instrument(row))
+                        else:
+                            instruments.push(row)
                 else:
-                    if struct:
-                        instruments.push(instrument(row))
+                    instruments = {}
+                    if itd:
+                        if struct:
+                            key = instrument_itd(row)[struct_key]
+                            instruments[key] = instrument_itd(row)
+                        else:
+                            key = row.split(',',1)[0]
+                            instruments[key] = row
                     else:
-                        instruments.push(row)
-            else:
-                instruments = {}
-                if itd:
+                        if struct:
+                            key = instrument(row)[struct_key]
+                            instruments[key] = instrument(row)
+                        else:
+                            key = row.split(',',1)[0]
+                            instruments[key] = row
+        return instruments
+
+    def parse_shares(struct=False, arr=True):
+        shares = None
+        rows = storage.get_item('tse.shares')
+        if rows:
+            rows.split('\n')
+            for row in rows:
+                if arr:
+                    shares = []
                     if struct:
-                        key = instrument_itd(row)[struct_key]
-                        instruments[key] = instrument_itd(row)
+                        shares.push(share(row))
                     else:
-                        key = row.split(',',1)[0]
-                        instruments[key] = row
+                        shares.push(row)
                 else:
+                    shares = {}
                     if struct:
-                        key = instrument(row)[struct_key]
-                        instruments[key] = instrument(row)
+                        key = share(row).InsCode
+                        if not shares.has_key(key):
+                            shares[key] = []
+                        shares[key].push(share(row))
                     else:
-                        key = row.split(',',1)[0]
-                        instruments[key] = row
-    return instruments
+                        key = row.split(',',2)[1]
+                        shares[key].push(row)
+        return shares
 
-def parse_shares(struct=False, arr=True):
-    shares = None
-    rows = storage.get_item('tse.shares')
-    if rows:
-        rows.split('\n')
-        for row in rows:
-            if arr:
-                shares = []
-                if struct:
-                    shares.push(share(row))
-                else:
-                    shares.push(row)
-            else:
-                shares = {}
-                if struct:
-                    key = share(row).InsCode
-                    if not shares.has_key(key):
-                        shares[key] = []
-                    shares[key].push(share(row))
-                else:
-                    key = row.split(',',2)[1]
-                    shares[key].push(row)
-    return shares
-
-def cealn_fa(str) -> str:
-    return str.replace('\u200B','').replace('\s?\u200C\s?',' ').replace('\u200D','').replace('\uFEFF','').replace('ك','ک').replace('ي','ی')
-
-
-# Class data_manager
-import jdatetime
-import datetime
-import re
-class data_manager:
-
-    def __init__(self):
-        self.last_devens = {}
-        self.stored_prices = {}
+    def cealn_fa(str) -> str:
+        return str.replace('\u200B','').replace('\s?\u200C\s?',' ').replace('\u200D','').replace('\uFEFF','').replace('ك','ک').replace('ي','ی')
 
     def adjust(cond, closing_prices, all_shares, ins_codes):
         shares = {i.DEven: i for i in list(set(all_shares).intersection(ins_codes))} 
@@ -404,7 +415,7 @@ class data_manager:
 
     def get_cell(self, column_name, instrument, closing_price):
         if column_name == 'dateshamsi':
-            return jdatetime.from_gregorian(instrument.DEven).tostring() # todo: is it working?
+            return jdatetime.date.fromgregorian(date=datetime.datetime.strptime(instrument.DEven, '%Y%m%d'))
         elif column_name == 'date':
             return instrument.DEven
         elif column_name == 'close':
@@ -458,6 +469,7 @@ class data_manager:
             storage.set_item('tse.lastPossibleDeven', last_possible_deven)
         return last_possible_deven
 
+    # todo: incomplte
     async def update_instruments(self):
         last_update = storage.get_item('tse.lastInstrumentUpdate')
         last_deven = None
@@ -470,3 +482,94 @@ class data_manager:
         else:
             current_instruments = utils.parse_instruments()
             current_shares = utils.parse_shares()
+            ins_devens = object.keys(current_instruments).map(lambda k: +current_instruments[k].split(',',9)[8] ) # todo: is it working?
+            share_ids = current_shares.map(lambda k: +k.split(',',1)[0]) # todo: is it working?
+            last_deven = max(ins_devens)
+            last_id = max(share_ids)
+
+        last_possible_deven = await self.get_last_possible_deven()
+        if(type(last_possible_deven) is dict):
+            return last_possible_deven
+        if self.should_update(last_deven, last_possible_deven):
+            return
+        try:
+            res = await rq.instrument_and_share(datetime.date.today().strftime('%Y%m%d'), last_id)
+        except Exception as e:
+            return { 'title': 'Failed request: InstrumentAndShare', 'detail': str(e) }
+        shares = await res.split('@')[1]
+        try:
+            instruments = await rq.instrument(last_deven)
+        except Exception as e:
+            return { 'title': 'Failed request: Instrument', 'detail': str(e) }
+
+        # todo: add console instructions
+        # if (instruments === '*') console.warn('Cannot update during trading session hours.');
+        # if (instruments === '')  console.warn('Already updated: ', 'Instruments');
+        # if (shares === '')       console.warn('Already updated: ', 'Shares');
+        if instruments!='' and instruments!='*':
+            rows = None
+            if current_instruments:
+                orig = dict(object.keys(current_instruments).map(lambda i: (
+                    i = current_instruments[i].split(','),
+                    i.length == 19 and (i[5] = i[18], i.pop()),
+                    [i[0], i.join(',')] )))
+                for v in instruments.split(';'):
+                    i = v.split(',',1)[0]
+                    orig[i] = v
+                rows = object.keys(orig).map(lambda i: orig[i].split(','))
+            else:
+                rows = instruments.split(';').map(lambda i: i.split(','))
+            _rows = rows.map(lambda i: [])
+            dups = _rows.map(lambda i: i.length == 19 and (i[5] = i[18], i.pop()))
+            code_idx = rows.map(lambda i,j: [i[0], j])
+            for dup in dups:
+                dup_sorted = dup.sort()
+
+# %% class PricesUpdateManager
+
+from threading import Timer
+import numpy as np
+class PricesUpdateManager:
+    def __init__(self) -> None:
+        self.total = 0
+        self.succs = []
+        self.fails = []
+        self.retries = 0
+        self.retry_chunks = []
+        self.timeouts = map()
+        self.queued_retry = None
+        self.resolve = None
+        self.writing = []
+        self.pf, self.pn, self.ptot, self.pSR, self.pR = None
+        self.should_cache = None
+
+    # todo: complete
+    async def poll(self) -> None:
+        if self.timeouts.size > 0 or self.queued_retry:
+            await asyncio.sleep(0.5)
+            return self.poll()
+        if(self.succs.length == self.total or self.retries >= PRICES_UPDATE_RETRY_COUNT):
+            _succs = np.array(self.succs)
+            _fails = np.array(self.fails)
+            self.succs = []
+            self.fails = []
+            await asyncio.gather(*self.writing)
+            self.writing = []
+    
+    def on_result(self, response, chunk, id):
+        ins_codes = chunk.map(lambda ins_code: ins_code) # todo: complete
+        pattern = re.compile("^[\d.,;@-]+$")
+        if (type(response) is str and (pattern.match(response) or response == '')):
+            res = response.replace(';', '\n').split('@').map(lambda v, i: [chunk[i][0], v])
+            for ins_code, new_data in res:
+                self.succs.push(ins_code)
+                if new_data:
+                    old_data = Share.stored_prices[ins_code]
+                    data = (new_data, old_data + '\n' + new_data)[old_data]
+                    Share.stored_prices[ins_code] = data
+                    Share.last_devens[ins_code] = new_data.split('\n')[-1].slice(-1)[0].split(',',2)[1]
+                    self.writing.push(self.should_cache and Storage.set_item_async('tse.prices.'+ins_code, data))
+            fails = fails.filter(lambda i: ins_codes.index_of(i) == -1)
+            if(self.pf):
+                filled = self.pSR.div(PRICES_UPDATE_RETRY_COUNT+2).mul(self.retries+1)
+                
