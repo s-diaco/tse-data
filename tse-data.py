@@ -1,5 +1,5 @@
 # %% Configuration
-API_URL = 'http:#service.tsetmc.com/tsev2/data/TseClient2.aspx'
+API_URL = 'http://service.tsetmc.com/tsev2/data/TseClient2.aspx'
 TSE_CATCH_DIR = 'tse-catch'
 PATH_FILE_NAME = '.tse'
 PRICES_DIR = 'prices'
@@ -32,8 +32,8 @@ DEFAULT_SETTINGS = {
 
 # %%
 import logging
+import math
 from pathlib import Path
-import queue
 import sys
 from zipfile import ZipFile
 
@@ -537,7 +537,7 @@ class PricesUpdateManager:
         self.retries = 0
         self.retry_chunks = []
         self.timeouts = map()
-        self.queued_retry = None
+        self.qeud_retry = None
         self.resolve = None
         self.writing = []
         self.pf, self.pn, self.ptot, self.pSR, self.pR = None
@@ -545,7 +545,7 @@ class PricesUpdateManager:
 
     # todo: complete
     async def poll(self) -> None:
-        if self.timeouts.size > 0 or self.queued_retry:
+        if self.timeouts.size > 0 or self.qeud_retry:
             await asyncio.sleep(0.5)
             return self.poll()
         if(self.succs.length == self.total or self.retries >= PRICES_UPDATE_RETRY_COUNT):
@@ -572,7 +572,7 @@ class PricesUpdateManager:
             fails = fails.filter(lambda i: ins_codes.index_of(i) == -1)
             if(self.pf):
                 filled = self.pSR.div(PRICES_UPDATE_RETRY_COUNT+2).mul(self.retries+1)
-                # todo: complete pf(pn=float(Big(pn).plus( pSR.sub(filled) ) ))
+                pf(pn=pn+pSR-filled)
         else:
             self.fails.push(np.array(ins_codes))
             self.retry_chunks.push(chunk)
@@ -585,13 +585,13 @@ class PricesUpdateManager:
         except Exception as e:
             self.on_result(None, chunk, id) 
         self.on_result(r, chunk, id)
-        # if pf:
-            # todo: complete pf(pn= +Big(pn).plus(pR) );
+        if pf:
+            pf(pn= pn+pR)
 
     # todo: complete
     def batch(self, chunks=[]):
-        if self.queued_retry:
-            self.queued_retry = None
+        if self.qeud_retry:
+            self.qeud_retry = None
         ids = chunks.map(lambda i, j: 'a'+i)
         for(i=0, delay=0, n=chunks.length; i<n; i++, delay+=PRICES_UPDATE_CHUNK_DELAY):
             id = ids[i]
@@ -603,8 +603,8 @@ class PricesUpdateManager:
         self.should_cache = _should_cache
         ({ self.pf, self.pn, self.ptot } = po)
         self.total = update_needed.length
-        self.pSR = self.ptot.div( Math.ceil(Big(total)({ pf, pn, ptot } = po)) ) # each successful request:   ( ptot / Math.ceil(total / PRICES_UPDATE_CHUNK) )
-        self.pR = self.pSR.div(PRICES_UPDATE_RETRY_COUNT + 2);                   # each request:               pSR / (PRICES_UPDATE_RETRY_COUNT + 2)
+        self.pSR = self.ptot / math.ceil(total / PRICES_UPDATE_CHUNK) # each successful request
+        self.pR = self.pSR / (PRICES_UPDATE_RETRY_COUNT + 2);         # each request:
         self.succs = []
         self.fails = []
         self.retries = 0
@@ -627,7 +627,7 @@ async def update_prices(selection=[], should_cache=None, {pf, pn, ptot}={}):
     else:
         last_devens = {}
     result = { succs: [], fails: [], error: undefined, pn }
-    pfin = float(Big(pn).plus(ptot))
+    pfin = pn+ptot
     last_possible_deven = await getLastPossibleDeven()
     if type(last_possible_deven) is object:
         result.error = last_possible_deven
@@ -648,23 +648,23 @@ async def get_prices(symbols=[], _settings={}):
     pn = 0
     err = await update_instruments()
     if pf:
-        pf(pn= float(Big(pn).plus( ptot.mul(0.01) ) ))
+        pf(pn=pn+(ptot*0.01))
     if err:
-        { title, detail } = err
+        {title, detail} = err
     result.error = { code: 1, title, detail }
     if pf:
-        pf(float(ptot))
+        pf(ptot)
         return result
     
     instruments = parse_instruments(true, undefined, 'Symbol')
     selection = symbols.map(lambda i: instruments[i])
     not_founds = symbols.filter(v,i : !selection[i])
     if pf:
-        pf(pn= float(Big(pn).plus( ptot.mul(0.01) ) ))
+        pf(pn= pn+(ptot*0.01))
     if not_founds.length:
         result.error = { code: 2, title: 'Incorrect Symbol', symbols: notFounds };
         if pf:
-            pf(float(ptot))
+            pf(ptot)
             return result
     { merge_similar_symbols } = settings
     merges = map()
@@ -701,6 +701,280 @@ async def get_prices(symbols=[], _settings={}):
         { title, detail } = error
         result.error = { code: 1, title, detail }
         if pf:
-            pf(float(ptot))
+            pf(ptot)
         return result
-# 928
+
+    if fails.length:
+        syms = Object.fromEntries( selection.map(i => [i.InsCode, i.Symbol]) )
+        result.error = { code: 3, title: 'Incomplete Price Update',
+            fails: fails.map(k => syms[k]),
+            succs: succs.map(k => syms[k])
+        }
+        for v, i, a in selection:
+            if fails.include(v.incode):
+                a[i] = None
+            else:
+                a[i] = 0
+    if merge_similar_symbols:
+        selection.splice(extras_index)
+
+    columns = settings.columns.map(lambda i:{
+        const row = !Array.isArray(i) ? [i] : i;
+        const column = new Column(row);
+        const finalHeader = column.header || column.name;
+        return { ...column, header: finalHeader };
+    })
+
+    { adjustPrices, daysWithoutTrade, startDate, csv } = settings;
+    shares = parse_shares(true)
+    pi = ptot * 0.20 / selection.length
+    stored_prices_merged = {}
+
+    if merge_similar_symbols:
+        for [, merge] in merges:
+            codes = merge.map(lambda i: i.code)
+            [latest] = codes
+            stored_prices_merged[latest] = codes.map(lambda code: stored_prices[code]).reverse().filter(i:i).join('\n')
+
+    get_instrument_prices = (instrument) => {
+        { InsCode: inscode, Symbol: sym, SymbolOriginal: symOrig }  = instrument
+
+        prices, ins_codes = None
+
+        if sym_orig:
+            if merge_similar_symbols:
+                return MERGED_SYMBOL_CONTENT
+            prices = stored_prices[ins_code]
+            ins_codes = set(ins_code)
+        else:
+            is_root = merges.has(sym)
+            prices = is_root ? stored_prices_merged[ins_code] : stored_prices[ins_code]
+            ins_codes = is_root ? merges[sym].map(i => i.code) : set(ins_code)
+
+        if not prices:
+            return
+
+        prices = prices.split('\n').map(lambda i : closing_price(i))
+
+        if adjust_prices == 1 or adjust_prices == 2:
+            prices = adjust(adjust_prices, prices, shares, ins_codes)
+        
+        if not days_without_trade:
+            prices = prices.filter(i : float(i.ZTotTran) > 0)
+
+        prices = prices.filter(i: float(i.DEven) > float(start_date))
+
+        return prices
+    }
+
+    if csv:
+        { csvHeaders, csvDelimiter } = settings
+        headers = ''
+        if csv_headers:
+            columns.map(lambda i: i.header).join()+'\n'
+        result.data = selection.map(lambda instrument: {
+            if not Instrument:
+                return
+            res = headers
+
+            prices = get_instrument_prices(instrument)
+            if not prices:
+                return res
+            if prices == MERGED_SYMBOL_CONTENT:
+                return prices
+            res += prices.map(lambda i: get_cell(i.name, Instrument, price)).join(csv_delimiter).join('\n')
+
+            if pf:
+                pf(pn = pn+pi)
+            return res
+        })
+    else:
+        text_cols = set(['CompanyCode', 'LatinName', 'Symbol', 'Name'])
+
+        result.data = selection.map(Instrument => {
+            if not Instrument:
+                return
+            res = Object.fromEntries( columns.map(i => [i.header, []]) )
+
+            prices = get_instrument_prices(Instrument)
+            if not prices:
+                return res
+            if prices == MERGED_SYMBOL_CONTENT:
+                return prices
+
+            for price in prices:
+                for {header, name} in columns:
+                    cell = get_cell(name, instrument, price)
+                    res[header].push((float(cell), cell)[text_cols.has(name)])
+            if pf:
+                pf(pn = pn+pi)
+            return res
+        })
+    
+    if pf and pn != ptot:
+        pf(pn=ptot)
+    
+    return result
+
+async def get_instruments(struct=true, arr=true, structKey='InsCode'):
+    valids = object.keys(instrument(np.array(18).keys()).join(','))
+    if valids.indexOf(struct_key) == -1:
+        struct_key = 'InsCode'
+    
+    last_update = storage.get_item('tse.lastInstrumentUpdate')
+    err = await update_instruments()
+    if err and not last_update:
+        raise err
+    return parse_instruments(struct, arr, structKey)
+
+# todo: ln1055 - ln1090 => intraday libs
+
+stored = {}
+
+zip, unzip = None
+  zip   = str => gzipSync(str);
+  unzip = buf => gunzipSync(buf).toString();
+
+def objify(map, r={}):
+    for k, v in map.items():
+        if(Map.prototype.toString.call(v) == '[object Map]' or type(v) is array):
+            r[k] = objify(v, r[k])
+        else:
+            r[k] = v
+    return r
+
+def parse_raw(separator, text):
+    split_str = text.split(separator)[1].split('];', 1)[0]
+    split_str = '[' + split_str.replace('\'', '"') + ']'
+    arr = JSON.parse(split_str)
+    return arr
+
+async def extract_and_store(ins_code='', deven_text=[], should_cache):
+    if not stored[ins_code]:
+        stored[ins_code] = {}
+    stored_instrument = stored[ins_code]
+
+    for deven, text in deven_text.items:
+        if text == 'N/A':
+            stored_instrument[deven] = text
+            continue
+        ClosingPrice    = parse_raw('var ClosingPriceData=[', text)
+        BestLimit       = parse_raw('var BestLimitData=[', text)
+        IntraTrade      = parse_raw('var IntraTradeData=[', text)
+        ClientType      = parse_raw('var ClientTypeData=[', text)
+        InstrumentState = parse_raw('var InstrumentStateData=[', text)
+        StaticTreshhold = parse_raw('var StaticTreshholdData=[', text)
+        InstSimple      = parse_raw('var InstSimpleData=[', text)
+        ShareHolder     = parse_raw('var ShareHolderData=[', text)
+        
+        coli = [12,2,3,4,6,7,8,9,10,11]
+        price = ClosingPrice.map(lambda row: coli.map(lambda i: row[i]).join(',')).join('\n')
+
+        coli = [0,1,2,3,4,5,6,7]
+        order = BestLimit.map(lambda row: coli.map(lambda i: row[i]).join(',')).join('\n')
+
+        coli = [1,0,2,3,4]
+        trade = IntraTrade.map(lambda row: {
+            let [h,m,s] = row[1].split(':');
+            let timeint = (+h*10000) + (+m*100) + (+s) + '';
+            row[1] = timeint;
+            return coli.map(i => row[i]);
+        }).sort((a,b)=>+a[0]-b[0]).map(i=>i.join(',')).join('\n')
+
+        coli = [4,0,12,16,8,6,2,14,18,10,5,1,13,17,9,7,3,15,19,11,20]
+        client = coli.map(lambda i: ClientType[i]).join(',')
+
+        [a, b] = [InstrumentState, StaticTreshhold]
+        state = ('', a[0][2])[a.length and a[0].length]
+        day_min, day_max = None
+        if(b.length and b[1].length):
+            day_min = b[1][2]
+            day_max = b[1][1]
+        [flow, base_vol] = [4, 9].map(lambda i: inst_simple[i])
+        misc = [basevol, flow, daymin, daymax, state].join(',')
+
+        coli = [2,3,4,0,5]
+        share_holder = ShareHolder.filter(i: i[4].map(lambda row: {
+            row[4] = ({ArrowUp:'+', ArrowDown:'-'})[row[4]];
+            row[5] = cleanFa(row[5]);
+            return coli.map(i => row[i]).join(',');
+        }).join('\n')))
+
+        file = [price, order, trade, client, misc]
+        if share_holder:
+            file.push(share_holder)
+        stored_instrument[deven] = zip(file.join('\n\n'))
+    
+    o = stored_instrument
+    rdy = object.keys(o).filter(k: o[k] != true).reduce((r, k): r[k], r), {})
+    if should_cache:
+        return Storage.itd.set_item(ins_code, rdy)
+
+# todo: ln1185 - ln1517 intraday libs
+
+{
+  getPrices,
+  getInstruments,
+  
+  get API_URL() { return API_URL; },
+  set API_URL(v) {
+    if (typeof v !== 'string') return;
+    let bad;
+    try { new URL(v); } catch (e) { bad = true; throw e; }
+    if (!bad) API_URL = v;
+  },
+  
+  get UPDATE_INTERVAL() { return UPDATE_INTERVAL; },
+  set UPDATE_INTERVAL(v) { if (Number.isInteger(v)) UPDATE_INTERVAL = v; },
+  
+  get PRICES_UPDATE_CHUNK() { return PRICES_UPDATE_CHUNK; },
+  set PRICES_UPDATE_CHUNK(v) { if (Number.isInteger(v) && v > 0 && v < 60) PRICES_UPDATE_CHUNK = v; },
+  
+  get PRICES_UPDATE_CHUNK_DELAY() { return PRICES_UPDATE_CHUNK_DELAY; },
+  set PRICES_UPDATE_CHUNK_DELAY(v) { if (Number.isInteger(v)) PRICES_UPDATE_CHUNK_DELAY = v; },
+  
+  get PRICES_UPDATE_RETRY_COUNT() { return PRICES_UPDATE_RETRY_COUNT; },
+  set PRICES_UPDATE_RETRY_COUNT(v) { if (Number.isInteger(v)) PRICES_UPDATE_RETRY_COUNT = v; },
+  
+  get PRICES_UPDATE_RETRY_DELAY() { return PRICES_UPDATE_RETRY_DELAY; },
+  set PRICES_UPDATE_RETRY_DELAY(v) { if (Number.isInteger(v)) PRICES_UPDATE_RETRY_DELAY = v; },
+  
+  get columnList() {
+    return [...Array(15)].map((v,i) => ({name: cols[i], fname: colsFa[i]}));
+  },
+  
+  getIntraday,
+  getIntradayInstruments,
+  
+  get INTRADAY_URL() { return INTRADAY_URL; },
+  set INTRADAY_URL(v) {
+    if (typeof v !== 'function') return;
+    let bad;
+    try { new URL(v()); } catch (e) { bad = true; throw e; }
+    if (!bad) INTRADAY_URL = v;
+  },
+  
+  get INTRADAY_UPDATE_CHUNK_DELAY() { return INTRADAY_UPDATE_CHUNK_DELAY; },
+  set INTRADAY_UPDATE_CHUNK_DELAY(v) { if (Number.isInteger(v)) INTRADAY_UPDATE_CHUNK_DELAY = v; },
+  
+  get INTRADAY_UPDATE_CHUNK_MAX_WAIT() { return INTRADAY_UPDATE_CHUNK_MAX_WAIT; },
+  set INTRADAY_UPDATE_CHUNK_MAX_WAIT(v) { if (Number.isInteger(v)) INTRADAY_UPDATE_CHUNK_MAX_WAIT = v; },
+  
+  get INTRADAY_UPDATE_RETRY_COUNT() { return INTRADAY_UPDATE_RETRY_COUNT; },
+  set INTRADAY_UPDATE_RETRY_COUNT(v) { if (Number.isInteger(v)) INTRADAY_UPDATE_RETRY_COUNT = v; },
+  
+  get INTRADAY_UPDATE_RETRY_DELAY() { return INTRADAY_UPDATE_RETRY_DELAY; },
+  set INTRADAY_UPDATE_RETRY_DELAY(v) { if (Number.isInteger(v)) INTRADAY_UPDATE_RETRY_DELAY = v; },
+  
+  get INTRADAY_UPDATE_SERVERS() { return INTRADAY_UPDATE_SERVERS; },
+  set INTRADAY_UPDATE_SERVERS(v) { if (Array.isArray(v) && !v.some(i => !Number.isInteger(i) || i < 0)) INTRADAY_UPDATE_SERVERS = v; },
+  
+  itdGroupCols
+};
+
+
+Object.defineProperty(instance, 'CACHE_DIR', {
+    get: () => storage.CACHE_DIR,
+    set: v => storage.CACHE_DIR = v
+});
+module.exports = instance;
