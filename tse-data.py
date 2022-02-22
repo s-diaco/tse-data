@@ -572,7 +572,7 @@ class PricesUpdateManager:
             fails = fails.filter(lambda i: ins_codes.index_of(i) == -1)
             if(self.pf):
                 filled = self.pSR.div(PRICES_UPDATE_RETRY_COUNT+2).mul(self.retries+1)
-                # todo: complete pf(pn= +Big(pn).plus( pSR.sub(filled) ) );
+                # todo: complete pf(pn=float(Big(pn).plus( pSR.sub(filled) ) ))
         else:
             self.fails.push(np.array(ins_codes))
             self.retry_chunks.push(chunk)
@@ -627,10 +627,80 @@ async def update_prices(selection=[], should_cache=None, {pf, pn, ptot}={}):
     else:
         last_devens = {}
     result = { succs: [], fails: [], error: undefined, pn }
-    pfin = +Big(pn).plus(ptot)
+    pfin = float(Big(pn).plus(ptot))
     last_possible_deven = await getLastPossibleDeven()
     if type(last_possible_deven) is object:
         result.error = last_possible_deven
         if pf:
-            pf(pn= pfin)
+            pf(pn=pfin)
         return result
+
+async def get_prices(symbols=[], _settings={}):
+    if not symbols.length:
+        return
+    settings = {np.array(default_settings), np.array(_settings)}
+    result = {data: [], error: None}
+    { onprogress: pf, progressTotal: ptot } = settings
+    if(type(pf) is not function):
+        pf = None
+    if(type(ptot) is not 'number'):
+        ptot = DEFAULT_SETTINGS.progress_total
+    pn = 0
+    err = await update_instruments()
+    if pf:
+        pf(pn= float(Big(pn).plus( ptot.mul(0.01) ) ))
+    if err:
+        { title, detail } = err
+    result.error = { code: 1, title, detail }
+    if pf:
+        pf(float(ptot))
+        return result
+    
+    instruments = parse_instruments(true, undefined, 'Symbol')
+    selection = symbols.map(lambda i: instruments[i])
+    not_founds = symbols.filter(v,i : !selection[i])
+    if pf:
+        pf(pn= float(Big(pn).plus( ptot.mul(0.01) ) ))
+    if not_founds.length:
+        result.error = { code: 2, title: 'Incorrect Symbol', symbols: notFounds };
+        if pf:
+            pf(float(ptot))
+            return result
+    { merge_similar_symbols } = settings
+    merges = map()
+    extras_index = -1
+    if merge_similar_symbols:
+        syms = object.keys(instruments)
+        ins = syms.map(lambda i : instruments[i])
+        roots = set(ins.filter(i => i.SymbolOriginal).map(i => i.SymbolOriginal))
+
+        merges = map(np.array(roots)).map(lambda i : i.symbol_original).map(lambda i : i.symbol_original)
+
+        for i, j in ins:
+            { SymbolOriginal: orig, Symbol: sym, InsCode: code } = i;
+            rename_or_root = orig or symbols
+            if not merges.has(rename_or_root):
+                return
+            regx = regexp(SYMBOL_RENAME_STRING+'(\\d+)')
+            merges.get(rename_or_root).push({ sym, code, order: orig ? +sym.match(regx)[1] : 1 })
+        for [, v] in np.array(merges):
+            v.sort((a, b) : a.order - b.order)
+        const extras = selection.map(({Symbol: sym}) =>
+            merges.has(sym) &&
+            merges.get(sym).slice(1).map(i => instruments[i.sym])
+            ).flat().filter(i=>i);
+
+        extras_index = selection.length
+        selection.push(np.array(extras))
+
+    update_result = await update_prices(selection, settings.cache, {pf, pn, ptot: ptot.mul(0.78)})
+    { succs, fails, error } = updateResult
+    ({ pn } = updateResult)
+
+    if error:
+        { title, detail } = error
+        result.error = { code: 1, title, detail }
+        if pf:
+            pf(float(ptot))
+        return result
+# 928
