@@ -1,4 +1,5 @@
-fix pylint
+-fix pylint
 https://stackoverflow.com/questions/1899436/pylint-unable-to-import-error-how-to-set-pythonpath
-asincio
+-asincio
 https://realpython.com/async-io-python/#a-full-program-asynchronous-requests
+-remove unnecessary requirements from reuiremewnts.txt
