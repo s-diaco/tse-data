@@ -1,9 +1,6 @@
 # %% Configuration
 API_URL = 'http://service.tsetmc.com/tsev2/data/TseClient2.aspx'
-TSE_CATCH_DIR = 'tse-catch'
-PATH_FILE_NAME = '.tse'
-PRICES_DIR = 'prices'
-INTRADAY_DIR = 'intraday'
+
 COLS  = ['date','dateshamsi','open','high','low','last','close','vol','count','value','yesterday','symbol','name','namelatin','companycode'];
 COLS_FA = ['تاریخ میلادی','تاریخ شمسی','اولین قیمت','بیشترین قیمت','کمترین قیمت','آخرین قیمت','قیمت پایانی','حجم معاملات','تعداد معاملات','ارزش معاملات','قیمت پایانی دیروز','نماد','نام','نام لاتین','کد شرکت',];
 

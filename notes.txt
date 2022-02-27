@@ -3,3 +3,5 @@ https://stackoverflow.com/questions/1899436/pylint-unable-to-import-error-how-to
 -asincio
 https://realpython.com/async-io-python/#a-full-program-asynchronous-requests
 -remove unnecessary requirements from reuiremewnts.txt
+
+- comment out intraday funcs in storage.py
