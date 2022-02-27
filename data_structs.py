@@ -23,8 +23,8 @@ class TSEClosingPrice:
 
 class TSEColumn:
     def __init__(self, row=[]):
-        len = len(row)
-        if(len > 2 or len < 1):
+        row_len = len(row)
+        if(row_len > 2 or row_len < 1):
             raise Exception('Invalid column data')
         self.name = settings.cols[row[0]]
         self.fname = settings.cols_fa[row[0]]

@@ -27,18 +27,16 @@ class Storage:
         self._data_dir.mkdir(parents=True, exist_ok=True)
         logger.info('data dir: %s', self._data_dir)
 
+        # todo: uncomment
+        """
         class ITD:
-            """
-            Intraday data
-            """
-
             def __init__(self, stg: Storage):
                 self.get_items = stg._itd_get_items
                 self.set_item = stg._itd_set_item
 
         self.itd = ITD(self)
+        """
 
-    # todo: add use read_csv if possible
     def get_item(self, key: str):
         key = key.replace('tse.', '')
         dir = self._data_dir
@@ -116,7 +114,8 @@ class Storage:
                     result[key] = f.read()
         return result
 
-    # get intraday item
+    # todo: complete this
+    """
     # todo: line 83 tse.js is not correctly ported to python
     def _itd_get_items(self, keys: list, full=False):
         result = {}
@@ -138,6 +137,7 @@ class Storage:
             file_path = dir / (key + '.' + k + '.gz')
             with open(file_path, 'w+', encoding='utf-8') as f:
                 f.write(obj[k])
+    """
 
     @property
     def cache_dir(self):
