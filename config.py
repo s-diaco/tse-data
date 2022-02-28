@@ -18,4 +18,7 @@ tse_instrument_info = ['InsCode', 'InstrumentID', 'LatinSymbol', 'LatinName',
 tse_instrument_itd_info = ['InsCode', 'LVal30', 'LVal18AFC', 'FlowTitle',
                            'CGrValCotTitle', 'Flow', 'CGrValCot', 'CIsin',
                            'InstrumentID', 'ZTitad', 'BaseVol']
-tse_share_info = ['Idn', 'InsCode', 'DEven', 'NumberOfShareNew', 'NumberOfShareOld']
+tse_share_info = ['Idn', 'InsCode', 'DEven',
+                  'NumberOfShareNew', 'NumberOfShareOld']
+tse_closing_prices_info = ['DEven', 'InsCode', 'PClosing', 'PDrCotVal', 'PriceFirst',
+                           'PriceMax', 'PriceMin', 'PriceYesterday', 'QTotCap', 'QTotTran5J', 'ZTotTran']

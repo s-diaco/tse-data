@@ -34,8 +34,7 @@ def parse_instruments(struct=False, arr=False, struct_key='InsCode', itd=False):
     else:
         names = cfg.tse_instrument_info
         convs = {5: clean_fa, 18: clean_fa}
-    # todo: do not use replace('\\n', '\n')
-    ins_df = pd.read_csv(StringIO(file_conts.replace('\\n', '\n')),
+    ins_df = pd.read_csv(StringIO(file_conts),
                          names=names, converters=convs)
     if ins_df.empty:
         ins_df = []
@@ -65,38 +64,38 @@ def parse_shares(struct=False, arr=True):
 
 
 def adjust(cond, closing_prices, all_shares, ins_codes):
-    shares = {i.DEven: i for i in list(
-        set(all_shares).intersection(ins_codes))}
+    filtered_shares = [d for d in all_shares if d.InsCode in ins_codes]
+    shares = {i.DEven: i for i in filtered_shares}
     cp = closing_prices
-    len = closing_prices.length
+    cp_len = len(closing_prices)
     adjusted_cl_prices = []
     res = cp
-    if(cond in [1, 2] and len > 1):
+    if(cond in [1, 2] and cp_len > 1):
         gaps = 0
         num = 1
-        adjusted_cl_prices.push(cp[len-1])
+        adjusted_cl_prices.append(cp[cp_len-1])
         if cond == 1:
-            for i in range(len-2, -1, -1):
+            for i in range(cp_len-2, -1, -1):
                 [curr, next] = [cp[i], cp[i+1]]
                 if curr.PClosing != next.PriceYesterday and curr.InsCode == next.InsCode:
                     gaps += 1
-        if((cond == 1 and gaps/len < 0.08) or cond == 2):
-            for i in range(len-2, -1, -1):
+        if((cond == 1 and gaps/cp_len < 0.08) or cond == 2):
+            for i in range(cp_len-2, -1, -1):
                 [curr, next] = [cp[i], cp[i+1]]
-                prices_dont_match = curr.PClosing != next.PriceYesterday and curr.InsCode == next.InsCode
+                prices_dont_match = ((curr.PClosing != next.PriceYesterday) and (curr.InsCode == next.InsCode))
                 target_share = shares.get(next.DEven)
                 if (cond == 1 and prices_dont_match):
-                    num = num*next.PriceYesterday/curr.PClosing
+                    num = num*float(next.PriceYesterday)/float(curr.PClosing)
                 elif (cond == 2 and prices_dont_match and target_share):
-                    old_shares = target_share.NumberOfShareOld
-                    new_shares = target_share.NumberOfShareNew
+                    old_shares = float(target_share.NumberOfShareOld)
+                    new_shares = float(target_share.NumberOfShareNew)
                     num = num * old_shares/new_shares
-                close = round(num * curr.PClosing, 2)
-                last = round(num * curr.PDrCotVal, 2)
-                low = round(num * curr.PriceMin, 2)
-                high = round(num * curr.PriceMax, 2)
-                yday = round(num * curr.PriceYesterday, 2)
-                first = round(num * curr.PriceFirst, 2)
+                close = round(num * float(curr.PClosing), 2)
+                last = round(num * float(curr.PDrCotVal), 2)
+                low = round(num * float(curr.PriceMin), 2)
+                high = round(num * float(curr.PriceMax), 2)
+                yday = round(num * float(curr.PriceYesterday), 2)
+                first = round(num * float(curr.PriceFirst), 2)
 
                 adjusted_closing_price = {
                     'InsCode': curr.InsCode,
@@ -111,6 +110,6 @@ def adjust(cond, closing_prices, all_shares, ins_codes):
                     'QTotTran5J': curr.QTotTran5J,
                     'QTotCap': curr.QTotCap
                 }
-                adjusted_cl_prices.push(adjusted_closing_price)
+                adjusted_cl_prices.append(adjusted_closing_price)
             res = adjusted_cl_prices.reverse()
     return res
