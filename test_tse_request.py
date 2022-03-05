@@ -1,5 +1,4 @@
 import pytest
-
 from tse_request import TSERequest
 
 

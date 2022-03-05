@@ -4,21 +4,30 @@ from tse_utils import clean_fa
 
 
 class TSEClosingPrice:
-    def __init__(self, row=''):
-        row = row.split(',')
-        if len(row) != 11:
-            raise Exception('Invalid ClosingPrice row')
-        self.ins_code = row[0]  # int64
-        self.date = row[1]  # int32
-        self.p_close = row[2]  # close
-        self.p_last = row[3]  # last
-        self.z_tot_trans = row[4]  # تعداد معاملات
-        self.q_tot_trans = row[5]  # حجم معاملات
-        self.q_tot_cap = row[6]  # ارزش معاملات
-        self.p_min = row[7]  # low
-        self.p_max = row[8]  # high
-        self.p_yday = row[9]  # yesterday
-        self.p_open = row[10]  # open
+    def __init__(self, row='', **kwargs):
+        if kwargs:
+            self.__dict__.update(kwargs)
+        else:
+            row = row.split(',')
+            if len(row) != 11:
+                raise Exception('Invalid ClosingPrice row')
+            self.ins_code = row[0]  # int64
+            self.DEven = row[1]  # int32
+            self.PClosing = row[2]  # close
+            self.PDrCotVal = row[3]  # last
+            self.ZTotTran = row[4]  # تعداد معاملات
+            self.QTotTran5J = row[5]  # حجم معاملات
+            self.QTotCap = row[6]  # ارزش معاملات
+            self.PriceMin = row[7]  # low
+            self.PriceMax = row[8]  # high
+            self.PriceYesterday = row[9]  # yesterday
+            self.PriceFirst = row[10]  # open
+
+    def __str__(self):
+        fields = ['    {}={!r}'.format(k, v)
+                  for k, v in self.__dict__.items() if not k.startswith('_')]
+
+        return '{}(\n{})'.format(self.__class__.__name__, ',\n'.join(fields))
 
 
 class TSEColumn:
@@ -77,12 +86,23 @@ class TSEInstrumentItd:
 
 
 class TSEShare:
-    def __init__(self, row=''):
-        row = row.split(',')
-        if len(row) != 5:
-            raise Exception('Invalid share data')
-        self.Idn = row[0]  # long
-        self.InsCode = row[1]  # long
-        self.DEven = row[2]  # int32
-        self.NumberOfShareNew = int(row[3])  # decimal
-        self.NumberOfShareOld = int(row[4])  # decimal
+    def __init__(self, row='', **kwargs):
+        if kwargs:
+            self.__dict__.update(kwargs)
+            self.NumberOfShareNew = int(self.NumberOfShareNew)  # decimal
+            self.NumberOfShareOld = int(self.NumberOfShareOld)  # decimal
+        else:
+            row = row.split(',')
+            if len(row) != 5:
+                raise Exception('Invalid share data')
+            self.Idn = row[0]  # long
+            self.InsCode = row[1]  # long
+            self.DEven = row[2]  # int32
+            self.NumberOfShareNew = int(row[3])  # decimal
+            self.NumberOfShareOld = int(row[4])  # decimal
+
+    def __str__(self):
+        fields = ['    {}={!r}'.format(k, v)
+                  for k, v in self.__dict__.items() if not k.startswith('_')]
+
+        return '{}(\n{})'.format(self.__class__.__name__, ',\n'.join(fields))

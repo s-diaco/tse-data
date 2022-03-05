@@ -22,3 +22,26 @@ tse_share_info = ['Idn', 'InsCode', 'DEven',
                   'NumberOfShareNew', 'NumberOfShareOld']
 tse_closing_prices_info = ['DEven', 'InsCode', 'PClosing', 'PDrCotVal', 'PriceFirst',
                            'PriceMax', 'PriceMin', 'PriceYesterday', 'QTotCap', 'QTotTran5J', 'ZTotTran']
+
+# data services
+UPDATE_INTERVAL = 1
+PRICES_UPDATE_CHUNK = 50
+PRICES_UPDATE_CHUNK_DELAY = 300
+PRICES_UPDATE_RETRY_COUNT = 3
+PRICES_UPDATE_RETRY_DELAY = 1000
+SYMBOL_RENAME_STRING = '-ق'
+MERGED_SYMBOL_CONTENT = 'merged'
+defaultSettings = {
+    'columns': [0, 2, 3, 4, 5, 6, 7, 8, 9],
+    'adjustPrices': 0,
+    'daysWithoutTrade': False,
+    'startDate': '20010321',
+    'mergeSimilarSymbols': True,
+    'cache': True,
+    'csv': False,
+    'csvHeaders': True,
+    'csvDelimiter': ',',
+    'onprogress': None,
+    'progressTotal': 100
+}
+TRADING_SEASSON_END = 16
