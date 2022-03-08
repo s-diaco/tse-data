@@ -44,3 +44,12 @@ async def test_get_last_possible_deven():
     res = await data_services.get_last_possible_deven()
     pattern = re.compile(r'^\d{8}$')
     assert pattern.search(res)
+
+
+@pytest.mark.asyncio
+async def test_update_instruments():
+    res = await data_services.update_instruments()
+    if res.empty:
+        pass
+    else:
+        pass

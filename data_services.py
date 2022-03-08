@@ -1,8 +1,10 @@
+from io import StringIO
 import re
 from datetime import datetime
 
 import jdatetime
 import numpy as np
+import pandas as pd
 
 import config as cfg
 import data_structs
@@ -114,15 +116,16 @@ def should_update(deven, last_possible_deven):
     last_update_weekday = datetime.strptime(
         last_possible_deven, "%Y%m%d").weekday()
     today_is_lpd = (today_deven == last_possible_deven)
-    result = (days_passed >= cfg.UPDATE_INTERVAL and
-              # wait until the end of trading session
-              ((True, today.hour > cfg.TRADING_SEASSON_END)[today_is_lpd]) and
-              # No update needed in weekend but ONLY if
-              # last time we updated was on last day (wednesday) of THIS week
-              not (in_weekend and last_update_weekday != 3
-                   and days_passed <= 3)
-              )
-    return result
+    shd_upd = (days_passed >= cfg.UPDATE_INTERVAL and
+               # wait until the end of trading session
+               ((True, today.hour > cfg.TRADING_SEASSON_END)[today_is_lpd]) and
+               # No update needed in weekend but ONLY if
+               # last time we updated was on last day (wednesday) of THIS week
+               not (in_weekend and
+                    last_update_weekday != 3
+                    and days_passed <= 3)
+               )
+    return shd_upd
 
 
 async def get_last_possible_deven():
@@ -150,31 +153,31 @@ async def get_last_possible_deven():
 async def update_instruments():
     strg = Storage()
     last_update = strg.get_item('tse.lastInstrumentUpdate')
-    last_deven = None
-    last_id = None
     current_instruments = None
     current_shares = None
-    if not last_update:
-        last_deven = 0
-        last_id = 0
-    else:
-        current_instruments = tse_utils.parse_instruments()
+    last_deven = None
+    last_id = None
+    if last_update:
+        current_instruments = tse_utils.parse_instrums()
         current_shares = tse_utils.parse_shares()
         ins_devens = current_instruments[8]
         share_ids = current_shares[0]
         last_deven = max(ins_devens)
         last_id = max(share_ids)
+    else:
+        last_deven = 0
+        last_id = 0
     try:
         last_possible_deven = await get_last_possible_deven()
     except Exception as e:
         logger.error(e)
         raise
-    if should_update(str(last_deven), last_possible_deven):
+    if not should_update(str(last_deven), last_possible_deven):
         return
     req = TSERequest()
     try:
-        res = await req.instrument_and_share(
-            datetime.date.today().strftime('%Y%m%d'), last_id)
+        today = datetime.now().strftime('%Y%m%d')
+        res = await req.instrument_and_share(today, last_id)
     except Exception as e:
         logger.error(f'Failed request: InstrumentAndShare, detail: {e}')
         raise
@@ -185,25 +188,33 @@ async def update_instruments():
         logger.error(f'Failed request: Instrument, detail: {e}')
         raise
 
-    # todo: add console instructions
-    # if (instruments === '*') console.warn('No update during trading hours.');
-    # if (instruments === '') console.warn('Already updated: ', 'Instruments');
-    # if (shares === '')      console.warn('Already updated: ', 'Shares');
+    rows = None
     if (instruments != '' and instruments != '*'):
-        rows = None
         if current_instruments:
-            orig = dict(object.keys(current_instruments).map(lambda i: (
-                i=current_instruments[i].split(','),
-                i.length == 19 and (i[5]=i[18], i.pop()),
-                [i[0], i.join(',')])))
-            for v in instruments.split(';'):
-                i = v.split(',', 1)[0]
-                orig[i] = v
-            rows = object.keys(orig).map(lambda i: orig[i].split(','))
+            # todo: line 604 tse.js:
+            """
+                let orig = Object.fromEntries(Object.keys(currentInstruments)
+                .map(i => (
+                i = currentInstruments[i].split(','),
+                i.length === 19 && (i[5] = i[18], i.pop()),
+                [i[0], i.join(',')]
+            )));
+            """
+
+            rows = np.array(list(current_instruments.items()))
         else:
-            rows = instruments.split(';').map(lambda i: i.split(','))
-        _rows = rows.map(lambda i: [])
-        dups = _rows.map(lambda i: i.length == 19 and (i[5]=i[18], i.pop()))
-        code_idx = rows.map(lambda i, j: [i[0], j])
-        for dup in dups:
-            dup_sorted = dup.sort()
+            names = cfg.tse_instrument_info
+            convs = {5: tse_utils.clean_fa, 18: tse_utils.clean_fa}
+            rows = pd.read_csv(StringIO(instruments),
+                               names=names,
+                               converters=convs,
+                               lineterminator=';')
+
+    elif (instruments == '*'):
+        logger.warn('No update during trading hours.')
+    elif (instruments == ''):
+        logger.warn('Already updated: ', 'Instruments')
+    elif (shares == ''):
+        logger.warn('Already updated: ', 'Shares')
+
+    return rows

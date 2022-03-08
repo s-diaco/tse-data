@@ -11,11 +11,12 @@ def clean_fa(text):
     text = text.replace('\uFEFF', '')  # zero-width no-break space
     text = text.replace('ك', 'ک')
     text = text.replace('ي', 'ی')
+    text = text.strip()
     return text
 
 
 # todo: add intraday support
-def parse_instruments(struct=False, arr=False, struct_key='InsCode', itd=False):
+def parse_instrums(struct=False, arr=False, struct_key='InsCode', itd=False):
     instruments = None
     strg = storage.Storage()
     file_conts = strg.get_item('tse.shares'+('', '.intraday')[itd])
@@ -61,4 +62,3 @@ def parse_shares(struct=False, arr=True):
     else:
         shares = shares_df.to_dict()
     return shares
-

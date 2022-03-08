@@ -146,3 +146,19 @@ class Storage:
     @cache_dir.setter
     def cache_dir(self, value: str):
         self._data_dir = Path(value)
+
+    async def read_tse_csv(self, f_name: str, data: list):
+        """
+        Reads a csv file from the TSE and returns a list of dicts
+        :param f_name: file name
+        :param data: list of dicts
+        """
+        pass
+
+    async def write_tse_csv(self, f_name: str, data: list):
+        """
+        Writes a csv file to the TSE
+        :param f_name: file name
+        :param data: list of dicts
+        """
+        pass
