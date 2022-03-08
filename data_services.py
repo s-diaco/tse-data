@@ -1,6 +1,9 @@
-from io import StringIO
+"""
+functions to manage tse data
+"""
 import re
 from datetime import datetime
+from io import StringIO
 
 import jdatetime
 import numpy as np
@@ -15,60 +18,79 @@ from tse_request import TSERequest
 
 
 def adjust(cond, closing_prices, all_shares, ins_codes):
+    """
+    Adjust closing prices according to the condition
+
+    :param cond: condition
+    :param closing_prices: closing prices
+    :param all_shares: all shares
+    :param ins_codes: instrument codes
+    :return: adjusted closing prices
+    """
     filtered_shares = [d for d in all_shares if d.InsCode in ins_codes]
     shares = {i.DEven: i for i in filtered_shares}
-    cp = closing_prices
+    cl_pr = closing_prices
     cp_len = len(closing_prices)
     adjusted_cl_prices = []
-    res = cp
+    res = cl_pr
     if(cond in [1, 2] and cp_len > 1):
         gaps = 0
         num = 1
-        adjusted_cl_prices.append(cp[cp_len-1])
+        adjusted_cl_prices.append(cl_pr[cp_len-1])
         if cond == 1:
             for i in range(cp_len-2, -1, -1):
-                [curr, next] = [cp[i], cp[i+1]]
-                if (curr.PClosing != next.PriceYesterday and
-                        curr.InsCode == next.InsCode):
+                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i+1]]
+                if (curr_prcs.PClosing != next_prcs.PriceYesterday and
+                        curr_prcs.InsCode == next_prcs.InsCode):
                     gaps += 1
         if((cond == 1 and gaps/cp_len < 0.08) or cond == 2):
             for i in range(cp_len-2, -1, -1):
-                [curr, next] = [cp[i], cp[i+1]]
-                prcs_dont_match = ((curr.PClosing != next.PriceYesterday) and
-                                   (curr.InsCode == next.InsCode))
-                target_share = shares.get(next.DEven)
+                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i+1]]
+                prcs_dont_match = ((curr_prcs.PClosing != next_prcs.PriceYesterday) and
+                                   (curr_prcs.InsCode == next_prcs.InsCode))
+                target_share = shares.get(next_prcs.DEven)
                 if (cond == 1 and prcs_dont_match):
-                    num = num*float(next.PriceYesterday)/float(curr.PClosing)
+                    num = num*float(next_prcs.PriceYesterday) / \
+                        float(curr_prcs.PClosing)
                 elif (cond == 2 and prcs_dont_match and target_share):
                     old_shares = float(target_share.NumberOfShareOld)
                     new_shares = float(target_share.NumberOfShareNew)
                     num = num * old_shares/new_shares
-                close = round(num * float(curr.PClosing), 2)
-                last = round(num * float(curr.PDrCotVal), 2)
-                low = round(num * float(curr.PriceMin), 2)
-                high = round(num * float(curr.PriceMax), 2)
-                yday = round(num * float(curr.PriceYesterday), 2)
-                first = round(num * float(curr.PriceFirst), 2)
+                close = round(num * float(curr_prcs.PClosing), 2)
+                last = round(num * float(curr_prcs.PDrCotVal), 2)
+                low = round(num * float(curr_prcs.PriceMin), 2)
+                high = round(num * float(curr_prcs.PriceMax), 2)
+                yday = round(num * float(curr_prcs.PriceYesterday), 2)
+                first = round(num * float(curr_prcs.PriceFirst), 2)
 
                 adjusted_closing_price = data_structs.TSEClosingPrice(**{
-                    'InsCode': curr.InsCode,
-                    'DEven': curr.DEven,
+                    'InsCode': curr_prcs.InsCode,
+                    'DEven': curr_prcs.DEven,
                     'PClosing': close,
                     'PDrCotVal': last,
                     'PriceMin': low,
                     'PriceMax': high,
                     'PriceYesterday': yday,
                     'PriceFirst': first,
-                    'ZTotTran': curr.ZTotTran,
-                    'QTotTran5J': curr.QTotTran5J,
-                    'QTotCap': curr.QTotCap
+                    'ZTotTran': curr_prcs.ZTotTran,
+                    'QTotTran5J': curr_prcs.QTotTran5J,
+                    'QTotCap': curr_prcs.QTotCap
                 })
                 adjusted_cl_prices.append(adjusted_closing_price)
             res = np.array(adjusted_cl_prices)[::-1]
     return res
 
 
-def get_cell(column_name, instrument, closing_price):
+def get_cell(column_name, instrument, closing_price) -> str:
+    """
+    Get cell value according to the column name
+
+    :param column_name: column name
+    :param instrument: instrument
+    :param closing_price: closing price
+    :return: cell value (str)
+    """
+
     cell_str = ''
     if column_name == 'date':
         cell_str = closing_price.DEven
@@ -105,7 +127,15 @@ def get_cell(column_name, instrument, closing_price):
     return cell_str
 
 
-def should_update(deven, last_possible_deven):
+def should_update(deven, last_possible_deven) -> bool:
+    """
+    Check if the database should be updated
+
+    :param deven: cuurrent date of the database update
+    :param last_possible_deven: last possible date of the database
+    :return: True if the database should be updated, False otherwise
+    """
+
     if ((not deven) or deven == '0'):
         return True  # first time. never update
     today = datetime.now()
@@ -128,7 +158,13 @@ def should_update(deven, last_possible_deven):
     return shd_upd
 
 
-async def get_last_possible_deven():
+async def get_last_possible_deven() -> str:
+    """
+    Get last possible update date
+
+    :return: last possible update date (str)
+    """
+
     strg = Storage()
     last_possible_deven = strg.get_item('tse.lastPossibleDeven')
     if (not last_possible_deven) or should_update(
@@ -150,18 +186,22 @@ async def get_last_possible_deven():
 # todo: incomplte
 
 
-async def update_instruments():
+async def update_instruments() -> pd.DataFrame:
+    """
+    Update instruments from TSE server if needed and save them to cache dir
+    """
+
     strg = Storage()
     last_update = strg.get_item('tse.lastInstrumentUpdate')
-    current_instruments = None
-    current_shares = None
+    cached_instruments = []
+    cached_shares = []
     last_deven = None
     last_id = None
     if last_update:
-        current_instruments = tse_utils.parse_instrums()
-        current_shares = tse_utils.parse_shares()
-        ins_devens = current_instruments[8]
-        share_ids = current_shares[0]
+        cached_instruments = await strg.read_tse_csv('tse.instruments')
+        cached_shares = await strg.read_tse_csv('tse.shares')
+        ins_devens = cached_instruments[8]
+        share_ids = cached_shares[0]
         last_deven = max(ins_devens)
         last_id = max(share_ids)
     else:
@@ -179,42 +219,59 @@ async def update_instruments():
         today = datetime.now().strftime('%Y%m%d')
         res = await req.instrument_and_share(today, last_id)
     except Exception as e:
-        logger.error(f'Failed request: InstrumentAndShare, detail: {e}')
+        logger.error('Failed request: InstrumentAndShare, detail: %s', e)
         raise
     shares = res.split('@')[1]
     try:
         instruments = await req.instrument(last_deven)
     except Exception as e:
-        logger.error(f'Failed request: Instrument, detail: {e}')
+        logger.error('Failed request: Instrument, detail: %s', e)
         raise
 
-    rows = None
+    instrums_df = []
+    shares_df = []
     if (instruments != '' and instruments != '*'):
-        if current_instruments:
-            # todo: line 604 tse.js:
-            """
-                let orig = Object.fromEntries(Object.keys(currentInstruments)
-                .map(i => (
-                i = currentInstruments[i].split(','),
-                i.length === 19 && (i[5] = i[18], i.pop()),
-                [i[0], i.join(',')]
-            )));
-            """
-
-            rows = np.array(list(current_instruments.items()))
+        if len(cached_instruments) > 0:
+            # todo: line 604 tse.js
+            names = cfg.tse_instrument_info
+            convs = {5: tse_utils.clean_fa}
+            instrums_df = pd.read_csv(StringIO(instruments),
+                                      names=names,
+                                      converters=convs,
+                                      lineterminator=';')
         else:
             names = cfg.tse_instrument_info
-            convs = {5: tse_utils.clean_fa, 18: tse_utils.clean_fa}
-            rows = pd.read_csv(StringIO(instruments),
-                               names=names,
-                               converters=convs,
-                               lineterminator=';')
+            convs = {5: tse_utils.clean_fa}
+            instrums_df = pd.read_csv(StringIO(instruments),
+                                      names=names,
+                                      converters=convs,
+                                      lineterminator=';')
+        await strg.write_tse_csv('tse.instruments', instrums_df)
+    elif instruments == '*':
+        logger.warning('No update during trading hours.')
+    elif instruments == '':
+        logger.warning('Already updated: Instruments')
+    if shares == '':
+        logger.warning('Already updated: Shares')
+    else:
+        if len(cached_shares) > 0:
+            # todo: line 604 tse.js
+            names = cfg.tse_share_info
+            shares_df = pd.read_csv(StringIO(shares),
+                                    names=names,
+                                    lineterminator=';')
+        else:
+            names = cfg.tse_share_info
+            shares_df = pd.read_csv(StringIO(shares),
+                                    names=names,
+                                    lineterminator=';')
+        await strg.write_tse_csv('tse.shares', shares_df)
+    # todo: handle duplicates
+    # symbs = instrums_df["Symbol"]
+    # dups = instrums_df[symbs.isin(
+    # symbs[symbs.duplicated()])].sort_values(by='Symbol')
+    # todo: await twice?
 
-    elif (instruments == '*'):
-        logger.warn('No update during trading hours.')
-    elif (instruments == ''):
-        logger.warn('Already updated: ', 'Instruments')
-    elif (shares == ''):
-        logger.warn('Already updated: ', 'Shares')
-
-    return rows
+    if ((instrums_df is not None) or (shares_df is not None)):
+        if((not instrums_df.empty) or (not shares_df.empty)):
+            strg.set_item('tse.lastInstrumentUpdate', today)

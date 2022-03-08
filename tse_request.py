@@ -1,5 +1,5 @@
 import aiohttp
-import request_config as settings
+import config as settings
 
 
 class TSERequest:

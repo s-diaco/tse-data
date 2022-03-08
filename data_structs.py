@@ -1,10 +1,19 @@
 
-import request_config as settings
+"""
+data structures
+"""
+import config as settings
 from tse_utils import clean_fa
 
 
 class TSEClosingPrice:
+    """
+    daily price class
+    """
     def __init__(self, row='', **kwargs):
+        """
+        constructor for TSEClosingPrice class
+        """
         if kwargs:
             self.__dict__.update(kwargs)
         else:
@@ -24,6 +33,9 @@ class TSEClosingPrice:
             self.PriceFirst = row[10]  # open
 
     def __str__(self):
+        """
+        string representation of TSEClosingPrice class
+        """
         fields = ['    {}={!r}'.format(k, v)
                   for k, v in self.__dict__.items() if not k.startswith('_')]
 
@@ -31,7 +43,13 @@ class TSEClosingPrice:
 
 
 class TSEColumn:
-    def __init__(self, row=[]):
+    """
+    column class
+    """
+    def __init__(self, row):
+        """
+        constructor for TSEColumn class
+        """
         row_len = len(row)
         if(row_len > 2 or row_len < 1):
             raise Exception('Invalid column data')
@@ -41,7 +59,13 @@ class TSEColumn:
 
 
 class TSEInstrument:
+    """
+    tse instrument class
+    """
     def __init__(self, row=''):
+        """
+        constructor for TSEInstrument class
+        """
         row = row.split(',')
         if not (len(row) in [18, 19]):
             raise Exception('Invalid instrument data')
@@ -68,7 +92,13 @@ class TSEInstrument:
 
 
 class TSEInstrumentItd:
+    """
+    intraday instrument class
+    """
     def __init__(self, row='') -> None:
+        """
+        constructor for TSEInstrumentItd class
+        """
         row = row.split(',')
         if len(row) != 11:
             raise Exception('Invalid InstrumentItd data')
@@ -86,7 +116,13 @@ class TSEInstrumentItd:
 
 
 class TSEShare:
+    """
+    TSE share class
+    """
     def __init__(self, row='', **kwargs):
+        """
+        constructor for TSEShare class
+        """
         if kwargs:
             self.__dict__.update(kwargs)
             self.NumberOfShareNew = int(self.NumberOfShareNew)  # decimal
@@ -102,6 +138,9 @@ class TSEShare:
             self.NumberOfShareOld = int(row[4])  # decimal
 
     def __str__(self):
+        """
+        string representation of TSEShare class
+        """
         fields = ['    {}={!r}'.format(k, v)
                   for k, v in self.__dict__.items() if not k.startswith('_')]
 

@@ -1,5 +1,10 @@
+"""
+Read and write tse files
+"""
 import gzip
 from pathlib import Path
+
+import pandas as pd
 from config import storage as settings
 from setup_logger import logger
 
@@ -18,7 +23,7 @@ class Storage:
         if path_file.is_file():
             with open(path_file, 'r', encoding='utf-8') as f:
                 data_path = Path(f.readline())
-                if data_path.is_dir:
+                if data_path.is_dir():
                     self._data_dir = data_path
         else:
             with open(path_file, 'w+', encoding='utf-8') as f:
@@ -28,6 +33,7 @@ class Storage:
         logger.info('data dir: %s', self._data_dir)
 
         # todo: uncomment
+        # pylint: disable=W0105
         """
         class ITD:
             def __init__(self, stg: Storage):
@@ -36,91 +42,125 @@ class Storage:
 
         self.itd = ITD(self)
         """
+        # pylint: enable=W0105
 
-    def get_item(self, key: str):
+    def get_item(self, key: str) -> str:
+        """
+        Reads a file from the cache dir and returns a string
+
+        :param key: file name
+        :return: string
+        """
         key = key.replace('tse.', '')
-        dir = self._data_dir
+        tse_dir = self._data_dir
         if key.startswith('prices.'):
-            dir = self._data_dir / settings['PRICES_DIR']
-        file_path = dir / (key + '.csv')
+            tse_dir = self._data_dir / settings['PRICES_DIR']
+        file_path = tse_dir / (key + '.csv')
         if not file_path.is_file():
             with open(file_path, 'w+', encoding='utf-8') as f:
                 return f.write('')
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
 
-    def set_item(self, key: str, value: str):
+    def set_item(self, key: str, value: str) -> None:
+        """
+        Writes a file to the cache dir
+
+        :param key: file name
+        :param value: text to write
+        """
+
         key = key.replace('tse.', '')
-        dir = self._data_dir
+        tse_dir = self._data_dir
         if key.startswith('prices.'):
-            dir = self._data_dir / settings['PRICES_DIR']
-        if not dir.is_dir():
-            dir.mkdir(parents=True, exist_ok=True)
-        file_path = dir / (key + '.csv')
+            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if not tse_dir.is_dir():
+            tse_dir.mkdir(parents=True, exist_ok=True)
+        file_path = tse_dir / (key + '.csv')
         with open(file_path, 'w+', encoding='utf-8') as f:
             f.write(value)
 
-    async def get_item_async(self, key: str, zip=False):
+    async def get_item_async(self, key: str, tse_zip=False):
+        """
+        Reads a file from the cache dir and returns a string
+
+        :param key: file name
+        :return: string
+        """
         key = key.replace('tse.', '')
-        dir = self._data_dir
+        tse_dir = self._data_dir
         if key.startswith('prices.'):
-            dir = self._data_dir / settings.PRICES_DIR
-        if not dir.is_dir():
-            dir.mkdir(parents=True, exist_ok=True)
-        if zip:
-            file_path = dir / (key + '.gz')
+            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if not tse_dir.is_dir():
+            tse_dir.mkdir(parents=True, exist_ok=True)
+        if tse_zip:
+            file_path = tse_dir / (key + '.gz')
             if not file_path.is_file():
-                with gzip.open(file_path, mode="wt") as zf:
-                    zf.write('')
-            with gzip.open(file_path, mode='rt') as zf:
-                return zf.read()
+                with gzip.open(file_path, mode="wt") as zip_f:
+                    zip_f.write('')
+            with gzip.open(file_path, mode='rt') as zip_f:
+                return zip_f.read()
         else:
-            file_path = dir / (key + '.csv')
+            file_path = tse_dir / (key + '.csv')
             if not file_path.is_file():
                 with open(file_path, 'w+', encoding='utf-8') as f:
                     f.write('')
             with open(file_path, 'r', encoding='utf-8') as f:
                 return f.read()
 
-    async def set_item_async(self, key: str, value: str, zip=False):
+    async def set_item_async(self, key: str, value: str, tse_zip=False):
+        """
+        Writes a file to the cache dir
+
+        :param key: file name
+        :param value: text to write
+        """
+
         key = key.replace('tse.', '')
-        dir = self._data_dir
+        tse_dir = self._data_dir
         if key.startswith('prices.'):
-            dir = self._data_dir / settings.PRICES_DIR
-        if not dir.is_dir():
-            dir.mkdir(parents=True, exist_ok=True)
-        if zip:
-            file_path = dir / (key + '.gz')
-            with gzip.open(file_path, mode="wt") as zf:
-                zf.write(value)
+            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if not tse_dir.is_dir():
+            tse_dir.mkdir(parents=True, exist_ok=True)
+        if tse_zip:
+            file_path = tse_dir / (key + '.gz')
+            with gzip.open(file_path, mode="wt") as zip_f:
+                zip_f.write(value)
         else:
-            file_path = dir / (key + '.csv')
+            file_path = tse_dir / (key + '.csv')
             with open(file_path, 'w+', encoding='utf-8') as f:
                 f.write(value)
 
-    async def get_items(self, sel_ins=[]) -> dict:
+    async def get_items(self, sel_ins=None) -> dict:
+        """
+        Reads selected instruments files from the cache dir and returns a dict
+
+        :return: dict
+        """
+
         result = {}
-        dir = self._data_dir / settings['PRICES_DIR']
-        if not dir.is_dir():
-            dir.mkdir(parents=True, exist_ok=True)
-        p = dir.glob('**/*')
-        for x in p:
+        tse_dir = self._data_dir / settings['PRICES_DIR']
+        if not tse_dir.is_dir():
+            tse_dir.mkdir(parents=True, exist_ok=True)
+        file_list = tse_dir.glob('**/*')
+        for x in file_list:
             if x.is_file():
                 key = x.name.replace('.csv', '')
                 if key not in sel_ins:
                     continue
-                file_path = dir/x.name
+                file_path = tse_dir/x.name
                 with open(file_path, 'r', encoding='utf-8') as f:
                     result[key] = f.read()
         return result
 
     # todo: complete this
+    # pylint: disable=W0105
     """
     # todo: line 83 tse.js is not correctly ported to python
     def _itd_get_items(self, keys: list, full=False):
         result = {}
-        dir = self._data_dir / settings['INTRADAY_DIR']
-        p = dir.glob('**/*')
+        tse_dir = self._data_dir / settings['INTRADAY_DIR']
+        p = tse_dir.glob('**/*')
         for x in p:
             if x.is_file():
                 key = x.name.replace('.gz', '').replace('.csv', '')
@@ -132,33 +172,56 @@ class Storage:
     # todo: line 107 tse.js is not correctly ported to python
     def _itd_set_item(self, key: str, obj: dict):
         key = key.replace('tse.', '')
-        dir = self._data_dir / settings.INTRADAY_DIR
+        tse_dir = self._data_dir / settings.INTRADAY_DIR
         for k in obj.keys:
-            file_path = dir / (key + '.' + k + '.gz')
+            file_path = tse_dir / (key + '.' + k + '.gz')
             with open(file_path, 'w+', encoding='utf-8') as f:
                 f.write(obj[k])
     """
+    # pylint: enable=W0105
 
     @property
     def cache_dir(self):
+        """
+        :return: cache dir
+        """
         return self._data_dir
 
     @cache_dir.setter
     def cache_dir(self, value: str):
         self._data_dir = Path(value)
 
-    async def read_tse_csv(self, f_name: str, data: list):
+    async def read_tse_csv(self, f_name: str) -> pd.DataFrame:
         """
         Reads a csv file from the TSE and returns a list of dicts
-        :param f_name: file name
-        :param data: list of dicts
+        :param f_name: str, file name
+        :param data: list, list of dicts
         """
-        pass
+        f_name = f_name.replace('tse.', '')
+        tse_dir = self._data_dir
+        if f_name.startswith('prices.'):
+            tse_dir = self._data_dir / settings['PRICES_DIR']
+        file_path = tse_dir / (f_name + '.csv')
+        if not file_path.is_file():
+            with open(file_path, 'w+', encoding='utf-8') as f:
+                return f.write('')
+        pd.read_csv(file_path, encoding='utf-8')
 
-    async def write_tse_csv(self, f_name: str, data: list):
+
+    async def write_tse_csv(self, f_name: str, data: pd.DataFrame):
         """
         Writes a csv file to the TSE
-        :param f_name: file name
-        :param data: list of dicts
+
+        :param f_name: str, file name
+        :param data: list, list of dicts
         """
-        pass
+        f_name = f_name.replace('tse.', '')
+        tse_dir = self._data_dir
+        if f_name.startswith('prices.'):
+            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if not tse_dir.is_dir():
+            tse_dir.mkdir(parents=True, exist_ok=True)
+        if len(data) == 0:
+            return
+        file_path = tse_dir / (f_name + '.csv')
+        data.to_csv(file_path, index=False, encoding='utf-8')
