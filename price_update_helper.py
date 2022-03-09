@@ -2,10 +2,11 @@
 parse and update prices
 """
 import asyncio
+from threading import Timer
 
 import numpy as np
 
-from config import PRICES_UPDATE_RETRY_COUNT
+import config as cfg
 
 
 class PricesUpdateHelper:
@@ -22,26 +23,45 @@ class PricesUpdateHelper:
         self.fails = []
         self.retries = 0
         self.retry_chunks = []
-        self.timeouts = map()
+        self.timeouts = {}
         self.qeud_retry = None
         self.resolve = None
         self.writing = []
         self.pf, self.pn, self.ptot, self.pSR, self.pR = None
         self.should_cache = None
 
-    # todo: complete
+    # TODO: complete
     async def poll(self) -> None:
-        if self.timeouts.size > 0 or self.qeud_retry:
+        if (len(self.timeouts) > 0 or self.qeud_retry):
+            # TODO: get time in ms from cfg file
             await asyncio.sleep(0.5)
             return self.poll()
-        if(self.succs.length == self.total or
-           self.retries >= PRICES_UPDATE_RETRY_COUNT):
-            _succs = np.array(self.succs)
-            _fails = np.array(self.fails)
+        if(len(self.succs) == self.total or
+           self.retries >= cfg.PRICES_UPDATE_RETRY_COUNT):
+            _succs = self.succs
+            _fails = self.fails
             self.succs = []
             self.fails = []
-            await asyncio.gather(*self.writing)
+            # for idx, url in enumerate(urls):
+            #     self.writing.append(asyncio.Task(fetch_page(url, idx)))
+            resps = await asyncio.gather(*self.writing, return_exceptions=True)
+            for response in resps:
+                if isinstance(response, Exception):
+                    self.fails.append(response)
+            else:
+                self.succs.append(response)
             self.writing = []
+            return
+
+        if len(self.retry_chunks) > 0:
+            ins_codes = self.retry_chunks.map(lambda x: x[0])
+            self.fails = list(
+                filter((lambda x: ins_codes.index(x) == -1), self.fails))
+            self.retries += 1
+            self.qeud_retry = Timer(
+                cfg.PRICES_UPDATE_RETRY_DELAY, self.batch, self.retry_chunks)
+            self.retry_chunks = []
+            Timer(self.poll, cfg.PRICES_UPDATE_RETRY_DELAY)
 
     def on_result(self, response, chunk, id):
         ins_codes = chunk.map(lambda ins_code: ins_code)  # todo: complete

@@ -194,6 +194,7 @@ class Storage:
     async def read_tse_csv(self, f_name: str) -> pd.DataFrame:
         """
         Reads a csv file from the TSE and returns a list of dicts
+
         :param f_name: str, file name
         :param data: list, list of dicts
         """
@@ -202,13 +203,15 @@ class Storage:
         if f_name.startswith('prices.'):
             tse_dir = self._data_dir / settings['PRICES_DIR']
         file_path = tse_dir / (f_name + '.csv')
-        if not file_path.is_file():
+        if file_path.is_file():
+            res = pd.read_csv(file_path, encoding='utf-8')
+            return res
+        else:
             with open(file_path, 'w+', encoding='utf-8') as f:
-                return f.write('')
-        pd.read_csv(file_path, encoding='utf-8')
+                f.write('')
+            return pd.DataFrame()
 
-
-    async def write_tse_csv(self, f_name: str, data: pd.DataFrame):
+    async def write_tse_csv(self, f_name: str, data: pd.DataFrame) -> None:
         """
         Writes a csv file to the TSE
 

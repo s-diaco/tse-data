@@ -39,7 +39,7 @@ def test_adjust():
 @pytest.mark.parametrize("last_update, last_possible_update, expected", [
                         ("20220103", "20220302", True),
                         ("20220223", "20220223", False),
-                        ("20220302", "20220304", False)],
+                        ("20220302", "20220304", True)],
     indirect=False
 )
 def test_should_update(last_update, last_possible_update, expected):

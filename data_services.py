@@ -131,9 +131,10 @@ def should_update(deven, last_possible_deven) -> bool:
     """
     Check if the database should be updated
 
-    :param deven: cuurrent date of the database update
-    :param last_possible_deven: last possible date of the database
-    :return: True if the database should be updated, False otherwise
+    :param deven: str, cuurrent date of the database update
+    :param last_possible_deven: str, last possible date of the database
+
+    :return: bool, True if the database should be updated, False otherwise
     """
 
     if ((not deven) or deven == '0'):
@@ -162,7 +163,7 @@ async def get_last_possible_deven() -> str:
     """
     Get last possible update date
 
-    :return: last possible update date (str)
+    :return: str, last possible update date (str)
     """
 
     strg = Storage()
@@ -186,33 +187,34 @@ async def get_last_possible_deven() -> str:
 # todo: incomplte
 
 
-async def update_instruments() -> pd.DataFrame:
+async def update_instruments() -> None:
     """
-    Update instruments from TSE server if needed and save them to cache dir
+    Get data from tsetmc.com API (if needed) and save it to the cache
     """
 
     strg = Storage()
     last_update = strg.get_item('tse.lastInstrumentUpdate')
     cached_instruments = []
     cached_shares = []
-    last_deven = None
-    last_id = None
+    last_deven = ''
+    last_id = ''
+    inst_col_names = cfg.tse_instrument_info
+    share_col_names = cfg.tse_share_info
     if last_update:
         cached_instruments = await strg.read_tse_csv('tse.instruments')
         cached_shares = await strg.read_tse_csv('tse.shares')
-        ins_devens = cached_instruments[8]
-        share_ids = cached_shares[0]
-        last_deven = max(ins_devens)
-        last_id = max(share_ids)
+        last_deven = str(cached_instruments[inst_col_names[8]].max())
+        if len(cached_shares) > 0:
+            last_id = str(cached_shares[share_col_names[0]].max())
     else:
-        last_deven = 0
-        last_id = 0
+        last_deven = '0'
+        last_id = '0'
     try:
         last_possible_deven = await get_last_possible_deven()
     except Exception as e:
         logger.error(e)
         raise
-    if not should_update(str(last_deven), last_possible_deven):
+    if not should_update(last_deven, last_possible_deven):
         return
     req = TSERequest()
     try:
@@ -230,40 +232,36 @@ async def update_instruments() -> pd.DataFrame:
 
     instrums_df = []
     shares_df = []
-    if (instruments != '' and instruments != '*'):
-        if len(cached_instruments) > 0:
-            # todo: line 604 tse.js
-            names = cfg.tse_instrument_info
-            convs = {5: tse_utils.clean_fa}
-            instrums_df = pd.read_csv(StringIO(instruments),
-                                      names=names,
-                                      converters=convs,
-                                      lineterminator=';')
-        else:
-            names = cfg.tse_instrument_info
-            convs = {5: tse_utils.clean_fa}
-            instrums_df = pd.read_csv(StringIO(instruments),
-                                      names=names,
-                                      converters=convs,
-                                      lineterminator=';')
-        await strg.write_tse_csv('tse.instruments', instrums_df)
-    elif instruments == '*':
+    if instruments == '*':
         logger.warning('No update during trading hours.')
     elif instruments == '':
         logger.warning('Already updated: Instruments')
+    else:
+        if len(cached_instruments) > 0:
+            # todo: line 604 tse.js
+            convs = {5: tse_utils.clean_fa}
+            instrums_df = pd.read_csv(StringIO(instruments),
+                                      names=inst_col_names,
+                                      converters=convs,
+                                      lineterminator=';')
+        else:
+            convs = {5: tse_utils.clean_fa}
+            instrums_df = pd.read_csv(StringIO(instruments),
+                                      names=inst_col_names,
+                                      converters=convs,
+                                      lineterminator=';')
+        await strg.write_tse_csv('tse.instruments', instrums_df)
     if shares == '':
         logger.warning('Already updated: Shares')
     else:
         if len(cached_shares) > 0:
             # todo: line 604 tse.js
-            names = cfg.tse_share_info
             shares_df = pd.read_csv(StringIO(shares),
-                                    names=names,
+                                    names=share_col_names,
                                     lineterminator=';')
         else:
-            names = cfg.tse_share_info
             shares_df = pd.read_csv(StringIO(shares),
-                                    names=names,
+                                    names=share_col_names,
                                     lineterminator=';')
         await strg.write_tse_csv('tse.shares', shares_df)
     # todo: handle duplicates
@@ -272,6 +270,5 @@ async def update_instruments() -> pd.DataFrame:
     # symbs[symbs.duplicated()])].sort_values(by='Symbol')
     # todo: await twice?
 
-    if ((instrums_df is not None) or (shares_df is not None)):
-        if((not instrums_df.empty) or (not shares_df.empty)):
-            strg.set_item('tse.lastInstrumentUpdate', today)
+    if len(instrums_df)>0:
+        strg.set_item('tse.lastInstrumentUpdate', today)
