@@ -2,9 +2,12 @@
 parse and update prices
 """
 import asyncio
+from io import StringIO
+import re
 from threading import Timer
 
 import numpy as np
+import pandas as pd
 
 import config as cfg
 
@@ -52,21 +55,37 @@ class PricesUpdateHelper:
                 self.succs.append(response)
             self.writing = []
             return
+            # TODO: what is pn?
+            # resolve({succs: _succs, fails: _fails, pn});
 
         if len(self.retry_chunks) > 0:
             ins_codes = self.retry_chunks.map(lambda x: x[0])
             self.fails = list(
                 filter((lambda x: ins_codes.index(x) == -1), self.fails))
             self.retries += 1
-            self.qeud_retry = Timer(
-                cfg.PRICES_UPDATE_RETRY_DELAY, self.batch, self.retry_chunks)
+            # TODO: is it working?
+            # Timer(self.poll, cfg.PRICES_UPDATE_RETRY_DELAY)
+            loop = asyncio.get_event_loop()
+            loop.call_later(cfg.PRICES_UPDATE_RETRY_TIMEOUT,
+                            self.batch, self.retry_chunks)
             self.retry_chunks = []
-            Timer(self.poll, cfg.PRICES_UPDATE_RETRY_DELAY)
+            loop.call_later(cfg.PRICES_UPDATE_RETRY_DELAY, self.poll)
 
     def on_result(self, response, chunk, id):
-        ins_codes = chunk.map(lambda ins_code: ins_code)  # todo: complete
+        ins_codes = list(map((lambda [x]: x), chunk))
         pattern = re.compile("^[\d.,;@-]+$")
-        if (type(response) is str and (pattern.match(response) or response == '')):
+        if (isinstance(response, str) and
+                (pattern.search(response) or response == '')):
+            price_data_resp = response.split('@')
+            price_data_df = None
+            for csv_price_data in price_data_resp:
+                res = pd.read_csv(StringIO(csv_price_data),
+                                  encoding='utf-8',
+                                  lineterminator=';')
+                if price_data_df:
+                    price_data_df = price_data_df.append(res)
+                else:
+                    price_data_df = res
             res = response.replace(';', '\n').split(
                 '@').map(lambda v, i: [chunk[i][0], v])
             for ins_code, new_data in res:
