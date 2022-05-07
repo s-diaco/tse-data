@@ -2,13 +2,12 @@
 parse and update prices
 """
 import asyncio
-from io import StringIO
 import re
-import numpy as np
-import pandas as pd
+from threading import Timer
 
 import config as cfg
 from storage import Storage
+from tse_request import TseRequest
 
 
 class PricesUpdateHelper:
@@ -105,20 +104,38 @@ class PricesUpdateHelper:
             self.retry_chunks.append(chunk)
         self.timeouts.pop(id)
 
+    def request(self, chunk=None, id=None) -> None:
         """
-            def request(self, chunk=[], id=None) -> None:
-                ins_codes = chunk.map(lambda i: i.join(',')).join(';')
-                try:
-                    r = self.rq.closing_prices(ins_codes)
-                except Exception as e:
-                    self.on_result(None, chunk, id)
-                self.on_result(r, chunk, id)
-                if pf:
-                    pf(pn=pn+pR)
+        request
         """
+        ins_codes = chunk.map(lambda i: i.join(',')).join(';')
+        try:
+            req = TseRequest()
+            res = req.closing_prices(ins_codes)
+        except Exception as _:
+            self.on_result(None, chunk, id)
+        self.on_result(res, chunk, id)
+        # TODO: what is pn?
+        if self.pf:
+            self.pf(pn=pn+pR)
 
-    # todo: complete
-    def batch(self, chunks=[]):
+    # todo: probably not working
+    def batch(self, chunks=None):
+        """
+        batch request
+        """
         if self.qeud_retry:
             self.qeud_retry = None
         ids = chunks.map(lambda i, j: 'a'+i)
+        delay = 0
+        for n, _ in enumerate(ids):
+            chunk_id = ids[n]
+            chunk_t = Timer(delay, self.request, args=(chunks[n], chunk_id))
+            delay += cfg.PRICES_UPDATE_RETRY_DELAY
+            self.timeouts[chunk_id] = chunk_t
+
+    def start(self, update_needed, should_cache, po):
+        """
+        start
+        """
+        self.should_cache = should_cache
