@@ -2,6 +2,7 @@
 parse and update prices
 """
 import asyncio
+import math
 import re
 from threading import Timer
 
@@ -128,9 +129,9 @@ class PricesUpdateHelper:
             self.qeud_retry = None
         ids = chunks.map(lambda i, j: 'a'+i)
         delay = 0
-        for n, _ in enumerate(ids):
-            chunk_id = ids[n]
-            chunk_t = Timer(delay, self.request, args=(chunks[n], chunk_id))
+        for n_batches, _ in enumerate(ids):
+            chunk_id = ids[n_batches]
+            chunk_t = Timer(delay, self.request, args=(chunks[n_batches], chunk_id))
             delay += cfg.PRICES_UPDATE_RETRY_DELAY
             self.timeouts[chunk_id] = chunk_t
 
@@ -139,3 +140,13 @@ class PricesUpdateHelper:
         start
         """
         self.should_cache = should_cache
+        self.pf, self.pn, self.ptot = po
+        self.total = len(update_needed)
+        self.pSR = self.ptot/math.ceil(self.total/cfg.PRICES_UPDATE_CHUNK)  # each successful request
+        self.pR = self.pSR/cfg.PRICES_UPDATE_RETRY_COUNT + 2  # each request
+        self.succs = []
+        self.fails = []
+        self.retries = 0
+        self.retry_chunks = []
+        self.timeouts = {}
+        self.qeud_retry = None
