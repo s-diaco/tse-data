@@ -150,3 +150,10 @@ class PricesUpdateHelper:
         self.retry_chunks = []
         self.timeouts = {}
         self.qeud_retry = None
+
+        # divide prices to evenly sized arrays
+        chunks = [update_needed[i:i+cfg.PRICES_UPDATE_CHUNK] for i in range(0,len(update_needed),cfg.PRICES_UPDATE_CHUNK)]
+        self.batch(chunks)
+        self.poll()
+        # TODO: retrun promise
+        return self.succs, self.fails

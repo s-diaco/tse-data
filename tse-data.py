@@ -1,34 +1,14 @@
-
-    # todo: complete
-    def start(self, update_needed=[], _should_cache=None, po={}):
-        self.should_cache = _should_cache
-        ({ self.pf, self.pn, self.ptot } = po)
-        self.total = update_needed.length
-        self.pSR = self.ptot / math.ceil(total / PRICES_UPDATE_CHUNK) # each successful request
-        self.pR = self.pSR / (PRICES_UPDATE_RETRY_COUNT + 2);         # each request:
-        self.succs = []
-        self.fails = []
-        self.retries = 0
-        self.retry_chunks = []
-        self.timeouts = map()
-        self.qeud_retry = None
-        chunks = np.array.split(update_needed, PRICES_UPDATE_CHUNK)
-        self.batch(chunks)
-        self.poll()
-        return # new Promise(r => resolve = r);
-
+from storage import Storage as strg
 # todo: complete
-async def update_prices(selection=[], should_cache=None, {pf, pn, ptot}={}):
-    last_devens = storage.get_item('tse.inscode_lastdeven')
-    ins_codes = set()
+async def update_prices(selection=[], should_cache=None, percents=None):
+    last_devens = strg.get_item('tse.inscode_lastdeven')
+    ins_codes = None
     if last_devens:
-        ents = last_devens.split('\n').map(lambda i: i.split(','))
-        last_devens = Object.fromEntries(ents)
-        ins_codes = set(object.keys(last_devens))
+        ins_codes = last_devens[1:]
     else:
         last_devens = {}
-    result = { succs: [], fails: [], error: undefined, pn }
-    pfin = pn+ptot
+    result = { succs=[], fails=[], error=None, percents.pn }
+    percents.pfin = percents.pn+percents.ptot
     last_possible_deven = await getLastPossibleDeven()
     if type(last_possible_deven) is object:
         result.error = last_possible_deven
