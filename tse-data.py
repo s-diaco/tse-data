@@ -1,4 +1,8 @@
+import config as cfg
+import numbers
 from storage import Storage as strg
+
+
 # todo: complete
 async def update_prices(selection=[], should_cache=None, percents=None):
     last_devens = strg.get_item('tse.inscode_lastdeven')
@@ -19,13 +23,13 @@ async def update_prices(selection=[], should_cache=None, percents=None):
 async def get_prices(symbols=[], _settings={}):
     if not symbols.length:
         return
-    settings = {np.array(default_settings), np.array(_settings)}
-    result = {data: [], error: None}
+    settings = {cfg.default_settings, _settings}
+    result = {"data": [], "error": None}
     { onprogress: pf, progressTotal: ptot } = settings
-    if(type(pf) is not function):
+    if not callable(pf):
         pf = None
-    if(type(ptot) is not 'number'):
-        ptot = DEFAULT_SETTINGS.progress_total
+    if not isinstance(ptot, numbers.Number):
+        ptot = cfg.default_settings.progress_total
     pn = 0
     err = await update_instruments()
     if pf:
