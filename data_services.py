@@ -131,7 +131,7 @@ def should_update(deven, last_possible_deven) -> bool:
     """
     Check if the database should be updated
 
-    :param deven: str, cuurrent date of the database update
+    :param deven: str, current date of the database update
     :param last_possible_deven: str, last possible date of the database
 
     :return: bool, True if the database should be updated, False otherwise
@@ -163,7 +163,7 @@ async def get_last_possible_deven() -> str:
     """
     Get last possible update date
 
-    :return: str, last possible update date (str)
+    :return: str, last possible update date
     """
 
     strg = Storage()

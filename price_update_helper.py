@@ -3,12 +3,14 @@ parse and update prices
 """
 import asyncio
 from io import StringIO
+import math
 import re
 import numpy as np
 import pandas as pd
 
 import config as cfg
 from storage import Storage
+from tse_request import TSERequest
 
 
 class PricesUpdateHelper:
@@ -31,15 +33,15 @@ class PricesUpdateHelper:
         self.qeud_retry = None
         self.resolve = None
         self.writing = []
-        self.pf = self.pn = self.ptot = self.pSR = self.pR = None
+        self.progress_func = self.progress_n = self.progress_tot = self.progress_succ_req = self.progress_req = None
         self.should_cache = None
 
     # TODO: complete
-    async def poll(self) -> None:
+    async def _poll(self) -> None:
         if (len(self.timeouts) > 0 or self.qeud_retry):
             # TODO: get time in ms from cfg file
             await asyncio.sleep(0.5)
-            return self.poll()
+            return self._poll()
         if(len(self.succs) == self.total or
            self.retries >= cfg.PRICES_UPDATE_RETRY_COUNT):
             _succs = self.succs
@@ -68,11 +70,11 @@ class PricesUpdateHelper:
             # Timer(self.poll, cfg.PRICES_UPDATE_RETRY_DELAY)
             loop = asyncio.get_event_loop()
             loop.call_later(cfg.PRICES_UPDATE_RETRY_DELAY,
-                            self.batch, self.retry_chunks)
+                            self._batch, self.retry_chunks)
             self.retry_chunks = []
-            loop.call_later(cfg.PRICES_UPDATE_RETRY_DELAY, self.poll)
+            loop.call_later(cfg.PRICES_UPDATE_RETRY_DELAY, self._poll)
 
-    def on_result(self, response, chunk, on_result_id):
+    def _on_result(self, response, chunk, on_result_id):
         """
         proccess response
         """
@@ -96,29 +98,79 @@ class PricesUpdateHelper:
                     self.writing.append(self.should_cache and strg.set_item_async(
                         'tse.prices.'+ins_code, data))
             self.fails = list(set(self.fails).intersection(ins_codes))
-            if(self.pf):
-                filled = self.pSR / \
+            if(self.progress_func):
+                filled = self.progress_succ_req / \
                     (cfg.PRICES_UPDATE_RETRY_COUNT+2)*(self.retries + 1)
-                self.pf(pn=self.pn+self.pSR-filled)
+                self.progress_func(pn=self.progress_n +
+                                   self.progress_succ_req-filled)
         else:
             self.fails.append(ins_codes)
             self.retry_chunks.append(chunk)
         self.timeouts.pop(id)
 
+    def _request(self, chunk=None, req_id=None) -> None:
         """
-            def request(self, chunk=[], id=None) -> None:
-                ins_codes = chunk.map(lambda i: i.join(',')).join(';')
-                try:
-                    r = self.rq.closing_prices(ins_codes)
-                except Exception as e:
-                    self.on_result(None, chunk, id)
-                self.on_result(r, chunk, id)
-                if pf:
-                    pf(pn=pn+pR)
+        request prices
         """
+        if chunk is None:
+            chunk = []
+        ins_codes = ';'.join(list(map(','.join, chunk)))
+        try:
+            tse_req = TSERequest()
+            res = tse_req.closing_prices(ins_codes)
+            self._on_result(res, chunk, req_id)
+        except:  # pylint: disable=bare-except
+            self._on_result(None, chunk, req_id)
+        if(self.progress_func):
+            self.progress_func(pn=self.progress_n+self.progress_req)
 
     # todo: complete
-    def batch(self, chunks=[]):
+    def _batch(self, chunks=None) -> None:
+        """
+        batch request
+        """
+        if chunks is None:
+            chunks = []
         if self.qeud_retry:
             self.qeud_retry = None
-        ids = chunks.map(lambda i, j: 'a'+i)
+        ids = list(map(lambda i, j: 'a'+i, chunks))
+        for idx, chunk in enumerate(chunks):
+            batch_id = ids[idx]
+        return chunk, batch_id
+
+    # TODO: fix calculations for progress_dict and return value
+    def start(self, update_needed=None, should_cache=None, progress_dict=None):
+        """
+        start updating daily prices
+
+        :update_needed: list, instruments to update
+        :should_cache: bool, should cache prices in csv files
+        :progress_dict: dict, data needed for progress bar
+        """
+        if update_needed is None:
+            update_needed = []
+        if progress_dict is None:
+            progress_dict = {}
+        self.should_cache = should_cache
+        self.progress_func, self.progress_n, self.progress_tot = progress_dict
+        self.total = len(update_needed)
+        # each successful request
+        self.progress_succ_req = self.progress_tot / \
+            math.ceil(
+                self.total / cfg.PRICES_UPDATE_CHUNK)
+        # each request
+        self.progress_req = self.progress_succ_req / \
+            (cfg.PRICES_UPDATE_RETRY_COUNT + 2)
+        self.succs = []
+        self.fails = []
+        self.retries = 0
+        self.retry_chunks = []
+        self.timeouts = {}
+        self.qeud_retry = None
+        # Yield successive evenly sized chunks from 'update_needed'.
+        chunks = [update_needed[i:i + cfg.PRICES_UPDATE_CHUNK]
+                  for i in range(0, len(update_needed),
+                  cfg.PRICES_UPDATE_CHUNK)]
+        self._batch(chunks)
+        self._poll()
+        return  # new Promise(r => resolve = r);
