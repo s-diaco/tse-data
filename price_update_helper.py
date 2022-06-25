@@ -2,13 +2,15 @@
 parse and update prices
 """
 import asyncio
-from io import StringIO
 import math
 import re
+from io import StringIO
 from threading import Timer
 
 import config as cfg
+import data_services as data_svs
 from storage import Storage
+from storage import Storage as strg
 from tse_request import TSERequest
 
 
@@ -173,3 +175,20 @@ class PricesUpdateHelper:
         self._batch(chunks)
         self._poll()
         return  # new Promise(r => resolve = r);
+
+    # todo: complete
+    async def update_prices(selection=[], should_cache=None, percents=None):
+        last_devens = strg.get_item('tse.inscode_lastdeven')
+        ins_codes = None
+        if last_devens:
+            ins_codes = last_devens[1:]
+        else:
+            last_devens = {}
+        result = {"succs": [], "fails": [], "error": None, "pn": percents.pn}
+        percents.pfin = percents.pn+percents.ptot
+        last_possible_deven = await data_svs.get_last_possible_deven()
+        if type(last_possible_deven) is object:
+            result.error = last_possible_deven
+            if callable(pf):
+                pf(pn=pfin)
+            return result

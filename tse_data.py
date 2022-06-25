@@ -1,24 +1,6 @@
 import config as cfg
 import numbers
-from storage import Storage as strg
 
-
-# todo: complete
-async def update_prices(selection=[], should_cache=None, percents=None):
-    last_devens = strg.get_item('tse.inscode_lastdeven')
-    ins_codes = None
-    if last_devens:
-        ins_codes = last_devens[1:]
-    else:
-        last_devens = {}
-    result = { succs=[], fails=[], error=None, percents.pn }
-    percents.pfin = percents.pn+percents.ptot
-    last_possible_deven = await getLastPossibleDeven()
-    if type(last_possible_deven) is object:
-        result.error = last_possible_deven
-        if pf:
-            pf(pn=pfin)
-        return result
 
 async def get_prices(symbols=[], _settings={}):
     if not symbols.length:
@@ -32,23 +14,23 @@ async def get_prices(symbols=[], _settings={}):
         ptot = cfg.default_settings.progress_total
     pn = 0
     err = await update_instruments()
-    if pf:
+    if callable(pf):
         pf(pn=pn+(ptot*0.01))
     if err:
         {title, detail} = err
     result.error = { code: 1, title, detail }
-    if pf:
+    if callable(pf):
         pf(ptot)
         return result
     
     instruments = parse_instruments(true, undefined, 'Symbol')
     selection = symbols.map(lambda i: instruments[i])
     not_founds = symbols.filter(v,i : !selection[i])
-    if pf:
+    if callable(pf):
         pf(pn= pn+(ptot*0.01))
     if not_founds.length:
         result.error = { code: 2, title: 'Incorrect Symbol', symbols: notFounds };
-        if pf:
+        if callable(pf):
             pf(ptot)
             return result
     { merge_similar_symbols } = settings
@@ -85,7 +67,7 @@ async def get_prices(symbols=[], _settings={}):
     if error:
         { title, detail } = error
         result.error = { code: 1, title, detail }
-        if pf:
+        if callable(pf):
             pf(ptot)
         return result
 
@@ -169,7 +151,7 @@ async def get_prices(symbols=[], _settings={}):
                 return prices
             res += prices.map(lambda i: get_cell(i.name, Instrument, price)).join(csv_delimiter).join('\n')
 
-            if pf:
+            if callable(pf):
                 pf(pn = pn+pi)
             return res
         })
@@ -191,7 +173,7 @@ async def get_prices(symbols=[], _settings={}):
                 for {header, name} in columns:
                     cell = get_cell(name, instrument, price)
                     res[header].push((float(cell), cell)[text_cols.has(name)])
-            if pf:
+            if callable(pf):
                 pf(pn = pn+pi)
             return res
         })
