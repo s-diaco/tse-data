@@ -4,12 +4,9 @@ parse and update prices
 import asyncio
 import math
 import re
-from io import StringIO
-from threading import Timer
 
 import config as cfg
 import data_services as data_svs
-from storage import Storage
 from storage import Storage as strg
 from tse_request import TSERequest
 
@@ -34,7 +31,14 @@ class PricesUpdateHelper:
         self.qeud_retry = None
         self.resolve = None
         self.writing = []
-        self.progress_func = self.progress_n = self.progress_tot = self.progress_succ_req = self.progress_req = None
+
+        # progressbar data
+        self.prog_func = None
+        self.prog_n = None
+        self.prog_tot = None
+        self.prog_succ_req = None
+        self.prog_req = None
+
         self.should_cache = None
 
     # TODO: complete
@@ -55,8 +59,8 @@ class PricesUpdateHelper:
             for response in resps:
                 if isinstance(response, Exception):
                     self.fails.append(response)
-            else:
-                self.succs.append(response)
+                else:
+                    self.succs.append(response)
             self.writing = []
             return
             # TODO: what is pn?
@@ -95,15 +99,14 @@ class PricesUpdateHelper:
                     self.stored_prices[ins_code] = data
                     self.last_devens[ins_code] = new_data.split(
                         ';')[-1].split(',', 2)[1]
-                    strg = Storage()
                     self.writing.append(self.should_cache and strg.set_item_async(
                         'tse.prices.'+ins_code, data))
             self.fails = list(set(self.fails).intersection(ins_codes))
             if(self.progress_func):
-                filled = self.progress_succ_req / \
+                filled = self.prog_succ_req / \
                     (cfg.PRICES_UPDATE_RETRY_COUNT+2)*(self.retries + 1)
                 self.progress_func(pn=self.progress_n +
-                                   self.progress_succ_req-filled)
+                                   self.prog_succ_req-filled)
         else:
             self.fails.append(ins_codes)
             self.retry_chunks.append(chunk)
@@ -123,7 +126,7 @@ class PricesUpdateHelper:
         except:  # pylint: disable=bare-except
             self._on_result(None, chunk, req_id)
         if(self.progress_func):
-            self.progress_func(pn=self.progress_n+self.progress_req)
+            self.progress_func(pn=self.progress_n+self.prog_req)
 
     # todo: complete
     def _batch(self, chunks=None) -> None:
@@ -153,14 +156,14 @@ class PricesUpdateHelper:
         if progress_dict is None:
             progress_dict = {}
         self.should_cache = should_cache
-        self.progress_func, self.progress_n, self.progress_tot = progress_dict
+        self.progress_func, self.progress_n, self.prog_tot = progress_dict
         self.total = len(update_needed)
         # each successful request
-        self.progress_succ_req = self.progress_tot / \
+        self.prog_succ_req = self.prog_tot / \
             math.ceil(
                 self.total / cfg.PRICES_UPDATE_CHUNK)
         # each request
-        self.progress_req = self.progress_succ_req / \
+        self.prog_req = self.prog_succ_req / \
             (cfg.PRICES_UPDATE_RETRY_COUNT + 2)
         self.succs = []
         self.fails = []
@@ -177,7 +180,14 @@ class PricesUpdateHelper:
         return  # new Promise(r => resolve = r);
 
     # todo: complete
-    async def update_prices(selection=[], should_cache=None, percents=None):
+    async def update_prices(self, selection=None, should_cache=None, percents=None):
+        """
+        update prices
+
+        :selection: list, instruments to update
+        :should_cache: bool, should cache prices in csv files
+        :percents: dict, data needed for progress bar
+        """
         last_devens = strg.get_item('tse.inscode_lastdeven')
         ins_codes = None
         if last_devens:
@@ -185,10 +195,10 @@ class PricesUpdateHelper:
         else:
             last_devens = {}
         result = {"succs": [], "fails": [], "error": None, "pn": percents.pn}
-        percents.pfin = percents.pn+percents.ptot
+        prog_fin = percents.pn+percents.ptot
         last_possible_deven = await data_svs.get_last_possible_deven()
-        if type(last_possible_deven) is object:
+        if last_possible_deven:
             result.error = last_possible_deven
-            if callable(pf):
-                pf(pn=pfin)
+            if callable(percents.progress_func):
+                percents.prog_func(prog_fin)
             return result
