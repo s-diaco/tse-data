@@ -129,7 +129,7 @@ class PricesUpdateHelper:
             self.progress_func(pn=self.progress_n+self.prog_req)
 
     # todo: complete
-    def _batch(self, chunks=None) -> None:
+    def _batch(self, chunks=None):
         """
         batch request
         """
@@ -138,9 +138,7 @@ class PricesUpdateHelper:
         if self.qeud_retry:
             self.qeud_retry = None
         ids = list(map(lambda i, j: 'a'+i, chunks))
-        for idx, chunk in enumerate(chunks):
-            batch_id = ids[idx]
-        return chunk, batch_id
+        self.timeouts = dict(zip(ids, chunks))
 
     # TODO: fix calculations for progress_dict and return value
     def start(self, update_needed=None, should_cache=None, progress_dict=None):
