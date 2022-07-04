@@ -4,6 +4,7 @@ parse and update prices
 import asyncio
 import math
 import re
+from threading import Timer
 
 import config as cfg
 import data_services as data_svs
@@ -128,7 +129,6 @@ class PricesUpdateHelper:
         if(self.progress_func):
             self.progress_func(pn=self.progress_n+self.prog_req)
 
-    # todo: complete
     def _batch(self, chunks=None):
         """
         batch request
@@ -137,9 +137,11 @@ class PricesUpdateHelper:
             chunks = []
         if self.qeud_retry:
             self.qeud_retry = None
-        dicts={'a'+str(indx):chunk for indx, chunk in enumerate(chunks)}
-        # ids = list(map(lambda i, j: 'a'+i, chunks))
-        # self.timeouts = dict(zip(ids, chunks))
+        delay = 0
+        for idx, chunk in enumerate(chunks):
+            timeout = Timer(delay, self._request, args=(chunk, idx))
+            self.timeouts[idx] = timeout
+            delay += cfg.PRICES_UPDATE_RETRY_DELAY
 
     # TODO: fix calculations for progress_dict and return value
     def start(self, update_needed=None, should_cache=None, progress_dict=None):
