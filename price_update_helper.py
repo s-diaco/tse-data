@@ -137,8 +137,9 @@ class PricesUpdateHelper:
             chunks = []
         if self.qeud_retry:
             self.qeud_retry = None
-        ids = list(map(lambda i, j: 'a'+i, chunks))
-        self.timeouts = dict(zip(ids, chunks))
+        dicts={'a'+str(indx):chunk for indx, chunk in enumerate(chunks)}
+        # ids = list(map(lambda i, j: 'a'+i, chunks))
+        # self.timeouts = dict(zip(ids, chunks))
 
     # TODO: fix calculations for progress_dict and return value
     def start(self, update_needed=None, should_cache=None, progress_dict=None):
