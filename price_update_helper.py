@@ -144,7 +144,7 @@ class PricesUpdateHelper:
             delay += cfg.PRICES_UPDATE_RETRY_DELAY
 
     # TODO: fix calculations for progress_dict and return value
-    def start(self, update_needed=None, should_cache=None, progress_dict=None):
+    def start(self, update_needed=None, should_cache=None, progress_tuple=None):
         """
         start updating daily prices
 
@@ -154,10 +154,10 @@ class PricesUpdateHelper:
         """
         if update_needed is None:
             update_needed = []
-        if progress_dict is None:
-            progress_dict = {}
+        if progress_tuple is None:
+            progress_tuple = {}
         self.should_cache = should_cache
-        self.progress_func, self.progress_n, self.prog_tot = progress_dict
+        self.progress_func, self.progress_n, self.prog_tot = progress_tuple
         self.total = len(update_needed)
         # each successful request
         self.prog_succ_req = self.prog_tot / \
