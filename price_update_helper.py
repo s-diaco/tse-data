@@ -178,7 +178,6 @@ class PricesUpdateHelper:
                   cfg.PRICES_UPDATE_CHUNK)]
         self._batch(chunks)
         self._poll()
-        return  # new Promise(r => resolve = r);
 
     # todo: complete
     async def update_prices(self, selection=None, should_cache=None, percents=None):
