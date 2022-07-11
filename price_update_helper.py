@@ -7,8 +7,6 @@ import re
 from threading import Timer
 
 import config as cfg
-import data_services as data_svs
-from storage import Storage as strg
 from tse_request import TSERequest
 
 

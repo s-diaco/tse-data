@@ -1,5 +1,7 @@
 import config as cfg
 import numbers
+import data_services as data_svs
+from storage import Storage as strg
 
 
 # todo: complete
@@ -21,10 +23,11 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     prog_fin = percents.pn+percents.ptot
     last_possible_deven = await data_svs.get_last_possible_deven()
     if last_possible_deven:
-        result.error = last_possible_deven
+        result["error"] = last_possible_deven
         if callable(percents.progress_func):
             percents.prog_func(prog_fin)
         return result
+
 
 async def get_prices(symbols=[], _settings={}):
     if not symbols.length:
