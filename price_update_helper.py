@@ -178,27 +178,3 @@ class PricesUpdateHelper:
                   cfg.PRICES_UPDATE_CHUNK)]
         self._batch(chunks)
         self._poll()
-
-    # todo: complete
-    async def update_prices(self, selection=None, should_cache=None, percents=None):
-        """
-        update prices
-
-        :selection: list, instruments to update
-        :should_cache: bool, should cache prices in csv files
-        :percents: dict, data needed for progress bar
-        """
-        last_devens = strg.get_item('tse.inscode_lastdeven')
-        ins_codes = None
-        if last_devens:
-            ins_codes = last_devens[1:]
-        else:
-            last_devens = {}
-        result = {"succs": [], "fails": [], "error": None, "pn": percents.pn}
-        prog_fin = percents.pn+percents.ptot
-        last_possible_deven = await data_svs.get_last_possible_deven()
-        if last_possible_deven:
-            result.error = last_possible_deven
-            if callable(percents.progress_func):
-                percents.prog_func(prog_fin)
-            return result
