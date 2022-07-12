@@ -155,7 +155,7 @@ class PricesUpdateHelper:
         if progress_tuple is None:
             progress_tuple = {}
         self.should_cache = should_cache
-        self.progress_func, self.prog_n, self.prog_tot = progress_tuple
+        self.prog_func, self.prog_n, self.prog_tot = progress_tuple
         self.total = len(update_needed)
         # each successful request
         self.prog_succ_req = self.prog_tot / \

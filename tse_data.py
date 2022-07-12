@@ -28,6 +28,13 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
             percents.prog_func(prog_fin)
         return result
 
+    for instrument in selection:
+        ins_code = instrument.ins_code
+        market = !(instrument.YMarNSC == 'NO')
+        if ins_code not in ins_codes:
+            # doesn't have data
+            return [ins_code, last_deven, market]
+
 
 async def get_prices(symbols=[], _settings={}):
     if not symbols.length:
