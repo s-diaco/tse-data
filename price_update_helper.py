@@ -176,3 +176,4 @@ class PricesUpdateHelper:
                   cfg.PRICES_UPDATE_CHUNK)]
         self._batch(chunks)
         self._poll()
+        
