@@ -2,6 +2,7 @@ import config as cfg
 import numbers
 import data_services as data_svs
 from storage import Storage as strg
+from price_update_helper import PricesUpdateHelper
 
 
 # todo: complete
@@ -27,13 +28,44 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
         if callable(percents.progress_func):
             percents.prog_func(prog_fin)
         return result
-
+    to_update = []
+    first_possible_deven = cfg.default_settings["start_date"]
     for instrument in selection:
         ins_code = instrument.ins_code
-        market = !(instrument.YMarNSC == 'NO')
+        market = (instrument.YMarNSC != 'NO')
         if ins_code not in ins_codes:
             # doesn't have data
-            return [ins_code, last_deven, market]
+            to_update.append([ins_code, first_possible_deven, market])
+        else:
+            # has data
+            last_deven = last_devens[ins_code]
+            if not last_deven:
+                to_update = None # expired symbol
+            if (data_svs.should_update(last_deven, last_possible_deven)):
+                # has data but outdated
+                to_update.append([ins_code, last_deven, market])
+    if callable(percents.progress_func):
+        percents.prog_func(percents.pn+percents.ptot*(0.01))
+
+    sel_ins = list.map(lambda x: x.ins_code, selection)
+    stored_ins = list.map(lambda x: x.keys, PricesUpdateHelper.stored_prices)
+    if (not stored_ins) or (not sel_ins):
+        await strg.get_items(sel_ins, PricesUpdateHelper.stored_prices)
+    if callable(percents.progress_func):
+        percents.prog_func(percents.pn+percents.ptot*(0.01))
+
+    if to_update:
+        manager_result = await prices_update_manager(to_update, should_cache, (pf, pn, ptot: ptot - ptot*(0.02)))
+        self.succs, self.fails = manager_result
+        pn = manager_result
+
+        if self.succs and should_cache:
+            await strg.set_items('tse.inscode_lastdeven', last_devens)
+        result = (self.succs, self.fails)
+    if callable(percents.progress_func) and pn != prog_fin:
+        percents.prog_func(prog_fin)
+    result.pn = prog_fin
+    return result
 
 
 async def get_prices(symbols=[], _settings={}):
