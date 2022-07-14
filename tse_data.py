@@ -55,7 +55,7 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
         percents.prog_func(percents.pn+percents.ptot*(0.01))
 
     if to_update:
-        manager_result = await prices_update_manager(to_update, should_cache, (pf, pn, ptot: ptot - ptot*(0.02)))
+        manager_result = PricesUpdateHelper(to_update, should_cache, (pf, pn, ptot: ptot - ptot*(0.02)))
         self.succs, self.fails = manager_result
         pn = manager_result
 
@@ -65,6 +65,7 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     if callable(percents.progress_func) and pn != prog_fin:
         percents.prog_func(prog_fin)
     result.pn = prog_fin
+    
     return result
 
 
