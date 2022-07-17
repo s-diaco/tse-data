@@ -69,28 +69,31 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     return result
 
 
-async def get_prices(symbols=[], _settings={}):
+async def get_prices(symbols=None, _settings=None):
+    if symbols == None:
+        symbols = []
     if not symbols.length:
         return
-    settings = {cfg.default_settings, _settings}
+    settings = cfg.default_settings, _settings
     result = {"data": [], "error": None}
-    { onprogress: pf, progressTotal: ptot } = settings
-    if not callable(pf):
-        pf = None
-    if not isinstance(ptot, numbers.Number):
-        ptot = cfg.default_settings.progress_total
+    prog_func, prog_tot = settings
+    if not callable(prog_func):
+        prog_func = None
+    if not isinstance(prog_tot, numbers.Number):
+        prog_tot = cfg.default_settings.progress_total
     pn = 0
-    err = await update_instruments()
-    if callable(pf):
-        pf(pn=pn+(ptot*0.01))
+    err = await data_svs.update_instruments()
+    if callable(prog_func):
+        pn=pn+(prog_tot*0.01)
+        prog_func(pn)
     if err:
-        {title, detail} = err
-    result.error = { code: 1, title, detail }
-    if callable(pf):
-        pf(ptot)
+        title, detail = err
+        result.error = (1, title, detail)
+        if callable(prog_func):
+            prog_func(prog_tot)
         return result
     
-    instruments = parse_instruments(true, undefined, 'Symbol')
+    instruments = parse_instruments(True, None, 'Symbol')
     selection = symbols.map(lambda i: instruments[i])
     not_founds = symbols.filter(v,i : !selection[i])
     if callable(pf):
