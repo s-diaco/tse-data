@@ -93,9 +93,24 @@ async def get_prices(symbols=None, _settings=None):
             prog_func(prog_tot)
         return result
     
-    instruments = parse_instruments(True, None, 'Symbol')
+    instruments = await strg.read_tse_csv('tse.instruments')
     selection = symbols.map(lambda i: instruments[i])
     not_founds = symbols.filter(v,i : !selection[i])
+    not_founds = [instruments[x] for x in symbols if instruments[x] not in selection]
+    # TODO: remove this line
+    # not_founds = set(symbols) - set(selection)
+    if not_founds:
+        result.error = (2, "Symbols not found", not_founds)
+        if callable(prog_func):
+            prog_func(prog_tot)
+        return result
+    if callable(prog_func):
+        pn=pn+(prog_tot*0.01)
+        prog_func(pn)
+    result.data = selection
+    if callable(prog_func):
+        prog_func(prog_tot)
+    return result
     if callable(pf):
         pf(pn= pn+(ptot*0.01))
     if not_founds.length:
