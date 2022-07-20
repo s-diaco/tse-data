@@ -95,186 +95,133 @@ async def get_prices(symbols=None, _settings=None):
     
     instruments = await strg.read_tse_csv('tse.instruments')
     selection = symbols.map(lambda i: instruments[i])
-    not_founds = symbols.filter(v,i : !selection[i])
     not_founds = [instruments[x] for x in symbols if instruments[x] not in selection]
     # TODO: remove this line
     # not_founds = set(symbols) - set(selection)
+    if callable(prog_func):
+        pn=pn+(prog_tot*0.01)
+        prog_func(pn)
     if not_founds:
         result.error = (2, "Symbols not found", not_founds)
         if callable(prog_func):
             prog_func(prog_tot)
         return result
-    if callable(prog_func):
-        pn=pn+(prog_tot*0.01)
-        prog_func(pn)
-    result.data = selection
-    if callable(prog_func):
-        prog_func(prog_tot)
-    return result
-    if callable(pf):
-        pf(pn= pn+(ptot*0.01))
-    if not_founds.length:
-        result.error = { code: 2, title: 'Incorrect Symbol', symbols: notFounds };
-        if callable(pf):
-            pf(ptot)
-            return result
-    { merge_similar_symbols } = settings
-    merges = map()
+    merge_similar_symbols = settings
+    merges = {}
     extras_index = -1
+
     if merge_similar_symbols:
-        syms = object.keys(instruments)
-        ins = syms.map(lambda i : instruments[i])
-        roots = set(ins.filter(i => i.SymbolOriginal).map(i => i.SymbolOriginal))
+        syms = instruments.keys
+        ins = [instruments[k] for k in syms]
+        roots = ins.map(lambda i: i.SymbolOriginal)
 
-        merges = map(np.array(roots)).map(lambda i : i.symbol_original).map(lambda i : i.symbol_original)
+        merges = roots.map(lambda i: {i: []})
+        # TODO: complete
 
-        for i, j in ins:
-            { SymbolOriginal: orig, Symbol: sym, InsCode: code } = i;
-            rename_or_root = orig or symbols
-            if not merges.has(rename_or_root):
-                return
-            regx = regexp(SYMBOL_RENAME_STRING+'(\\d+)')
-            merges.get(rename_or_root).push({ sym, code, order: orig ? +sym.match(regx)[1] : 1 })
-        for [, v] in np.array(merges):
-            v.sort((a, b) : a.order - b.order)
-        const extras = selection.map(({Symbol: sym}) =>
-            merges.has(sym) &&
-            merges.get(sym).slice(1).map(i => instruments[i.sym])
-            ).flat().filter(i=>i);
-
-        extras_index = selection.length
-        selection.push(np.array(extras))
-
-    update_result = await update_prices(selection, settings.cache, {pf, pn, ptot: ptot.mul(0.78)})
-    { succs, fails, error } = updateResult
-    ({ pn } = updateResult)
-
+    update_result = await update_prices(selection, settings.cache, (prog_func, pn, prog_tot*0.78))
+    succs, fails, error = update_result
+    pn = update_result
     if error:
-        { title, detail } = error
-        result.error = { code: 1, title, detail }
-        if callable(pf):
-            pf(ptot)
+        title, detail = error
+        result.error = (1, title, detail)
+        if callable(prog_func):
+            prog_func(prog_tot)
         return result
-
-    if fails.length:
-        syms = Object.fromEntries( selection.map(i => [i.InsCode, i.Symbol]) )
-        result.error = { code: 3, title: 'Incomplete Price Update',
-            fails: fails.map(k => syms[k]),
-            succs: succs.map(k => syms[k])
-        }
+    if fails:
+        syms = [(i.ins_code, i.SymbolOriginal) for i in selection]
+        result.error = (3, 'Incomplete Price Update',
+            fails.map(lambda k: syms[k]),
+            succs.map(lambda k: syms[k])
+        )
         for v, i, a in selection:
             if fails.include(v.incode):
                 a[i] = None
             else:
                 a[i] = 0
     if merge_similar_symbols:
-        selection.splice(extras_index)
+        selection = selection[,extras_index]
 
-    columns = settings.columns.map(lambda i:{
-        const row = !Array.isArray(i) ? [i] : i;
-        const column = new Column(row);
-        const finalHeader = column.header || column.name;
-        return { ...column, header: finalHeader };
-    })
+    columns = settings.columns
+    # TODO: complete
 
-    { adjustPrices, daysWithoutTrade, startDate, csv } = settings;
-    shares = parse_shares(true)
-    pi = ptot * 0.20 / selection.length
+    adjustPrices, daysWithoutTrade, startDate, csv = settings;
+    shares = await strg.read_tse_csv('tse.shares')
+    pi = prog_tot * 0.20 / selection.length
     stored_prices_merged = {}
 
     if merge_similar_symbols:
-        for [, merge] in merges:
-            codes = merge.map(lambda i: i.code)
+        for merge in merges:
+            codes = [i.code for i in merge.values()]
             [latest] = codes
-            stored_prices_merged[latest] = codes.map(lambda code: stored_prices[code]).reverse().filter(i:i).join('\n')
+            stored_prices_merged[latest] = codes
+            # TODO: complete
 
-    get_instrument_prices = (instrument) => {
-        { InsCode: inscode, Symbol: sym, SymbolOriginal: symOrig }  = instrument
-
-        prices, ins_codes = None
-
-        if sym_orig:
-            if merge_similar_symbols:
-                return MERGED_SYMBOL_CONTENT
-            prices = stored_prices[ins_code]
-            ins_codes = set(ins_code)
-        else:
-            is_root = merges.has(sym)
-            prices = is_root ? stored_prices_merged[ins_code] : stored_prices[ins_code]
-            ins_codes = is_root ? merges[sym].map(i => i.code) : set(ins_code)
-
-        if not prices:
-            return
-
-        prices = prices.split('\n').map(lambda i : closing_price(i))
-
-        if adjust_prices == 1 or adjust_prices == 2:
-            prices = adjust(adjust_prices, prices, shares, ins_codes)
-        
-        if not days_without_trade:
-            prices = prices.filter(i : float(i.ZTotTran) > 0)
-
-        prices = prices.filter(i: float(i.DEven) > float(start_date))
-
-        return prices
-    }
 
     if csv:
-        { csvHeaders, csvDelimiter } = settings
+        csv_headers, csv_delimiter = settings
         headers = ''
         if csv_headers:
-            columns.map(lambda i: i.header).join()+'\n'
-        result.data = selection.map(lambda instrument: {
-            if not Instrument:
-                return
-            res = headers
-
-            prices = get_instrument_prices(instrument)
-            if not prices:
-                return res
-            if prices == MERGED_SYMBOL_CONTENT:
-                return prices
-            res += prices.map(lambda i: get_cell(i.name, Instrument, price)).join(csv_delimiter).join('\n')
-
-            if callable(pf):
-                pf(pn = pn+pi)
-            return res
-        })
+            headers = columns.map(lambda i: i.header).join()+'\n'
+        else:
+            headers = ''
+        result.data = selection
+        # TODO: complete
     else:
         text_cols = set(['CompanyCode', 'LatinName', 'Symbol', 'Name'])
 
-        result.data = selection.map(Instrument => {
-            if not Instrument:
-                return
-            res = Object.fromEntries( columns.map(i => [i.header, []]) )
-
-            prices = get_instrument_prices(Instrument)
-            if not prices:
-                return res
-            if prices == MERGED_SYMBOL_CONTENT:
-                return prices
-
-            for price in prices:
-                for {header, name} in columns:
-                    cell = get_cell(name, instrument, price)
-                    res[header].push((float(cell), cell)[text_cols.has(name)])
-            if callable(pf):
-                pf(pn = pn+pi)
-            return res
-        })
+        result.data = selection
+        # TODO: complete
     
-    if pf and pn != ptot:
-        pf(pn=ptot)
+    if prog_func and pn != prog_tot:
+        pn=ptot
+        pf(pn)
     
     return result
 
-async def get_instruments(struct=true, arr=true, structKey='InsCode'):
-    valids = object.keys(instrument(np.array(18).keys()).join(','))
+async def get_instruments(struct=true, arr=True, structKey='InsCode'):
+    valids = None
+    # TODO: complete
     if valids.indexOf(struct_key) == -1:
         struct_key = 'InsCode'
     
-    last_update = storage.get_item('tse.lastInstrumentUpdate')
-    err = await update_instruments()
+    last_update = strg.get_item('tse.lastInstrumentUpdate')
+    err = await data_svs.update_instruments()
     if err and not last_update:
         raise err
-    return parse_instruments(struct, arr, structKey)
+    return await strg.read_tse_csv('tse.instruments')
+
+
+def get_instrument_prices(instrument,
+                    merge_similar_symbols=True,
+                    merges=None, settings=None,
+                    stored_prices=None,
+                    stored_prices_merged=None,
+                    adjust_prices=True,
+                    days_without_trade=0):
+    ins_code, sym, sym_orig  = instrument
+
+    prices, ins_codes = None
+
+    if sym_orig:
+        if merge_similar_symbols:
+            return settings["MERGED_SYMBOL_CONTENT"]
+        prices = stored_prices[ins_code]
+        ins_codes = set(ins_code)
+    else:
+        is_root = merges.has(sym)
+        prices = (stored_prices[ins_code], stored_prices_merged[ins_code])[is_root]
+        ins_codes = (set(ins_code), merges[sym].map(lambda i: i.code))[is_root]
+
+    if not prices:
+        return
+
+    if adjust_prices == 1 or adjust_prices == 2:
+        prices = data_svs.adjust(adjust_prices, prices, shares, ins_codes)
+    
+    if not days_without_trade:
+        prices = prices.filter(lambda i : float(i.ZTotTran) > 0)
+
+    prices = prices.filter(lambda i: float(i.DEven) > float(start_date))
+
+    return prices
+
