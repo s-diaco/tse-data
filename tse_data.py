@@ -1,8 +1,9 @@
-import config as cfg
 import numbers
+
+import config as cfg
 import data_services as data_svs
-from storage import Storage as strg
 from price_update_helper import PricesUpdateHelper
+from storage import Storage as strg
 
 
 # todo: complete
@@ -40,7 +41,7 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
             # has data
             last_deven = last_devens[ins_code]
             if not last_deven:
-                to_update = None # expired symbol
+                to_update = None  # expired symbol
             if (data_svs.should_update(last_deven, last_possible_deven)):
                 # has data but outdated
                 to_update.append([ins_code, last_deven, market])
@@ -65,15 +66,19 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     if callable(percents.progress_func) and pn != prog_fin:
         percents.prog_func(prog_fin)
     result.pn = prog_fin
-    
+
     return result
 
 
 async def get_prices(symbols=None, _settings=None):
-    if symbols == None:
-        symbols = []
-    if not symbols.length:
-        return
+    """
+    get prices for symbols
+    :symbols: list, symbols to get prices for
+    :_settings: dict, settings to use
+    :return: dict, prices for symbols
+    """
+    if not symbols:
+        return {}
     settings = cfg.default_settings, _settings
     result = {"data": [], "error": None}
     prog_func, prog_tot = settings
@@ -84,7 +89,7 @@ async def get_prices(symbols=None, _settings=None):
     pn = 0
     err = await data_svs.update_instruments()
     if callable(prog_func):
-        pn=pn+(prog_tot*0.01)
+        pn = pn+(prog_tot*0.01)
         prog_func(pn)
     if err:
         title, detail = err
@@ -92,14 +97,15 @@ async def get_prices(symbols=None, _settings=None):
         if callable(prog_func):
             prog_func(prog_tot)
         return result
-    
+
     instruments = await strg.read_tse_csv('tse.instruments')
     selection = symbols.map(lambda i: instruments[i])
-    not_founds = [instruments[x] for x in symbols if instruments[x] not in selection]
+    not_founds = [instruments[x]
+                  for x in symbols if instruments[x] not in selection]
     # TODO: remove this line
     # not_founds = set(symbols) - set(selection)
     if callable(prog_func):
-        pn=pn+(prog_tot*0.01)
+        pn = pn+(prog_tot*0.01)
         prog_func(pn)
     if not_founds:
         result.error = (2, "Symbols not found", not_founds)
@@ -130,21 +136,21 @@ async def get_prices(symbols=None, _settings=None):
     if fails:
         syms = [(i.ins_code, i.SymbolOriginal) for i in selection]
         result.error = (3, 'Incomplete Price Update',
-            fails.map(lambda k: syms[k]),
-            succs.map(lambda k: syms[k])
-        )
+                        fails.map(lambda k: syms[k]),
+                        succs.map(lambda k: syms[k])
+                        )
         for v, i, a in selection:
             if fails.include(v.incode):
                 a[i] = None
             else:
                 a[i] = 0
     if merge_similar_symbols:
-        selection = selection[,extras_index]
+        selection = selection[, extras_index]
 
     columns = settings.columns
     # TODO: complete
 
-    adjustPrices, daysWithoutTrade, startDate, csv = settings;
+    adjustPrices, daysWithoutTrade, startDate, csv = settings
     shares = await strg.read_tse_csv('tse.shares')
     pi = prog_tot * 0.20 / selection.length
     stored_prices_merged = {}
@@ -155,7 +161,6 @@ async def get_prices(symbols=None, _settings=None):
             [latest] = codes
             stored_prices_merged[latest] = codes
             # TODO: complete
-
 
     if csv:
         csv_headers, csv_delimiter = settings
@@ -171,19 +176,27 @@ async def get_prices(symbols=None, _settings=None):
 
         result.data = selection
         # TODO: complete
-    
+
     if prog_func and pn != prog_tot:
-        pn=ptot
+        pn = ptot
         pf(pn)
-    
+
     return result
 
-async def get_instruments(struct=true, arr=True, structKey='InsCode'):
+
+async def get_instruments(struct=True, arr=True, structKey='InsCode'):
+    """
+    get instruments
+    :struct: bool, return structure
+    :arr: bool, return array
+    :structKey: str, key to use for structure
+    :return: dict, instruments
+    """
     valids = None
     # TODO: complete
     if valids.indexOf(struct_key) == -1:
         struct_key = 'InsCode'
-    
+
     last_update = strg.get_item('tse.lastInstrumentUpdate')
     err = await data_svs.update_instruments()
     if err and not last_update:
@@ -192,13 +205,25 @@ async def get_instruments(struct=true, arr=True, structKey='InsCode'):
 
 
 def get_instrument_prices(instrument,
-                    merge_similar_symbols=True,
-                    merges=None, settings=None,
-                    stored_prices=None,
-                    stored_prices_merged=None,
-                    adjust_prices=True,
-                    days_without_trade=0):
-    ins_code, sym, sym_orig  = instrument
+                          merge_similar_symbols=True,
+                          merges=None, settings=None,
+                          stored_prices=None,
+                          stored_prices_merged=None,
+                          adjust_prices=True,
+                          days_without_trade=0):
+    """
+    get instrument prices
+    :instrument: str, instrument to get prices for
+    :merge_similar_symbols: bool, merge similar symbols
+    :merges: dict, merges to use
+    :settings: dict, settings to use
+    :stored_prices: dict, stored prices to use
+    :stored_prices_merged: dict, stored prices merged to use
+    :adjust_prices: bool, adjust prices
+    :days_without_trade: int, days without trade
+    :return: dict, prices for instrument
+    """
+    ins_code, sym, sym_orig = instrument
 
     prices, ins_codes = None
 
@@ -209,7 +234,8 @@ def get_instrument_prices(instrument,
         ins_codes = set(ins_code)
     else:
         is_root = merges.has(sym)
-        prices = (stored_prices[ins_code], stored_prices_merged[ins_code])[is_root]
+        prices = (stored_prices[ins_code],
+                  stored_prices_merged[ins_code])[is_root]
         ins_codes = (set(ins_code), merges[sym].map(lambda i: i.code))[is_root]
 
     if not prices:
@@ -217,11 +243,10 @@ def get_instrument_prices(instrument,
 
     if adjust_prices == 1 or adjust_prices == 2:
         prices = data_svs.adjust(adjust_prices, prices, shares, ins_codes)
-    
+
     if not days_without_trade:
-        prices = prices.filter(lambda i : float(i.ZTotTran) > 0)
+        prices = prices.filter(lambda i: float(i.ZTotTran) > 0)
 
     prices = prices.filter(lambda i: float(i.DEven) > float(start_date))
 
     return prices
-
