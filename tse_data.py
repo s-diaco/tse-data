@@ -1,4 +1,5 @@
 import numbers
+import re
 
 import config as cfg
 import data_services as data_svs
@@ -100,29 +101,41 @@ async def get_prices(symbols=None, _settings=None):
         return result
 
     instruments = await strg.read_tse_csv('tse.instruments')
-    selection = symbols.map(lambda i: instruments[i])
-    not_founds = [instruments[x]
-                  for x in symbols if instruments[x] not in selection]
-    # TODO: remove this line
-    # not_founds = set(symbols) - set(selection)
+    selection = list(map((lambda x: instruments[x]), symbols))
+    not_founds = set(symbols) - set(selection)
     if callable(prog_func):
         pn = pn+(prog_tot*0.01)
         prog_func(pn)
     if not_founds:
-        result.error = (2, "Symbols not found", not_founds)
+        title, detail = "Symbols not found", not_founds
+        result.error = (2, err)
         if callable(prog_func):
             prog_func(prog_tot)
         return result
-    merge_similar_symbols = settings
+
+    merge_similar_symbols = settings['merge_similar_symbols']
     merges = {}
     extras_index = -1
 
     if merge_similar_symbols:
         syms = instruments.keys
         ins = [instruments[k] for k in syms]
-        roots = ins.map(lambda i: i.SymbolOriginal)
+        syms_with_roots =  list(filter((lambda x: x.SymbolOriginal), ins))
+        roots = list(map((lambda x: x.SymbolOriginal), syms_with_roots))
 
-        merges = roots.map(lambda i: {i: []})
+        merges = list(map((lambda x: [x, []]), roots))
+
+        for i in ins:
+            orig = i.SymbolOriginal
+            sym = i.Symbol
+            code = i.InsCode
+            renamed_or_root = orig or sym
+            if not renamed_or_root in merges:
+                return
+            pattern = re.compile(cfg.SYMBOL_RENAME_STRING + r'\d+')
+            order = int(pattern.match(sym)[1]) if orig else 1
+            merges[renamed_or_root].append({sym, code, order})
+        
         # TODO: complete
 
     update_result = await update_prices(selection, settings.cache, (prog_func, pn, prog_tot*0.78))
