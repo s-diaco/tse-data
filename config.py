@@ -32,16 +32,16 @@ SYMBOL_RENAME_STRING = '-ق'
 MERGED_SYMBOL_CONTENT = 'merged'
 default_settings = {
     'columns': [0, 2, 3, 4, 5, 6, 7, 8, 9],
-    'adjustPrices': 0,
-    'daysWithoutTrade': False,
-    'startDate': '20010321',
-    'mergeSimilarSymbols': True,
+    'adjust_prices': 0,
+    'days_without_trade': False,
+    'start_date': '20010321',
+    'merge_similar_symbols': True,
     'cache': True,
     'csv': False,
-    'csvHeaders': True,
-    'csvDelimiter': ',',
-    'onprogress': None,
-    'progressTotal': 100
+    'csv_headers': True,
+    'csv_delimiter': ',',
+    'on_progress': None,
+    'progress_tot': 100
 }
 TRADING_SEASSON_END = 16
 

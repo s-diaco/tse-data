@@ -79,11 +79,12 @@ async def get_prices(symbols=None, _settings=None):
     """
     if not symbols:
         return {}
-    settings = cfg.default_settings, _settings
+    settings = _settings if _settings else cfg.default_settings
     result = {"data": [], "error": None}
-    prog_func, prog_tot = settings
+    prog_func = settings['on_progress']
     if not callable(prog_func):
         prog_func = None
+    prog_tot = settings['progress_tot']
     if not isinstance(prog_tot, numbers.Number):
         prog_tot = cfg.default_settings.progress_total
     pn = 0
@@ -93,7 +94,7 @@ async def get_prices(symbols=None, _settings=None):
         prog_func(pn)
     if err:
         title, detail = err
-        result.error = (1, title, detail)
+        result["error"] = (1, err)
         if callable(prog_func):
             prog_func(prog_tot)
         return result
