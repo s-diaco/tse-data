@@ -3,6 +3,7 @@ import re
 
 import config as cfg
 import data_services as data_svs
+from data_structs import TSEColumn
 from price_update_helper import PricesUpdateHelper
 from storage import Storage as strg
 
@@ -94,7 +95,6 @@ async def get_prices(symbols=None, _settings=None):
         pn = pn+(prog_tot*0.01)
         prog_func(pn)
     if err:
-        title, detail = err
         result["error"] = (1, err)
         if callable(prog_func):
             prog_func(prog_tot)
@@ -107,8 +107,9 @@ async def get_prices(symbols=None, _settings=None):
         pn = pn+(prog_tot*0.01)
         prog_func(pn)
     if not_founds:
-        title, detail = "Symbols not found", not_founds
-        result.error = (2, err)
+        title, detail = "Incorrect Symbol", not_founds
+        err = (title, detail)
+        result["error"] = (2, err)
         if callable(prog_func):
             prog_func(prog_tot)
         return result
@@ -135,36 +136,50 @@ async def get_prices(symbols=None, _settings=None):
             pattern = re.compile(cfg.SYMBOL_RENAME_STRING + r'\d+')
             order = int(pattern.match(sym)[1]) if orig else 1
             merges[renamed_or_root].append({sym, code, order})
-        
-        # TODO: complete
+            merges.sort(key=(lambda x: x.order))
+            extras = selection - merges
+            extras_index = len(selection)
+            selection.extend(extras)
 
     update_result = await update_prices(selection, settings.cache, (prog_func, pn, prog_tot*0.78))
     succs, fails, error = update_result
     pn = update_result
     if error:
-        title, detail = error
-        result.error = (1, title, detail)
+        err = (title, detail)
+        result["error"] = (1, err)
         if callable(prog_func):
             prog_func(prog_tot)
         return result
+
     if fails:
         syms = [(i.ins_code, i.SymbolOriginal) for i in selection]
-        result.error = (3, 'Incomplete Price Update',
-                        fails.map(lambda k: syms[k]),
-                        succs.map(lambda k: syms[k])
-                        )
+        title = "Incomplete Price Update"
+        succs = list(map((lambda x: syms[x]), succs))
+        fails = list(map((lambda x: syms[x]), fails))
+        err = (title, succs, fails)
+        result["error"] = (3, err)
         for v, i, a in selection:
-            if fails.include(v.incode):
+            if fails.include(v.ins_code):
                 a[i] = None
             else:
                 a[i] = 0
     if merge_similar_symbols:
-        selection = selection[, extras_index]
+        selection = selection[:extras_index]
 
-    columns = settings.columns
-    # TODO: complete
+    columns = settings['columns']
 
-    adjustPrices, daysWithoutTrade, startDate, csv = settings
+    def col(col_name):
+        row = col_name
+        column = TSEColumn(row)
+        final_header = column.header or column.name
+        return {column, final_header}
+
+    columns = list(map(col, settings['columns']))
+
+    adjust_prices = settings['adjust_prices']
+    days_without_trade = settings['days_without_trade']
+    start_date = settings['start_date']
+    csv = settings['csv']
     shares = await strg.read_tse_csv('tse.shares')
     pi = prog_tot * 0.20 / selection.length
     stored_prices_merged = {}
@@ -172,23 +187,36 @@ async def get_prices(symbols=None, _settings=None):
     if merge_similar_symbols:
         for merge in merges:
             codes = [i.code for i in merge.values()]
-            [latest] = codes
-            stored_prices_merged[latest] = codes
-            # TODO: complete
-
+            stored_prices_merged[codes] = list(map((lambda x: PricesUpdateHelper.stored_prices[x]), codes)).reverse()
+    
     if csv:
-        csv_headers, csv_delimiter = settings
+        csv_headers = settings['csv_headers']
+        csv_delimiter = settings['csv_delimiter']
         headers = ''
         if csv_headers:
-            headers = columns.map(lambda i: i.header).join()+'\n'
-        else:
-            headers = ''
+            headers = list(map((lambda i: i.header), columns)).join()+'\n'
         result.data = selection
         # TODO: complete
     else:
         text_cols = set(['CompanyCode', 'LatinName', 'Symbol', 'Name'])
 
-        result.data = selection
+        def map_selection(instrument):
+            if not instrument:
+                return
+            res = headers
+            prices = get_instrument_prices(instrument)
+            if not prices:
+                return res
+            if prices == cfg.MERGED_SYMBOL_CONTENT:
+                return prices
+
+            res += list(map((lambda price: list(map((lambda i: data_svs.get_cell(i.name, instrument, price).join(csv_delimiter)),columns))), prices)).join('\n')
+            if callable(prog_func):
+                pn = pn+pi
+                prog_func(pn)
+            return res
+        result["data"] = list(map(map_selection, selection))
+        
         # TODO: complete
 
     if prog_func and pn != prog_tot:
