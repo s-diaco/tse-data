@@ -189,39 +189,37 @@ async def get_prices(symbols=None, _settings=None):
             codes = [i.code for i in merge.values()]
             stored_prices_merged[codes] = list(map((lambda x: PricesUpdateHelper.stored_prices[x]), codes)).reverse()
     
+    def map_selection(instrument):
+        if not instrument:
+            return
+        res = headers
+        prices = get_instrument_prices(instrument)
+        if not prices:
+            return res
+        if prices == cfg.MERGED_SYMBOL_CONTENT:
+            return prices
+
+        res += list(map((lambda price: list(map((lambda i: data_svs.get_cell(i.name, instrument, price).join(csv_delimiter)),columns))), prices)).join('\n')
+        if callable(prog_func):
+            pn = pn+pi
+            prog_func(pn)
+        return res
+
     if csv:
         csv_headers = settings['csv_headers']
         csv_delimiter = settings['csv_delimiter']
         headers = ''
         if csv_headers:
             headers = list(map((lambda i: i.header), columns)).join()+'\n'
-        result.data = selection
-        # TODO: complete
-    else:
-        text_cols = set(['CompanyCode', 'LatinName', 'Symbol', 'Name'])
-
-        def map_selection(instrument):
-            if not instrument:
-                return
-            res = headers
-            prices = get_instrument_prices(instrument)
-            if not prices:
-                return res
-            if prices == cfg.MERGED_SYMBOL_CONTENT:
-                return prices
-
-            res += list(map((lambda price: list(map((lambda i: data_svs.get_cell(i.name, instrument, price).join(csv_delimiter)),columns))), prices)).join('\n')
-            if callable(prog_func):
-                pn = pn+pi
-                prog_func(pn)
-            return res
         result["data"] = list(map(map_selection, selection))
-        
+    else:
         # TODO: complete
+        text_cols = set(['CompanyCode', 'LatinName', 'Symbol', 'Name'])
+        result["data"] = list(map(map_selection, selection))
 
     if prog_func and pn != prog_tot:
-        pn = ptot
-        pf(pn)
+        pn = prog_tot
+        prog_func(pn)
 
     return result
 
@@ -247,6 +245,8 @@ async def get_instruments(struct=True, arr=True, structKey='InsCode'):
 
 
 def get_instrument_prices(instrument,
+                          start_date,
+                          shares,
                           merge_similar_symbols=True,
                           merges=None, settings=None,
                           stored_prices=None,
