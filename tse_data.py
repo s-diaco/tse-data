@@ -1,5 +1,6 @@
 import numbers
 import re
+from tracemalloc import start
 
 import config as cfg
 import data_services as data_svs
@@ -58,7 +59,12 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
         percents.prog_func(percents.pn+percents.ptot*(0.01))
 
     if to_update:
-        manager_result = PricesUpdateHelper(to_update, should_cache, (pf, pn, ptot: ptot - ptot*(0.02)))
+        progress_tuple = (percents.progress_func, percents.pn, percents.ptot - percents.ptot*(0.02))
+        manager_result = PricesUpdateHelper().start(
+            update_needed=to_update,
+            should_cache=should_cache,
+            progress_tuple=progress_tuple
+        )
         self.succs, self.fails = manager_result
         pn = manager_result
 
@@ -188,22 +194,6 @@ async def get_prices(symbols=None, _settings=None):
         for merge in merges:
             codes = [i.code for i in merge.values()]
             stored_prices_merged[codes] = list(map((lambda x: PricesUpdateHelper.stored_prices[x]), codes)).reverse()
-    
-    def map_selection(instrument):
-        if not instrument:
-            return
-        res = headers
-        prices = get_instrument_prices(instrument)
-        if not prices:
-            return res
-        if prices == cfg.MERGED_SYMBOL_CONTENT:
-            return prices
-
-        res += list(map((lambda price: list(map((lambda i: data_svs.get_cell(i.name, instrument, price).join(csv_delimiter)),columns))), prices)).join('\n')
-        if callable(prog_func):
-            pn = pn+pi
-            prog_func(pn)
-        return res
 
     if csv:
         csv_headers = settings['csv_headers']
@@ -211,10 +201,41 @@ async def get_prices(symbols=None, _settings=None):
         headers = ''
         if csv_headers:
             headers = list(map((lambda i: i.header), columns)).join()+'\n'
+            
+        def map_selection(instrument):
+            if not instrument:
+                return
+            res = headers
+            prices = get_instrument_prices(instrument)
+            if not prices:
+                return res
+            if prices == cfg.MERGED_SYMBOL_CONTENT:
+                return prices
+
+            res += list(map((lambda price: list(map((lambda i: data_svs.get_cell(i.name, instrument, price).join(csv_delimiter)),columns))), prices)).join('\n')
+            if callable(prog_func):
+                pn = pn+pi
+                prog_func(pn)
+            return res
+
         result["data"] = list(map(map_selection, selection))
     else:
-        # TODO: complete
         text_cols = set(['CompanyCode', 'LatinName', 'Symbol', 'Name'])
+
+        def map_selection(instrument):
+            if not instrument:
+                return
+            res = list(map((lambda x: [x.header, []]), columns))
+            prices = get_instrument_prices(instrument)
+            if not prices:
+                return res
+            if prices == cfg.MERGED_SYMBOL_CONTENT:
+                return prices
+            for price in prices:
+                for header, name in columns:
+                    cell = data_svs.get_cell(name, instrument, price)
+                    res[header].push(cell if (name in text_cols) else float(cell))
+
         result["data"] = list(map(map_selection, selection))
 
     if prog_func and pn != prog_tot:
