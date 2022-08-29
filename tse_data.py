@@ -59,19 +59,20 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
         percents.prog_func(percents.pn+percents.ptot*(0.01))
 
     if to_update:
-        progress_tuple = (percents.progress_func, percents.pn, percents.ptot - percents.ptot*(0.02))
+        progress_tuple = (percents.progress_func, percents.pn,
+                          percents.ptot - percents.ptot*(0.02))
         manager_result = PricesUpdateHelper().start(
             update_needed=to_update,
             should_cache=should_cache,
             progress_tuple=progress_tuple
         )
         self.succs, self.fails = manager_result
-        pn = manager_result
+        percents.pn = manager_result
 
         if self.succs and should_cache:
             await strg.set_items('tse.inscode_lastdeven', last_devens)
         result = (self.succs, self.fails)
-    if callable(percents.progress_func) and pn != prog_fin:
+    if callable(percents.progress_func) and percents.pn != prog_fin:
         percents.prog_func(prog_fin)
     result.pn = prog_fin
 

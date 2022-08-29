@@ -16,6 +16,9 @@ import tse_data
 async def test_get_prices(symbols, settings):
     """
     test get_prices function
+
+    :param symbols: list of symbols
+    :param settings: dict of settings
     """
     resp = await tse_data.get_prices(symbols=symbols, _settings=settings)
     assert resp != 'OK'
