@@ -90,12 +90,12 @@ async def get_prices(symbols=None, _settings=None):
         return {}
     settings = _settings if _settings else cfg.default_settings
     result = {"data": [], "error": None}
-    prog_func = settings['on_progress']
+    prog_func = settings.get('on_progress')
     if not callable(prog_func):
         prog_func = None
-    prog_tot = settings['progress_tot']
+    prog_tot = settings.get('progress_tot')
     if not isinstance(prog_tot, numbers.Number):
-        prog_tot = cfg.default_settings.progress_total
+        prog_tot = cfg.default_settings['progress_tot']
     pn = 0
     err = await data_svs.update_instruments()
     if callable(prog_func):
@@ -107,7 +107,7 @@ async def get_prices(symbols=None, _settings=None):
             prog_func(prog_tot)
         return result
 
-    instruments = await strg.read_tse_csv('tse.instruments')
+    instruments = await strg().read_tse_csv(f_name='tse.instruments')
     selection = list(map((lambda x: instruments[x]), symbols))
     not_founds = set(symbols) - set(selection)
     if callable(prog_func):
