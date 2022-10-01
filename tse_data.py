@@ -96,11 +96,11 @@ async def get_prices(symbols=None, _settings=None):
     prog_tot = settings.get('progress_tot')
     if not isinstance(prog_tot, numbers.Number):
         prog_tot = cfg.default_settings['progress_tot']
-    pn = 0
+    prog_n = 0
     err = await data_svs.update_instruments()
     if callable(prog_func):
-        pn = pn+(prog_tot*0.01)
-        prog_func(pn)
+        prog_n = prog_n+(prog_tot*0.01)
+        prog_func(prog_n)
     if err:
         result["error"] = (1, err)
         if callable(prog_func):
@@ -111,8 +111,8 @@ async def get_prices(symbols=None, _settings=None):
     selection = list(map((lambda x: instruments[x]), symbols))
     not_founds = set(symbols) - set(selection)
     if callable(prog_func):
-        pn = pn+(prog_tot*0.01)
-        prog_func(pn)
+        prog_n = prog_n+(prog_tot*0.01)
+        prog_func(prog_n)
     if not_founds:
         title, detail = "Incorrect Symbol", not_founds
         err = (title, detail)
@@ -148,9 +148,9 @@ async def get_prices(symbols=None, _settings=None):
             extras_index = len(selection)
             selection.extend(extras)
 
-    update_result = await update_prices(selection, settings.cache, (prog_func, pn, prog_tot*0.78))
+    update_result = await update_prices(selection, settings.cache, (prog_func, prog_n, prog_tot*0.78))
     succs, fails, error = update_result
-    pn = update_result
+    prog_n = update_result
     if error:
         err = (title, detail)
         result["error"] = (1, err)
@@ -239,9 +239,9 @@ async def get_prices(symbols=None, _settings=None):
 
         result["data"] = list(map(map_selection, selection))
 
-    if prog_func and pn != prog_tot:
-        pn = prog_tot
-        prog_func(pn)
+    if prog_func and prog_n != prog_tot:
+        prog_n = prog_tot
+        prog_func(prog_n)
 
     return result
 
