@@ -70,13 +70,13 @@ class TSERequest:
 
     async def _make_request(self, params: dict) -> str:
         """
-        send api request to tse and return string data
+        send request to tsetmc api and return response
 
-        :param params: dict, api parameters
+        :param params: dict, request parameters
 
-        :return: str, response data
+        :return: str, response
 
-        :raises: aiohttp.ClientError
+        :raise: aiohttp.ClientError, if request failed
         """
         try:
             async with aiohttp.ClientSession() as session:
@@ -87,6 +87,6 @@ class TSERequest:
                         tse_logger.error(response.status +
                                          ' ' + response.reason)
                         raise aiohttp.ClientError
-        except Exception as e:  # pylint: disable=broad-except
+        except aiohttp.ClientError as e:
             tse_logger.error(e)
             raise
