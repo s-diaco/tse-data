@@ -17,5 +17,5 @@ async def parse_instruments(itd=False) -> dict:
         #TODO: parse intraday instrument data
         raise NotImplementedError
     rows = await Storage().read_tse_csv('tse.instruments')
-    instruments = [TSEInstrument(row) for row in rows]
+    instruments = [TSEInstrument(list(row)) for row in rows.values.tolist()]
     return instruments

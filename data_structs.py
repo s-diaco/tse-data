@@ -66,7 +66,8 @@ class TSEInstrument:
         """
         constructor for TSEInstrument class
         """
-        row = row.split(',')
+        if isinstance(row, str):
+            row = row.split(',')
         if not (len(row) in [18, 19]):
             raise Exception('Invalid instrument data')
         self.InsCode = row[0]  # int64 (کد داخلي نماد)
@@ -74,7 +75,7 @@ class TSEInstrument:
         self.LatinSymbol = row[2]  # string
         self.LatinName = row[3]  # string
         self.CompanyCode = row[4]  # string
-        self.Symbol = clean_fa(row[5]).trim()  # string
+        self.Symbol = clean_fa(row[5]).strip()  # string
         self.Name = row[6]  # string
         self.CIsin = row[7]  # کد 12 رقمي شرکت
         self.DEven = row[8]  # int32 (date)
@@ -87,8 +88,10 @@ class TSEInstrument:
         self.CSecVal = row[15]  # []62 کد گروه صنعت
         self.CSoSecVal = row[16]  # []177 کد زیر گروه صنعت
         self.YVal = row[17]  # string نوع نماد (شاخص صندوق اوراق ... )
-        if row[18]:
-            self.SymbolOriginal = clean_fa(row[18]).trim()  # string
+        try: # if row[18] (original symbol name) exists
+            self.SymbolOriginal = clean_fa(row[18]).strip()  # string
+        except IndexError:
+            pass
 
 
 class TSEInstrumentItd:
