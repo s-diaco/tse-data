@@ -8,5 +8,8 @@
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
-    "editor.rulers": [79]
+    "editor.rulers": [
+        79
+    ],
+    "python.analysis.typeCheckingMode": "basic"
 }

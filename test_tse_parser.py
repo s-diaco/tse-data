@@ -1,6 +1,7 @@
 """
 test tse_parser.py
 """
+from cmath import log
 import tse_parser as parser
 
 

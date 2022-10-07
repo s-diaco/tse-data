@@ -7,6 +7,7 @@ import data_services as data_svs
 from data_structs import TSEColumn
 from price_update_helper import PricesUpdateHelper
 from storage import Storage as strg
+from tse_parser import parse_instruments
 
 
 # todo: complete
@@ -107,9 +108,10 @@ async def get_prices(symbols=None, _settings=None):
             prog_func(prog_tot)
         return result
 
-    instruments = await strg().read_tse_csv(f_name='tse.instruments')
-    selection = list(map((lambda x: instruments[x]), symbols))
-    not_founds = set(symbols) - set(selection)
+    instruments = await parse_instruments(dict_key='Symbol')
+    selected_symbols = [sym for sym in symbols if sym in instruments.keys()]
+    selection = [instruments[sym] for sym in selected_symbols]
+    not_founds = [sym for sym in symbols if sym not in selected_symbols]
     if callable(prog_func):
         prog_n = prog_n+(prog_tot*0.01)
         prog_func(prog_n)
