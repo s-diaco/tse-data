@@ -9,7 +9,7 @@ import tse_data
 
 @pytest.mark.parametrize("symbols, settings", [
     (['همراه', 'ذوب', 'فولاد', 'وبملت', 'شیران', 'نماد غلط'], {'adjust_prices': 1}),
-    (['همراه', 'ذوب', 'فولاد', 'شیراز', 'وبملت'], {'adjust_prices': 0})],
+    (['همراه', 'ذوب', 'فولاد', 'شیراز', 'وخارزم'], {'adjust_prices': 0})],
     indirect=False
 )
 @pytest.mark.asyncio

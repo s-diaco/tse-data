@@ -66,3 +66,4 @@ async def test_update_instruments():
     Test the update_instruments function.
     """
     await data_services.update_instruments()
+    assert True

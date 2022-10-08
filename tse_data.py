@@ -7,6 +7,7 @@ import data_services as data_svs
 from data_structs import TSEColumn
 from price_update_helper import PricesUpdateHelper
 from storage import Storage as strg
+from setup_logger import logger as tse_logger
 from tse_parser import parse_instruments
 
 
@@ -80,7 +81,7 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     return result
 
 
-async def get_prices(symbols=None, _settings=None):
+async def get_prices(symbols=None, settings=None):
     """
     get prices for symbols
     :symbols: list, symbols to get prices for
@@ -89,7 +90,10 @@ async def get_prices(symbols=None, _settings=None):
     """
     if not symbols:
         return {}
-    settings = _settings if _settings else cfg.default_settings
+    if settings:
+        settings = cfg.default_settings.update(settings)
+    else:
+        settings = cfg.default_settings
     result = {"data": [], "error": None}
     prog_func = settings.get('on_progress')
     if not callable(prog_func):
@@ -98,30 +102,23 @@ async def get_prices(symbols=None, _settings=None):
     if not isinstance(prog_tot, numbers.Number):
         prog_tot = cfg.default_settings['progress_tot']
     prog_n = 0
-    err = await data_svs.update_instruments()
+    await data_svs.update_instruments()
     if callable(prog_func):
         prog_n = prog_n+(prog_tot*0.01)
         prog_func(prog_n)
-    if err:
-        result["error"] = (1, err)
-        if callable(prog_func):
-            prog_func(prog_tot)
-        return result
-
     instruments = await parse_instruments(dict_key='Symbol')
     selected_symbols = [sym for sym in symbols if sym in instruments.keys()]
     selection = [instruments[sym] for sym in selected_symbols]
+    if not selection:
+        raise ValueError("No instruments found for symbols: %s" % symbols)
     not_founds = [sym for sym in symbols if sym not in selected_symbols]
     if callable(prog_func):
         prog_n = prog_n+(prog_tot*0.01)
         prog_func(prog_n)
     if not_founds:
-        title, detail = "Incorrect Symbol", not_founds
-        err = (title, detail)
-        result["error"] = (2, err)
+        tse_logger.warning("symbols not found: %s", not_founds)
         if callable(prog_func):
             prog_func(prog_tot)
-        return result
 
     merge_similar_symbols = settings['merge_similar_symbols']
     merges = {}
