@@ -81,7 +81,7 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     return result
 
 
-async def get_prices(symbols=None, settings=None):
+async def get_prices(symbols=None, conf=None):
     """
     get prices for symbols
     :symbols: list, symbols to get prices for
@@ -90,10 +90,9 @@ async def get_prices(symbols=None, settings=None):
     """
     if not symbols:
         return {}
-    if settings:
-        settings = cfg.default_settings.update(settings)
-    else:
-        settings = cfg.default_settings
+    settings = cfg.default_settings
+    if conf:
+        settings.update(conf)
     result = {"data": [], "error": None}
     prog_func = settings.get('on_progress')
     if not callable(prog_func):
@@ -110,7 +109,7 @@ async def get_prices(symbols=None, settings=None):
     selected_symbols = [sym for sym in symbols if sym in instruments.keys()]
     selection = [instruments[sym] for sym in selected_symbols]
     if not selection:
-        raise ValueError("No instruments found for symbols: %s" % symbols)
+        raise ValueError(f"No instruments found for symbols: {symbols}.")
     not_founds = [sym for sym in symbols if sym not in selected_symbols]
     if callable(prog_func):
         prog_n = prog_n+(prog_tot*0.01)
@@ -126,7 +125,8 @@ async def get_prices(symbols=None, settings=None):
 
     if merge_similar_symbols:
         syms = instruments.keys
-        ins = [instruments[k] for k in syms]
+        ins = list(instruments.values())
+        syms_with_roots = [x for x in ins if hasattr(x, 'SymbolOriginal')]
         syms_with_roots =  list(filter((lambda x: x.SymbolOriginal), ins))
         roots = list(map((lambda x: x.SymbolOriginal), syms_with_roots))
 

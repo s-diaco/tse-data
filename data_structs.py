@@ -89,7 +89,8 @@ class TSEInstrument:
         self.CSoSecVal = row[16]  # []177 کد زیر گروه صنعت
         self.YVal = row[17]  # string نوع نماد (شاخص صندوق اوراق ... )
         try: # if row[18] (original symbol name) exists
-            self.SymbolOriginal = clean_fa(row[18]).strip()  # string
+            if row[18]:
+                self.SymbolOriginal = clean_fa(row[18]).strip()  # string
         except IndexError:
             pass
 
