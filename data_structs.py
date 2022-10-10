@@ -93,6 +93,21 @@ class TSEInstrument:
                 self.SymbolOriginal = clean_fa(row[18]).strip()  # string
         except IndexError:
             pass
+    
+    def __str__(self):
+        """
+        string representation of TSEInstrument class
+        """
+        return '{}(\n{})'.format(self.__class__.__name__, ',\n'.join(self.list()))
+
+    def list(self):
+        """
+        list representation of TSEInstrument class
+        """
+        fields = ['    {}={!r}'.format(k, v)
+                  for k, v in self.__dict__.items() if not k.startswith('_')]
+
+        return fields
 
 
 class TSEInstrumentItd:

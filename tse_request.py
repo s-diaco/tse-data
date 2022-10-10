@@ -13,7 +13,7 @@ class TSERequest:
     send api request to tse and return string data
     """
 
-    def instrument(self, last_date: str) -> str:
+    def instrument(self, last_date: str):
         """
         request instrument data from tsetmc api
 
@@ -27,7 +27,7 @@ class TSERequest:
         }
         return self._make_request(params)
 
-    def instrument_and_share(self, last_date: str, last_id: int = 0) -> str:
+    def instrument_and_share(self, last_date: str, last_id: int = 0):
         """
         request instrument and their share data from tsetmc api
 
@@ -43,7 +43,7 @@ class TSERequest:
         }
         return self._make_request(params)
 
-    def last_possible_deven(self) -> str:
+    def last_possible_deven(self):
         """
         request date for the last possible update from tsetmc api
 
@@ -54,7 +54,7 @@ class TSERequest:
         }
         return self._make_request(params)
 
-    def closing_prices(self, ins_codes) -> str:
+    def closing_prices(self, ins_codes):
         """
         request closing prices from tsetmc api
 
@@ -68,7 +68,7 @@ class TSERequest:
         }
         return self._make_request(params)
 
-    async def _make_request(self, params: dict) -> str:
+    async def _make_request(self, params: dict):
         """
         send request to tsetmc api and return response
 
@@ -84,8 +84,8 @@ class TSERequest:
                     if response.status == 200:
                         return await response.text()
                     else:
-                        tse_logger.error(response.status +
-                                         ' ' + response.reason)
+                        tse_logger.error(str(response.status) +
+                                         ' ' + str(response.reason))
                         raise aiohttp.ClientError
         except aiohttp.ClientError as e:
             tse_logger.error(e)

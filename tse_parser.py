@@ -2,7 +2,7 @@
 funtions to parse tse data
 """
 import numpy as np
-from data_structs import TSEInstrument
+from data_structs import TSEInstrument, TSEShare
 from storage import Storage
 
 
@@ -23,5 +23,19 @@ async def parse_instruments(itd=False, dict_key='InsCode') -> dict:
         instruments = [TSEInstrument(row) for row in rows.values.tolist()]
         instruments_dict = dict(zip(rows[dict_key], instruments))
         return instruments_dict
-    raise Exception('No instrument data found')
+    return {}
+
+async def parse_shares() -> dict:
+    """
+    parse shares data
+
+    :return: dict, parsed shares data
+    """
+    rows = await Storage().read_tse_csv('tse.shares')
+    rows = rows.fillna(np.nan).replace([np.nan], [None])
+    if len(rows.index):
+        shares = [TSEShare(row) for row in rows.values.tolist()]
+        shares_dict = dict(zip(rows['Idn'], shares))
+        return shares_dict
+    return {}
     

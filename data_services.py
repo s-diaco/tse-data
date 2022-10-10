@@ -11,6 +11,7 @@ import pandas as pd
 
 import config as cfg
 import data_structs
+from tse_parser import parse_instruments, parse_shares
 import tse_utils
 from setup_logger import logger
 from storage import Storage
@@ -194,18 +195,19 @@ async def update_instruments() -> None:
 
     strg = Storage()
     last_update = strg.get_item('tse.lastInstrumentUpdate')
-    cached_instruments = []
-    cached_shares = []
+    cached_instruments = {}
+    cached_shares = {}
     last_deven = ''
     last_id = ''
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     if last_update:
-        cached_instruments = await strg.read_tse_csv('tse.instruments')
-        cached_shares = await strg.read_tse_csv('tse.shares')
-        last_deven = str(cached_instruments[inst_col_names[8]].max())
+        cached_instruments = await parse_instruments()
+        cached_shares = await parse_shares()
+        last_deven = max([i.DEven for i in cached_instruments.values()])
         if len(cached_shares) > 0:
-            last_id = str(cached_shares[share_col_names[0]].max())
+            # TODO: check if this is correct:
+            last_id = max(cached_shares.keys())
     else:
         last_deven = '0'
         last_id = '0'
@@ -238,6 +240,17 @@ async def update_instruments() -> None:
         logger.warning('Already updated: Instruments')
     else:
         if len(cached_instruments) > 0:
+            def use_sym_orig(instrum):
+                if len(instrum.list()) == 19:
+                    orig_sym = instrum.SymbolOriginal
+                    list = instrum.list()[:17]
+                    new_inst = data_structs.TSEInstrument(list)
+                    new_inst.Symbol = orig_sym
+                    return new_inst
+                else:
+                    list = instrum.list()
+                    return data_structs.TSEInstrument(list)
+            orig = list(map(use_sym_orig, cached_instruments.values()))
             # todo: line 604 tse.js
             convs = {5: tse_utils.clean_fa}
             instrums_df = pd.read_csv(StringIO(instruments),
