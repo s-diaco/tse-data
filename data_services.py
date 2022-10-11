@@ -240,17 +240,26 @@ async def update_instruments() -> None:
         logger.warning('Already updated: Instruments')
     else:
         if len(cached_instruments) > 0:
-            def use_sym_orig(instrum):
+
+            def _use_sym_orig(instrum):
+                """
+                Use the original symbol if it exists
+
+                :param instrum: Instrument, instrument to check
+
+                :return: str, symbol
+                """
                 if len(instrum.list()) == 19:
                     orig_sym = instrum.SymbolOriginal
-                    list = instrum.list()[:17]
-                    new_inst = data_structs.TSEInstrument(list)
+                    attr_list = instrum.list()[:17]
+                    new_inst = data_structs.TSEInstrument(attr_list)
                     new_inst.Symbol = orig_sym
                     return new_inst
                 else:
-                    list = instrum.list()
-                    return data_structs.TSEInstrument(list)
-            orig = list(map(use_sym_orig, cached_instruments.values()))
+                    return instrum
+
+            orig_values = list(map(_use_sym_orig, cached_instruments.values()))
+            orig = dict(zip(cached_instruments.keys(), orig_values))
             # todo: line 604 tse.js
             convs = {5: tse_utils.clean_fa}
             instrums_df = pd.read_csv(StringIO(instruments),
