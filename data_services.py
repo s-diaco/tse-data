@@ -1,7 +1,9 @@
 """
 functions to manage tse data
 """
+import itertools
 import re
+from collections import defaultdict
 from datetime import datetime
 from io import StringIO
 
@@ -11,10 +13,10 @@ import pandas as pd
 
 import config as cfg
 import data_structs
-from tse_parser import parse_instruments, parse_shares
 import tse_utils
 from setup_logger import logger
 from storage import Storage
+from tse_parser import parse_instruments, parse_shares
 from tse_request import TSERequest
 
 
@@ -258,9 +260,28 @@ async def update_instruments() -> None:
                 else:
                     return instrum
 
-            orig_values = list(map(_use_sym_orig, cached_instruments.values()))
-            orig = dict(zip(cached_instruments.keys(), orig_values))
-            # todo: line 604 tse.js
+            rows = list(map(_use_sym_orig, cached_instruments.values()))
+            orig = dict(zip(cached_instruments.keys(), rows))
+            res = defaultdict(list)
+            for row in rows:
+                res[row.Symbol].append(row)
+            dups = [v for _, v in res.items() if len(v) > 1]
+
+            for dup in dups:
+                dup_sorted = sorted(dup, key=lambda x: x.DEven)
+                orig_sym = dup_sorted[0].Symbol
+                for redundant_sym in dup_sorted:
+                    if redundant_sym.index > 0:
+                        postfix = cfg.SYMBOL_RENAME_STRING + redundant_sym.index
+                        redundant_sym.Symbol = orig_sym + postfix
+            instruments = rows
+                        
+            # TODO: https://stackoverflow.com/a/56064169/6512401
+            d = {str(x.InsCode): x.Symbol for x in res.values()}
+            c = {b:itertools.count() for b in d.values()}
+            result = {a:(lambda x:b if not x else b+str(x))(next(c[b])) for a, b in d.items()}
+
+            # TODO: line 604 tse.js
             convs = {5: tse_utils.clean_fa}
             instrums_df = pd.read_csv(StringIO(instruments),
                                       names=inst_col_names,
