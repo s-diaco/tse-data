@@ -2,11 +2,12 @@
 funtions to parse tse data
 """
 import numpy as np
+import pandas as pd
 from data_structs import TSEInstrument, TSEShare
 from storage import Storage
 
 
-async def parse_instruments(itd=False, dict_key='InsCode') -> dict:
+async def parse_instruments(itd=False, dict_key='InsCode') -> pd.DataFrame:
     """
     parse instrument data
 
@@ -19,11 +20,14 @@ async def parse_instruments(itd=False, dict_key='InsCode') -> dict:
         raise NotImplementedError
     rows = await Storage().read_tse_csv('tse.instruments')
     rows = rows.fillna(np.nan).replace([np.nan], [None])
+    # TODO: delete this if statement
+    """
     if len(rows.index):
         instruments = [TSEInstrument(row) for row in rows.values.tolist()]
         instruments_dict = dict(zip(rows[dict_key], instruments))
         return instruments_dict
-    return {}
+    """
+    return rows
 
 async def parse_shares() -> dict:
     """

@@ -4,7 +4,7 @@ from tracemalloc import start
 
 import config as cfg
 import data_services as data_svs
-from data_structs import TSEColumn
+from data_structs import TSEColumn, TSEInstrument
 from price_update_helper import PricesUpdateHelper
 from storage import Storage as strg
 from setup_logger import logger as tse_logger
@@ -105,9 +105,10 @@ async def get_prices(symbols=None, conf=None):
     if callable(prog_func):
         prog_n = prog_n+(prog_tot*0.01)
         prog_func(prog_n)
-    instruments = await parse_instruments(dict_key='Symbol')
-    selected_symbols = [sym for sym in symbols if sym in instruments.keys()]
-    selection = [instruments[sym] for sym in selected_symbols]
+    instruments = await parse_instruments()
+    selected_symbols = [sym for sym in symbols if sym in instruments['Symbol']]
+    instrums_dict = {ins['Symbol']: TSEInstrument(ins) for ins in instruments.iterrows()}
+    selection = [instrums_dict[sym] for sym in selected_symbols]
     if not selection:
         raise ValueError(f"No instruments found for symbols: {symbols}.")
     not_founds = [sym for sym in symbols if sym not in selected_symbols]

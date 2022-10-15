@@ -9,6 +9,7 @@ import pytest
 
 import data_services
 import data_structs
+import tse_parser as parser
 
 
 def test_adjust():
@@ -67,3 +68,12 @@ async def test_update_instruments():
     """
     await data_services.update_instruments()
     assert True
+
+
+async def test_procc_similar_syms():
+    """
+    Test the procc_similar_syms function
+    """
+    cached_instruments = await parser.parse_instruments()
+    processed_instruments = data_services._procc_similar_syms(cached_instruments)
+    assert len(processed_instruments) > 0

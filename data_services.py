@@ -223,11 +223,11 @@ async def update_instruments() -> None:
     req = TSERequest()
     try:
         today = datetime.now().strftime('%Y%m%d')
-        res = await req.instrument_and_share(today, last_id)
+        orig_sym_dict = await req.instrument_and_share(today, last_id)
     except Exception as e:
         logger.error('Failed request: InstrumentAndShare, detail: %s', e)
         raise
-    shares = res.split('@')[1]
+    shares = orig_sym_dict.split('@')[1]
     try:
         instruments = await req.instrument(last_deven)
     except Exception as e:
@@ -242,76 +242,47 @@ async def update_instruments() -> None:
         logger.warning('Already updated: Instruments')
     else:
         if len(cached_instruments) > 0:
-
-            def _use_sym_orig(instrum):
-                """
-                Use the original symbol if it exists
-
-                :param instrum: Instrument, instrument to check
-
-                :return: str, symbol
-                """
-                if len(instrum.list()) == 19:
-                    orig_sym = instrum.SymbolOriginal
-                    attr_list = instrum.list()[:17]
-                    new_inst = data_structs.TSEInstrument(attr_list)
-                    new_inst.Symbol = orig_sym
-                    return new_inst
-                else:
-                    return instrum
-
-            rows = list(map(_use_sym_orig, cached_instruments.values()))
-            orig = dict(zip(cached_instruments.keys(), rows))
-            res = defaultdict(list)
-            for row in rows:
-                res[row.Symbol].append(row)
-            dups = [v for _, v in res.items() if len(v) > 1]
-
-            for dup in dups:
-                dup_sorted = sorted(dup, key=lambda x: x.DEven)
-                orig_sym = dup_sorted[0].Symbol
-                for redundant_sym in dup_sorted:
-                    if redundant_sym.index > 0:
-                        postfix = cfg.SYMBOL_RENAME_STRING + redundant_sym.index
-                        redundant_sym.Symbol = orig_sym + postfix
-            instruments = rows
-                        
-            # TODO: https://stackoverflow.com/a/56064169/6512401
-            d = {str(x.InsCode): x.Symbol for x in res.values()}
-            c = {b:itertools.count() for b in d.values()}
-            result = {a:(lambda x:b if not x else b+str(x))(next(c[b])) for a, b in d.items()}
-
-            # TODO: line 604 tse.js
-            convs = {5: tse_utils.clean_fa}
-            instrums_df = pd.read_csv(StringIO(instruments),
-                                      names=inst_col_names,
-                                      converters=convs,
-                                      lineterminator=';')
+            for _, row in cached_instruments.iterrows():
+                if row['SymbolOriginal']:
+                    cached_instruments.loc[row, 'Symbol'] = row['SymbolOriginal']
+            instrums_df = cached_instruments
         else:
             convs = {5: tse_utils.clean_fa}
             instrums_df = pd.read_csv(StringIO(instruments),
                                       names=inst_col_names,
                                       converters=convs,
                                       lineterminator=';')
-        await strg.write_tse_csv('tse.instruments', instrums_df)
+        instruments = _procc_similar_syms(instrums_df)
+        await strg.write_tse_csv('tse.instruments', instruments)
     if shares == '':
         logger.warning('Already updated: Shares')
     else:
         if len(cached_shares) > 0:
-            # todo: line 604 tse.js
-            shares_df = pd.read_csv(StringIO(shares),
-                                    names=share_col_names,
-                                    lineterminator=';')
+            shares_df = cached_shares
         else:
             shares_df = pd.read_csv(StringIO(shares),
                                     names=share_col_names,
                                     lineterminator=';')
         await strg.write_tse_csv('tse.shares', shares_df)
-    # todo: handle duplicates
-    # symbs = instrums_df["Symbol"]
-    # dups = instrums_df[symbs.isin(
-    # symbs[symbs.duplicated()])].sort_values(by='Symbol')
-    # todo: await twice?
 
     if len(instrums_df)>0:
         strg.set_item('tse.lastInstrumentUpdate', today)
+
+
+def _procc_similar_syms(instrums_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Process similar symbols
+
+    :param instrums_df: pd.DataFrame, instruments dataframe
+
+    :return: pd.DataFrame, processed instruments dataframe
+    """
+    sym_groups = [x for x in instrums_df.groupby('Symbol')]
+    dups = [v for v in sym_groups if len(v[1]) > 1]
+    for dup in dups:
+        dup_sorted = dup[1].sort_values(by='DEven', ascending=False)
+        for i in range(1, len(dup_sorted)):
+            postfix = cfg.SYMBOL_RENAME_STRING + str(i)
+            instrums_df.loc[dup_sorted.iloc[i].name, 'Symbol'] += postfix
+    # TODO: remove this comment. instruments 646:
+    return instrums_df
