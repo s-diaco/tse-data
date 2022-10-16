@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
 // https://github.com/microsoft/vscode-dev-containers/tree/v0.217.4/containers/docker-existing-dockerfile
 {
-	"name": "Existing Dockerfile",
+	"name": "dtse container",
 
 	// Sets the run context to one level up instead of the .devcontainer folder.
 	"context": "..",
@@ -13,7 +13,12 @@
 	"settings": {},
 	
 	// Add the IDs of extensions you want installed when the container is created.
-	"extensions": ["ms-azuretools.vscode-docker"]
+	"extensions": [
+		"ms-azuretools.vscode-docker",
+		"ms-python.python",
+		"GitHub.copilot",
+		"ms-python.pylint"
+	]
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
