@@ -118,7 +118,8 @@ class TSEInstrumentItd:
         """
         constructor for TSEInstrumentItd class
         """
-        row = row.split(',')
+        if isinstance(row, str):
+            row = row.split(',')
         if len(row) != 11:
             raise Exception('Invalid InstrumentItd data')
         self.InsCode = row[0]
@@ -147,7 +148,8 @@ class TSEShare:
             self.NumberOfShareNew = int(self.NumberOfShareNew)  # decimal
             self.NumberOfShareOld = int(self.NumberOfShareOld)  # decimal
         else:
-            row = row.split(',')
+            if isinstance(row, str):
+                row = row.split(',')
             if len(row) != 5:
                 raise Exception('Invalid share data')
             self.Idn = row[0]  # long

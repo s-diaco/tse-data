@@ -206,9 +206,8 @@ async def update_instruments() -> None:
     if last_update:
         cached_instruments = await parse_instruments()
         cached_shares = await parse_shares()
-        last_deven = max([i.DEven for i in cached_instruments.values()])
+        last_deven = max(cached_instruments['DEven'])
         if len(cached_shares) > 0:
-            # TODO: check if this is correct:
             last_id = max(cached_shares.keys())
     else:
         last_deven = '0'
