@@ -6,8 +6,8 @@ import math
 import re
 from threading import Timer
 
-import config as cfg
-from tse_request import TSERequest
+from . import config as cfg
+from .tse_request import TSERequest
 
 
 class PricesUpdateHelper:

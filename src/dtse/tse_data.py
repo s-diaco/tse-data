@@ -2,13 +2,13 @@ import numbers
 import re
 from tracemalloc import start
 
-import config as cfg
-import data_services as data_svs
-from data_structs import TSEColumn, TSEInstrument
-from price_update_helper import PricesUpdateHelper
-from storage import Storage as strg
-from setup_logger import logger as tse_logger
-from tse_parser import parse_instruments
+from . import config as cfg
+from . import data_services as data_svs
+from .data_structs import TSEColumn, TSEInstrument
+from .price_update_helper import PricesUpdateHelper
+from .storage import Storage as strg
+from .setup_logger import logger as tse_logger
+from .tse_parser import parse_instruments
 
 
 # todo: complete

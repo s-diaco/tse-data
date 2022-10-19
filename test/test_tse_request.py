@@ -1,5 +1,8 @@
+"""
+test tse_request.py
+"""
 import pytest
-from tse_request import TSERequest
+from dtse.tse_request import TSERequest
 
 
 @pytest.mark.asyncio

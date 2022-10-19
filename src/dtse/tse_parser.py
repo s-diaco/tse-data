@@ -3,8 +3,8 @@ funtions to parse tse data
 """
 import numpy as np
 import pandas as pd
-from data_structs import TSEInstrument, TSEShare
-from storage import Storage
+from .data_structs import TSEInstrument, TSEShare
+from .storage import Storage
 
 
 async def parse_instruments(itd=False, dict_key='InsCode') -> pd.DataFrame:

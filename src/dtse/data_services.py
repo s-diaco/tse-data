@@ -11,13 +11,13 @@ import jdatetime
 import numpy as np
 import pandas as pd
 
-import config as cfg
-import data_structs
-import tse_utils
-from setup_logger import logger
-from storage import Storage
-from tse_parser import parse_instruments, parse_shares
-from tse_request import TSERequest
+from . import config as cfg
+from . import data_structs
+from . import tse_utils
+from .setup_logger import logger
+from .storage import Storage
+from .tse_parser import parse_instruments, parse_shares
+from .tse_request import TSERequest
 
 
 def adjust(cond, closing_prices, all_shares, ins_codes):

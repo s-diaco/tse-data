@@ -3,7 +3,7 @@ tests for storage.py
 """
 import pytest
 
-import storage
+from dtse import storage
 
 
 def test_storage():

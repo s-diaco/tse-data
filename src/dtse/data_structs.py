@@ -2,8 +2,8 @@
 """
 data structures
 """
-import config as settings
-from tse_utils import clean_fa
+from . import config as settings
+from .tse_utils import clean_fa
 
 
 class TSEClosingPrice:

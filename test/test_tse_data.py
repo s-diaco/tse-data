@@ -4,7 +4,7 @@ test tse_data.py
 
 import pytest
 
-import dtse.tse_data
+from dtse import tse_data
 
 
 @pytest.mark.parametrize("symbols, settings", [

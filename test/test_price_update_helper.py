@@ -3,7 +3,7 @@ test price_ipdate_helper
 """
 import json
 import numpy as np
-import price_update_helper as puh
+from dtse import price_update_helper as puh
 
 
 def test_on_result():

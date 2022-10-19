@@ -1,7 +1,7 @@
 """
 test tse_utils.py
 """
-import tse_utils
+from dtse import tse_utils
 
 
 def test_clean_fa():

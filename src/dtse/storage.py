@@ -5,8 +5,8 @@ import gzip
 from pathlib import Path
 
 import pandas as pd
-from config import storage as settings
-from setup_logger import logger
+from .config import storage as settings
+from .setup_logger import logger
 
 
 class Storage:

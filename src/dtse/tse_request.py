@@ -4,8 +4,8 @@ send api request to tse and return string data
 
 import aiohttp
 
-import config as settings
-from setup_logger import logger as tse_logger
+from . import config as settings
+from .setup_logger import logger as tse_logger
 
 
 class TSERequest:

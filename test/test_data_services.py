@@ -7,9 +7,9 @@ import re
 import numpy as np
 import pytest
 
-import data_services
-import data_structs
-import tse_parser as parser
+from dtse import data_services
+from dtse import data_structs
+from dtse import tse_parser as parser
 
 
 def test_adjust():
