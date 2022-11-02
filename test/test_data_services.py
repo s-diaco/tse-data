@@ -70,6 +70,7 @@ async def test_update_instruments():
     assert True
 
 
+@pytest.mark.asyncio
 async def test_procc_similar_syms():
     """
     Test the procc_similar_syms function

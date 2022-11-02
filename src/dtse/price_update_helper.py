@@ -8,6 +8,7 @@ from threading import Timer
 
 from . import config as cfg
 from .tse_request import TSERequest
+from .storage import Storage as strg
 
 
 class PricesUpdateHelper:
@@ -101,10 +102,10 @@ class PricesUpdateHelper:
                     self.writing.append(self.should_cache and strg.set_item_async(
                         'tse.prices.'+ins_code, data))
             self.fails = list(set(self.fails).intersection(ins_codes))
-            if(self.progress_func):
+            if(self.prog_func):
                 filled = self.prog_succ_req / \
                     (cfg.PRICES_UPDATE_RETRY_COUNT+2)*(self.retries + 1)
-                self.progress_func(pn=self.progress_n +
+                self.prog_func(pn=self.prog_n +
                                    self.prog_succ_req-filled)
         else:
             self.fails.append(ins_codes)
@@ -124,8 +125,8 @@ class PricesUpdateHelper:
             self._on_result(res, chunk, req_id)
         except:  # pylint: disable=bare-except
             self._on_result(None, chunk, req_id)
-        if(self.progress_func):
-            self.progress_func(pn=self.progress_n+self.prog_req)
+        if(self.prog_func):
+            self.prog_func(pn=self.prog_n+self.prog_req)
 
     def _batch(self, chunks=None):
         """
