@@ -37,12 +37,13 @@ def test_adjust():
     assert np.array(res).shape != (2, 2)
 
 
-@pytest.mark.parametrize("last_update, last_possible_update, expected", [
-                        ("20220103", "20220302", True),
-                        ("20220223", "20220223", False),
-                        ("20220302", "20220304", True)],
-    indirect=False
-)
+test_data = [
+    ("20220103", "20220302", True),
+    ("20220223", "20220223", False),
+    ("20220302", "20220304", True)
+]
+
+@pytest.mark.parametrize("last_update, last_possible_update, expected", test_data)
 def test_should_update(last_update, last_possible_update, expected):
     """
     Test the should_update function.

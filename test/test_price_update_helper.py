@@ -9,7 +9,7 @@ from dtse import price_update_helper as puh
 
 
 @pytest.fixture
-async def resp_data():
+def resp_data():
     """
     get response data
     """
