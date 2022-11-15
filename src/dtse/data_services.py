@@ -145,7 +145,7 @@ def should_update(deven, last_possible_deven) -> bool:
     today = datetime.now()
     today_deven = today.strftime('%Y%m%d')
     days_passed = abs((datetime.strptime(last_possible_deven, "%Y%m%d")
-                       - datetime.strptime(deven, "%Y%m%d")).days)
+                       - datetime.strptime(str(deven), "%Y%m%d")).days)
     in_weekend = today.weekday() in [4, 5]
     last_update_weekday = datetime.strptime(
         last_possible_deven, "%Y%m%d").weekday()

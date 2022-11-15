@@ -99,7 +99,7 @@ class PricesUpdateHelper:
                     self.stored_prices[ins_code] = data
                     self.last_devens[ins_code] = new_data.split(
                         ';')[-1].split(',', 2)[1]
-                    self.writing.append(self.should_cache and strg.set_item_async(
+                    self.writing.append(self.should_cache and strg().set_item_async(
                         'tse.prices.'+ins_code, data))
             self.fails = list(set(self.fails).intersection(ins_codes))
             if(self.prog_func):
@@ -110,7 +110,7 @@ class PricesUpdateHelper:
         else:
             self.fails.append(ins_codes)
             self.retry_chunks.append(chunk)
-        self.timeouts.pop(id)
+        self.timeouts.pop(on_result_id)
 
     def _request(self, chunk=None, req_id=None) -> None:
         """
