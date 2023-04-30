@@ -193,10 +193,10 @@ class Storage:
 
     async def read_tse_csv(self, f_name: str) -> pd.DataFrame:
         """
-        Reads a csv file from the TSE and returns a list of dicts
+        Reads a csv TSE file and returns a DataFrame
 
         :param f_name: str, file name
-        :param data: list, list of dicts
+        :param data: DataFrame, list of dicts
         """
         f_name = f_name.replace('tse.', '')
         tse_dir = self._data_dir

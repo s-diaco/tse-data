@@ -257,7 +257,7 @@ async def update_instruments() -> None:
         logger.warning('Already updated: Shares')
     else:
         if len(cached_shares) > 0:
-            shares_df = cached_shares
+            shares_df = pd.DataFrame(cached_shares, index=[0])
         else:
             shares_df = pd.read_csv(StringIO(shares),
                                     names=share_col_names,
