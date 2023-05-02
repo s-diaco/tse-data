@@ -106,8 +106,8 @@ async def get_prices(symbols=None, conf=None):
         prog_n = prog_n+(prog_tot*0.01)
         prog_func(prog_n)
     instruments = await parse_instruments()
-    selected_symbols = [sym for sym in symbols if sym in instruments['Symbol']]
-    instrums_dict = {ins['Symbol']: TSEInstrument(ins) for ins in instruments.iterrows()}
+    selected_symbols = [sym for sym in symbols if sym in instruments['Symbol'].values]
+    instrums_dict = {ins['Symbol']: TSEInstrument(ins) for _, ins in instruments.iterrows()}
     selection = [instrums_dict[sym] for sym in selected_symbols]
     if not selection:
         raise ValueError(f"No instruments found for symbols: {symbols}.")
@@ -126,7 +126,7 @@ async def get_prices(symbols=None, conf=None):
 
     if merge_similar_symbols:
         syms = instruments.keys
-        ins = list(instruments.values())
+        ins = list(instruments.values)
         syms_with_roots = [x for x in ins if hasattr(x, 'SymbolOriginal')]
         syms_with_roots =  list(filter((lambda x: x.SymbolOriginal), ins))
         roots = list(map((lambda x: x.SymbolOriginal), syms_with_roots))
