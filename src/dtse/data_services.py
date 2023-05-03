@@ -141,7 +141,7 @@ def should_update(deven, last_possible_deven) -> bool:
     """
 
     if ((not deven) or deven == '0'):
-        return True  # first time. never update
+        return True  # first time. never updated
     today = datetime.now()
     today_deven = today.strftime('%Y%m%d')
     days_passed = abs((datetime.strptime(last_possible_deven, "%Y%m%d")
@@ -192,7 +192,7 @@ async def get_last_possible_deven() -> str:
 
 async def update_instruments() -> None:
     """
-    Get data from tsetmc.com API (if needed) and save it to the cache
+    Get data from tsetmc.com API (if needed) and save to the cache
     """
 
     strg = Storage()
@@ -214,8 +214,8 @@ async def update_instruments() -> None:
         last_id = '0'
     try:
         last_possible_deven = await get_last_possible_deven()
-    except Exception as e:
-        logger.error(e)
+    except Exception as ex:
+        logger.error(ex)
         raise
     if not should_update(last_deven, last_possible_deven):
         return
@@ -223,48 +223,39 @@ async def update_instruments() -> None:
     try:
         today = datetime.now().strftime('%Y%m%d')
         orig_sym_dict = await req.instrument_and_share(today, last_id)
-    except Exception as e:
-        logger.error('Failed request: InstrumentAndShare, detail: %s', e)
+    except Exception as ex:
+        logger.error('Failed request: InstrumentAndShare, detail: %s', ex)
         raise
     shares = orig_sym_dict.split('@')[1]
     try:
         instruments = await req.instrument(last_deven)
-    except Exception as e:
-        logger.error('Failed request: Instrument, detail: %s', e)
+    except Exception as ex:
+        logger.error('Failed request: Instrument, detail: %s', ex)
         raise
 
-    instrums_df = []
-    shares_df = []
     if instruments == '*':
         logger.warning('No update during trading hours.')
     elif instruments == '':
         logger.warning('Already updated: Instruments')
     else:
-        if len(cached_instruments) > 0:
-            for _, row in cached_instruments.iterrows():
-                if row['SymbolOriginal']:
-                    cached_instruments.loc[row, 'Symbol'] = row['SymbolOriginal']
-            instrums_df = cached_instruments
-        else:
-            convs = {5: tse_utils.clean_fa}
-            instrums_df = pd.read_csv(StringIO(instruments),
-                                      names=inst_col_names,
-                                      converters=convs,
-                                      lineterminator=';')
-        instruments = _procc_similar_syms(instrums_df)
-        await strg.write_tse_csv('tse.instruments', instruments)
+        convs = {5: tse_utils.clean_fa}
+        _resp_to_csv(instruments,
+                     inst_col_names,
+                     ';',
+                     convs,
+                     'tse.instruments',
+                     strg)
     if shares == '':
         logger.warning('Already updated: Shares')
     else:
-        if len(cached_shares) > 0:
-            shares_df = pd.DataFrame(cached_shares, index=[0])
-        else:
-            shares_df = pd.read_csv(StringIO(shares),
-                                    names=share_col_names,
-                                    lineterminator=';')
-        await strg.write_tse_csv('tse.shares', shares_df)
+        _resp_to_csv(resp=shares,
+                     col_names=share_col_names,
+                     line_terminator=';',
+                     converters=None,
+                     f_name='tse.shares',
+                     storage=strg)
 
-    if len(instrums_df)>0:
+    if len(instruments)>1:
         strg.set_item('tse.lastInstrumentUpdate', today)
 
 
@@ -283,5 +274,15 @@ def _procc_similar_syms(instrums_df: pd.DataFrame) -> pd.DataFrame:
         for i in range(1, len(dup_sorted)):
             postfix = cfg.SYMBOL_RENAME_STRING + str(i)
             instrums_df.loc[dup_sorted.iloc[i].name, 'Symbol'] += postfix
-    # TODO: remove this comment. instruments 646:
     return instrums_df
+
+
+async def _resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
+    """
+    Wrtie API Request to csv file
+    """
+    resp_df = pd.read_csv(StringIO(resp),
+                          names=col_names,
+                          lineterminator=line_terminator,
+                          converters=converters)
+    await storage.write_tse_csv(f_name, resp_df)

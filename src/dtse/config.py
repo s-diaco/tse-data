@@ -13,7 +13,7 @@ storage = dict(
 tse_instrument_info = ['InsCode', 'InstrumentID', 'LatinSymbol', 'LatinName',
                        'CompanyCode', 'Symbol', 'Name', 'CIsin', 'DEven',
                        'Flow', 'LSoc30', 'CGdSVal', 'CGrValCot', 'YMarNSC',
-                       'CComVal', 'CSecVal', 'CSoSecVal', 'YVal', 'SymbolOriginal']
+                       'CComVal', 'CSecVal', 'CSoSecVal', 'YVal']
 tse_instrument_itd_info = ['InsCode', 'LVal30', 'LVal18AFC', 'FlowTitle',
                            'CGrValCotTitle', 'Flow', 'CGrValCot', 'CIsin',
                            'InstrumentID', 'ZTitad', 'BaseVol']

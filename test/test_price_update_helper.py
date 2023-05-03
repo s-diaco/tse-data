@@ -23,12 +23,12 @@ def resp_data():
         yield response, chunk, on_result_id, expected_result
 
 
-def test_on_result(resp_data):
+def test_start(resp_data):
     """
-    test _on_result
+    test start
     """
     pu_helper = puh.PricesUpdateHelper()
-    pu_helper._on_result(resp_data[0], resp_data[1], resp_data[2])
+    pu_helper.start(update_needed=['همراه', 'ذوب', 'فولاد', 'وبملت', 'شیران', 'نماد غلط'])
 
 
 def test_batch():

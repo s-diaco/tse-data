@@ -1,13 +1,17 @@
+"""
+Manage TSE Data
+"""
+
+
 import numbers
 import re
-from tracemalloc import start
 
 from . import config as cfg
 from . import data_services as data_svs
 from .data_structs import TSEColumn, TSEInstrument
 from .price_update_helper import PricesUpdateHelper
-from .storage import Storage as strg
 from .setup_logger import logger as tse_logger
+from .storage import Storage as strg
 from .tse_parser import parse_instruments
 
 
@@ -126,14 +130,10 @@ async def get_prices(symbols=None, conf=None):
 
     if merge_similar_symbols:
         syms = instruments.keys
-        ins = list(instruments.values)
-        syms_with_roots = [x for x in ins if hasattr(x, 'SymbolOriginal')]
-        syms_with_roots =  list(filter((lambda x: x.SymbolOriginal), ins))
-        roots = list(map((lambda x: x.SymbolOriginal), syms_with_roots))
-
+        roots = instruments['SymbolOriginal'][instruments['SymbolOriginal'].notna()]
         merges = list(map((lambda x: [x, []]), roots))
 
-        for i in ins:
+        for i in instruments.itertuples():
             orig = i.SymbolOriginal
             sym = i.Symbol
             code = i.InsCode
@@ -148,11 +148,13 @@ async def get_prices(symbols=None, conf=None):
             extras_index = len(selection)
             selection.extend(extras)
 
-    update_result = await update_prices(selection, settings.cache, (prog_func, prog_n, prog_tot*0.78))
+    update_result = await update_prices(selection,
+                                        settings.cache,
+                                        (prog_func, prog_n, prog_tot*0.78))
     succs, fails, error = update_result
     prog_n = update_result
     if error:
-        err = (title, detail)
+        err = (error.title, error.detail)
         result["error"] = (1, err)
         if callable(prog_func):
             prog_func(prog_tot)
