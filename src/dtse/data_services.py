@@ -130,7 +130,7 @@ def get_cell(column_name, instrument, closing_price) -> str:
     return cell_str
 
 
-def should_update(deven, last_possible_deven) -> bool:
+def should_update(deven:str, last_possible_deven:str) -> bool:
     """
     Check if the database should be updated
 
@@ -140,12 +140,12 @@ def should_update(deven, last_possible_deven) -> bool:
     :return: bool, True if the database should be updated, False otherwise
     """
 
-    if ((not deven) or deven == '0'):
+    if (not deven) or deven == '0':
         return True  # first time. never updated
     today = datetime.now()
     today_deven = today.strftime('%Y%m%d')
     days_passed = abs((datetime.strptime(last_possible_deven, "%Y%m%d")
-                       - datetime.strptime(str(deven), "%Y%m%d")).days)
+                       - datetime.strptime(deven, "%Y%m%d")).days)
     in_weekend = today.weekday() in [4, 5]
     last_update_weekday = datetime.strptime(
         last_possible_deven, "%Y%m%d").weekday()
@@ -199,8 +199,8 @@ async def update_instruments() -> None:
     last_update = strg.get_item('tse.lastInstrumentUpdate')
     cached_instruments = {}
     cached_shares = {}
-    last_deven = ''
-    last_id = ''
+    last_deven = '0'
+    last_id = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     if last_update:
@@ -209,37 +209,21 @@ async def update_instruments() -> None:
         last_deven = max(cached_instruments['DEven'])
         if len(cached_shares) > 0:
             last_id = max(cached_shares.keys())
-    else:
-        last_deven = '0'
-        last_id = '0'
-    try:
-        last_possible_deven = await get_last_possible_deven()
-    except Exception as ex:
-        logger.error(ex)
-        raise
+    last_possible_deven = await get_last_possible_deven()
     if not should_update(last_deven, last_possible_deven):
         return
     req = TSERequest()
-    try:
-        today = datetime.now().strftime('%Y%m%d')
-        orig_sym_dict = await req.instrument_and_share(today, last_id)
-    except Exception as ex:
-        logger.error('Failed request: InstrumentAndShare, detail: %s', ex)
-        raise
+    today = datetime.now().strftime('%Y%m%d')
+    orig_sym_dict = await req.instrument_and_share(today, last_id)
     shares = orig_sym_dict.split('@')[1]
-    try:
-        instruments = await req.instrument(last_deven)
-    except Exception as ex:
-        logger.error('Failed request: Instrument, detail: %s', ex)
-        raise
-
+    instruments = await req.instrument(last_deven)
     if instruments == '*':
         logger.warning('No update during trading hours.')
     elif instruments == '':
         logger.warning('Already updated: Instruments')
     else:
         convs = {5: tse_utils.clean_fa}
-        _resp_to_csv(instruments,
+        await _resp_to_csv(instruments,
                      inst_col_names,
                      ';',
                      convs,
@@ -248,7 +232,7 @@ async def update_instruments() -> None:
     if shares == '':
         logger.warning('Already updated: Shares')
     else:
-        _resp_to_csv(resp=shares,
+        await _resp_to_csv(resp=shares,
                      col_names=share_col_names,
                      line_terminator=';',
                      converters=None,

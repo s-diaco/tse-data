@@ -15,7 +15,7 @@ class TSERequest:
 
     def instrument(self, last_date: str):
         """
-        request instrument data from tsetmc api
+        request instrument data from tsetmc API
 
         :param last_date: str, last date of the price update
 
@@ -29,7 +29,7 @@ class TSERequest:
 
     def instrument_and_share(self, last_date: str, last_id: int = 0):
         """
-        request instrument and their share data from tsetmc api
+        Request instrument and their share data from tsetmc API
 
         :param last_date: str, last date of the price update
         :param last_id: int, id of the last instrument
