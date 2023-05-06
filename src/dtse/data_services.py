@@ -243,24 +243,6 @@ async def update_instruments() -> None:
         strg.set_item('tse.lastInstrumentUpdate', today)
 
 
-def _procc_similar_syms(instrums_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Process similar symbols
-
-    :param instrums_df: pd.DataFrame, instruments dataframe
-
-    :return: pd.DataFrame, processed instruments dataframe
-    """
-    sym_groups = [x for x in instrums_df.groupby('Symbol')]
-    dups = [v for v in sym_groups if len(v[1]) > 1]
-    for dup in dups:
-        dup_sorted = dup[1].sort_values(by='DEven', ascending=False)
-        for i in range(1, len(dup_sorted)):
-            postfix = cfg.SYMBOL_RENAME_STRING + str(i)
-            instrums_df.loc[dup_sorted.iloc[i].name, 'Symbol'] += postfix
-    return instrums_df
-
-
 async def _resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
     """
     Wrtie API Request to csv file
