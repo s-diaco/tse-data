@@ -46,7 +46,8 @@ class PricesUpdateHelper:
         if (len(self.timeouts) > 0 or self.qeud_retry):
             # TODO: get time in ms from cfg file
             await asyncio.sleep(0.5)
-            return self._poll()
+            await self._poll()
+            return
         if(len(self.succs) == self.total or
            self.retries >= cfg.PRICES_UPDATE_RETRY_COUNT):
             _succs = self.succs
@@ -143,7 +144,7 @@ class PricesUpdateHelper:
             delay += cfg.PRICES_UPDATE_RETRY_DELAY
 
     # TODO: fix calculations for progress_dict and return value
-    def start(self, update_needed=None, should_cache=None, progress_tuple=None):
+    async def start(self, update_needed=None, should_cache=None, progress_tuple=None):
         """
         start updating daily prices
 
@@ -176,5 +177,5 @@ class PricesUpdateHelper:
                   for i in range(0, len(update_needed),
                   cfg.PRICES_UPDATE_CHUNK)]
         self._batch(chunks)
-        self._poll()
+        await self._poll()
         

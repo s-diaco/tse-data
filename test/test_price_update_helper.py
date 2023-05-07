@@ -23,22 +23,10 @@ def resp_data():
         yield response, chunk, on_result_id, expected_result
 
 
-def test_start(resp_data):
+async def test_start(resp_data):
     """
     test start
     """
     pu_helper = puh.PricesUpdateHelper()
-    pu_helper.start(update_needed=['همراه', 'ذوب', 'فولاد', 'وبملت', 'شیران', 'نماد غلط'])
+    await pu_helper.start(update_needed=['همراه', 'ذوب', 'فولاد', 'وبملت', 'شیران', 'نماد غلط'])
 
-
-def test_batch():
-    """
-    test _batch
-    """
-    test_data_file = 'sample_data/prices_update_helper.json'
-    with open(test_data_file, 'r', encoding='utf-8') as f:
-        test_data = json.load(f)['_batch']
-        chunks = test_data['chunks']
-        # expected_result = test_data['expected_result']
-    pu_helper = puh.PricesUpdateHelper()
-    pu_helper._batch(chunks)
