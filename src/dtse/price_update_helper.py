@@ -43,10 +43,9 @@ class PricesUpdateHelper:
 
     # TODO: complete
     async def _poll(self) -> None:
-        if (len(self.timeouts) > 0 or self.qeud_retry):
+        while self.timeouts or self.qeud_retry:
             # TODO: get time in ms from cfg file
             await asyncio.sleep(0.5)
-            await self._poll()
             return
         if(len(self.succs) == self.total or
            self.retries >= cfg.PRICES_UPDATE_RETRY_COUNT):
@@ -178,4 +177,5 @@ class PricesUpdateHelper:
                   cfg.PRICES_UPDATE_CHUNK)]
         self._batch(chunks)
         await self._poll()
+        # new Promise(r => resolve = r);
         
