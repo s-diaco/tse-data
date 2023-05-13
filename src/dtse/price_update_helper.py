@@ -4,11 +4,10 @@ parse and update prices
 import asyncio
 import math
 import re
-from threading import Timer
 
 from . import config as cfg
-from .tse_request import TSERequest
 from .storage import Storage as strg
+from .tse_request import TSERequest
 
 
 class PricesUpdateHelper:
@@ -128,6 +127,9 @@ class PricesUpdateHelper:
         """
         request prices
         """
+
+        # TODO: delete
+        """
         if chunk is None:
             chunk = []
         ins_codes = ";".join(list(map(",".join, chunk)))
@@ -141,20 +143,44 @@ class PricesUpdateHelper:
             self.progressbar.prog_func(
                 pn=self.progressbar.prog_n + self.progressbar.prog_req
             )
+        """
 
-    def _batch(self, chunks=None):
+        retries = cfg.PRICES_UPDATE_RETRY_COUNT
+        back_off = cfg.PRICES_UPDATE_RETRY_DELAY  # seconds to try again
+        ins_codes = ";".join(list(map(",".join, chunk)))
+        for _ in range(retries):
+            # TODO: is this line needed?
+            self.timeouts[req_id] = chunk
+
+            try:
+                tse_req = TSERequest()
+                res = tse_req.closing_prices(ins_codes)
+                self._on_result(res, chunk, req_id)
+            except aiohttp.client_exceptions.ClientResponseError as e:
+                retries -= 1
+                await asyncio.sleep(back_off)
+                continue
+
+    async def _batch(self, chunks=None):
         """
         batch request
         """
+
         if not chunks:
             chunks = []
         if self.qeud_retry:
             self.qeud_retry = None
+
+        # TODO: delete
+        """
         delay = 0
         for idx, chunk in enumerate(chunks):
             timeout = Timer(delay, self._request, args=(chunk, idx))
             self.timeouts[idx] = timeout
             delay += cfg.PRICES_UPDATE_RETRY_DELAY
+        """
+
+        await asyncio.gather(*[self._request(chunk, idx) for idx, chunk in chunks])
 
     # TODO: fix calculations for progress_dict and return value
     async def _start(self, update_needed, should_cache, **kwargs):
@@ -186,9 +212,11 @@ class PricesUpdateHelper:
         await self._poll()
         # new Promise(r => resolve = r);
 
+    # TODO: delete
+    """
     async def get_data(session, url):
         retries = cfg.PRICES_UPDATE_RETRY_COUNT
-        back_off = cfg.PRICES_UPDATE_RETRY_COUNT  # seconds to try again
+        back_off = cfg.PRICES_UPDATE_RETRY_DELAY  # seconds to try again
         for _ in range(retries):
             try:
                 async with session.get(url, headers=headers) as response:
@@ -210,6 +238,7 @@ class PricesUpdateHelper:
                 *[get_data(session, attendee_url) for attendee_url in attendee_urls]
             )
             return attendee_data
+    """
 
 
 class ProgressBar:
