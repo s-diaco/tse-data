@@ -15,14 +15,14 @@ class PricesUpdateHelper:
     parse and update prices
     """
 
-    async def __init__(self, **kwargs) -> None:
+    def __init__(self) -> None:
         """
         Initialize the PricesUpdateHelper class.
         """
-        self.total = 0
+        self.total: int = 0
         self.succs = []
         self.fails = []
-        self.retries = 0
+        self.retries: int = 0
         self.retry_chunks = []
         self.timeouts = {}
         self.stored_prices = {}
@@ -30,13 +30,12 @@ class PricesUpdateHelper:
         self.qeud_retry = None
         self.resolve = None
         self.writing = []
-        self.should_cache = None
+        self.should_cache: bool = True
 
         # progressbar data
         self.progressbar = ProgressBar(
             prog_func=None, prog_n=0, prog_tot=100, prog_succ_req=None, prog_req=None
         )
-        await self._start(**kwargs)
 
     # TODO: complete
     async def _poll(self) -> None:
@@ -45,7 +44,7 @@ class PricesUpdateHelper:
         """
         while self.timeouts or self.qeud_retry:
             # TODO: get time in ms from cfg file
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(cfg.PRICES_UPDATE_CHUNK_DELAY)
         if (
             len(self.succs) == self.total
             or self.retries >= cfg.PRICES_UPDATE_RETRY_COUNT
@@ -73,7 +72,7 @@ class PricesUpdateHelper:
 
         if len(self.retry_chunks) > 0:
             ins_codes = self.retry_chunks[0]
-            self.fails = list(filter((lambda x: ins_codes.index(x) == -1), self.fails))
+            self.fails = [x for x in self.fails if x not in ins_codes]
             self.retries += 1
             # TODO: is it working?
             # Timer(self.poll, cfg.PRICES_UPDATE_RETRY_DELAY)
@@ -88,7 +87,7 @@ class PricesUpdateHelper:
         """
         proccess response
         """
-        ins_codes = list(map(lambda x: x[0], chunk))
+        ins_codes = chunk
         pattern = re.compile(r"^[\d.,;@-]+$")
         if isinstance(response, str) and (pattern.search(response) or response == ""):
             res = dict(zip(ins_codes, response.split("@")))
@@ -108,7 +107,7 @@ class PricesUpdateHelper:
                         self.should_cache
                         and strg().set_item_async("tse.prices." + ins_code, data)
                     )
-            self.fails = list(set(self.fails).intersection(ins_codes))
+            self.fails = [x for x in self.fails if x in ins_codes]
             if self.progressbar.prog_func:
                 filled = (
                     self.progressbar.prog_succ_req
@@ -123,7 +122,7 @@ class PricesUpdateHelper:
             self.retry_chunks.append(chunk)
         self.timeouts.pop(on_result_id)
 
-    def _request(self, chunk=None, req_id=None) -> None:
+    async def _request(self, chunk, req_id) -> None:
         """
         request prices
         """
@@ -154,20 +153,19 @@ class PricesUpdateHelper:
 
             try:
                 tse_req = TSERequest()
-                res = tse_req.closing_prices(ins_codes)
+                res = await tse_req.closing_prices(ins_codes)
                 self._on_result(res, chunk, req_id)
-            except aiohttp.client_exceptions.ClientResponseError as e:
+            except:
                 retries -= 1
                 await asyncio.sleep(back_off)
                 continue
 
-    async def _batch(self, chunks=None):
+    async def _batch(self, chunks):
         """
         batch request
         """
 
-        if not chunks:
-            chunks = []
+        # TODO: delete?
         if self.qeud_retry:
             self.qeud_retry = None
 
@@ -180,10 +178,12 @@ class PricesUpdateHelper:
             delay += cfg.PRICES_UPDATE_RETRY_DELAY
         """
 
-        await asyncio.gather(*[self._request(chunk, idx) for idx, chunk in chunks])
+        await asyncio.gather(
+            *[self._request(chunk, idx) for idx, chunk in enumerate(chunks)]
+        )
 
     # TODO: fix calculations for progress_dict and return value
-    async def _start(self, update_needed, should_cache, **kwargs):
+    async def start(self, update_needed, should_cache=True, **pb_args) -> None:
         """
         start updating daily prices
 
@@ -191,9 +191,8 @@ class PricesUpdateHelper:
         :should_cache: bool, should cache prices in csv files
         :progress_dict: dict, data needed for progress bar
         """
-        update_needed = kwargs.get("update_needed", [])
-        self.should_cache = kwargs.get("should_cache", True)
-        self.progressbar.update(**kwargs)
+        self.should_cache = should_cache
+        self.progressbar.update(**pb_args)
         self.total = len(update_needed)
         # each successful request
         self.progressbar.prog_succ_req = self.progressbar.prog_tot / math.ceil(
@@ -208,7 +207,7 @@ class PricesUpdateHelper:
             update_needed[i : i + cfg.PRICES_UPDATE_CHUNK]
             for i in range(0, len(update_needed), cfg.PRICES_UPDATE_CHUNK)
         ]
-        self._batch(chunks)
+        await self._batch(chunks)
         await self._poll()
         # new Promise(r => resolve = r);
 
@@ -268,7 +267,7 @@ class ProgressBar:
             "prog_req": None,
         }
 
-        bad_keys = [k for k, _ in kwargs if k not in default_settings]
+        bad_keys = [k for k in kwargs if k not in default_settings]
         if bad_keys:
             raise TypeError(f"Invalid arguments for ProgressBar.__init__: {bad_keys}")
         self.update(**kwargs)
