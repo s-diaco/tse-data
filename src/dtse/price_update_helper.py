@@ -1,6 +1,7 @@
 """
-parse and update prices
+update prices for selected symbols
 """
+
 import asyncio
 import math
 import re
@@ -8,11 +9,12 @@ import re
 from . import config as cfg
 from .storage import Storage as strg
 from .tse_request import TSERequest
+from .progress_bar import ProgressBar as prog_bar
 
 
 class PricesUpdateHelper:
     """
-    parse and update prices
+    update prices for selected symbols
     """
 
     def __init__(self) -> None:
@@ -27,87 +29,36 @@ class PricesUpdateHelper:
         self.timeouts = {}
         self.stored_prices = {}
         self.last_devens = {}
-        self.qeud_retry = None
         self.resolve = None
         self.writing = []
         self.should_cache: bool = True
 
-        # progressbar data
-        self.progressbar = ProgressBar(
-            prog_func=None, prog_n=0, prog_tot=100, prog_succ_req=None, prog_req=None
-        )
-
-    # TODO: complete
-    async def _poll(self) -> None:
-        """
-        polling the server and gathering the results
-        """
-        while self.timeouts or self.qeud_retry:
-            # TODO: get time in ms from cfg file
-            await asyncio.sleep(cfg.PRICES_UPDATE_CHUNK_DELAY)
-        if (
-            len(self.succs) == self.total
-            or self.retries >= cfg.PRICES_UPDATE_RETRY_COUNT
-        ):
-            _succs = self.succs
-            _fails = self.fails
-            self.succs = []
-            self.fails = []
-            # TODO: delete:
-            # for idx, url in enumerate(urls):
-            #     self.writing.append(asyncio.Task(fetch_page(url, idx)))
-
-            # Write price data to files
-            # TODO: does writing write the files?
-            resps = await asyncio.gather(*self.writing, return_exceptions=True)
-            for response in resps:
-                if isinstance(response, Exception):
-                    self.fails.append(response)
-                else:
-                    self.succs.append(response)
-            self.writing = []
-            return
-            # TODO: what is pn?
-            # resolve({succs: _succs, fails: _fails, pn});
-
-        if len(self.retry_chunks) > 0:
-            ins_codes = self.retry_chunks[0]
-            self.fails = [x for x in self.fails if x not in ins_codes]
-            self.retries += 1
-            # TODO: is it working?
-            # Timer(self.poll, cfg.PRICES_UPDATE_RETRY_DELAY)
-            loop = asyncio.get_event_loop()
-            loop.call_later(
-                cfg.PRICES_UPDATE_RETRY_DELAY, self._batch, self.retry_chunks
-            )
-            self.retry_chunks = []
-            loop.call_later(cfg.PRICES_UPDATE_RETRY_DELAY, self._poll)
-
-    def _on_result(self, response, chunk, on_result_id):
+    async def _on_result(self, response, chunk, on_result_id):
         """
         proccess response
         """
-        ins_codes = chunk
+        ins_codes = [ins[0] for ins in chunk]
         pattern = re.compile(r"^[\d.,;@-]+$")
         if isinstance(response, str) and (pattern.search(response) or response == ""):
-            res = dict(zip(ins_codes, response.split("@")))
-            for ins_code, new_data in res.items():
+            res = response.split("@")
+            if len(ins_codes) != len(res):
+                raise ValueError()
+
+            for i, ins_code in enumerate(ins_codes):
                 self.succs.append(ins_code)
-                if new_data != "":
+                if res[i] != "":
                     old_data = self.stored_prices.get(ins_code, None)
                     if old_data is None:
-                        data = new_data
+                        data = res[i]
                     else:
-                        data = old_data + ";" + new_data
+                        data = old_data + ";" + res[i]
                     self.stored_prices[ins_code] = data
-                    self.last_devens[ins_code] = new_data.split(";")[-1].split(",", 2)[
-                        1
-                    ]
+                    self.last_devens[ins_code] = res[i].split(",")[1]
                     self.writing.append(
                         self.should_cache
-                        and strg().set_item_async("tse.prices." + ins_code, data)
+                        and await strg().set_item_async("tse.prices." + ins_code, data)
                     )
-            self.fails = [x for x in self.fails if x in ins_codes]
+            self.fails = [x for x in self.fails if x not in ins_codes]
             if self.progressbar.prog_func:
                 filled = (
                     self.progressbar.prog_succ_req
@@ -127,26 +78,9 @@ class PricesUpdateHelper:
         request prices
         """
 
-        # TODO: delete
-        """
-        if chunk is None:
-            chunk = []
-        ins_codes = ";".join(list(map(",".join, chunk)))
-        try:
-            tse_req = TSERequest()
-            res = tse_req.closing_prices(ins_codes)
-            self._on_result(res, chunk, req_id)
-        except:  # pylint: disable=bare-except
-            self._on_result(None, chunk, req_id)
-        if self.progressbar.prog_func:
-            self.progressbar.prog_func(
-                pn=self.progressbar.prog_n + self.progressbar.prog_req
-            )
-        """
-
         retries = cfg.PRICES_UPDATE_RETRY_COUNT
         back_off = cfg.PRICES_UPDATE_RETRY_DELAY  # seconds to try again
-        ins_codes = ";".join(list(map(",".join, chunk)))
+        ins_codes = ";".join([",".join(map(str, x)) for x in chunk])
         for _ in range(retries):
             # TODO: is this line needed?
             self.timeouts[req_id] = chunk
@@ -154,28 +88,18 @@ class PricesUpdateHelper:
             try:
                 tse_req = TSERequest()
                 res = await tse_req.closing_prices(ins_codes)
-                self._on_result(res, chunk, req_id)
+                await self._on_result(res, chunk, req_id)
+                break
             except:
                 retries -= 1
                 await asyncio.sleep(back_off)
+                # Double the waiting time after each retry
+                back_off = back_off * 2
                 continue
 
     async def _batch(self, chunks):
         """
-        batch request
-        """
-
-        # TODO: delete?
-        if self.qeud_retry:
-            self.qeud_retry = None
-
-        # TODO: delete
-        """
-        delay = 0
-        for idx, chunk in enumerate(chunks):
-            timeout = Timer(delay, self._request, args=(chunk, idx))
-            self.timeouts[idx] = timeout
-            delay += cfg.PRICES_UPDATE_RETRY_DELAY
+        gather requests
         """
 
         await asyncio.gather(
@@ -183,11 +107,11 @@ class PricesUpdateHelper:
         )
 
     # TODO: fix calculations for progress_dict and return value
-    async def start(self, update_needed, should_cache=True, **pb_args) -> None:
+    async def start(self, update_needed, should_cache=True, progressbar) -> dict:
         """
         start updating daily prices
 
-        :update_needed: list, instruments to update
+        :update_needed: list, instruments, their devens and markets to update
         :should_cache: bool, should cache prices in csv files
         :progress_dict: dict, data needed for progress bar
         """
@@ -208,72 +132,4 @@ class PricesUpdateHelper:
             for i in range(0, len(update_needed), cfg.PRICES_UPDATE_CHUNK)
         ]
         await self._batch(chunks)
-        await self._poll()
-        # new Promise(r => resolve = r);
-
-    # TODO: delete
-    """
-    async def get_data(session, url):
-        retries = cfg.PRICES_UPDATE_RETRY_COUNT
-        back_off = cfg.PRICES_UPDATE_RETRY_DELAY  # seconds to try again
-        for _ in range(retries):
-            try:
-                async with session.get(url, headers=headers) as response:
-                    if response.status != 200:
-                        response.raise_for_status()
-                    print(retries, response.status, url)
-                    return await response.json()
-            except aiohttp.client_exceptions.ClientResponseError as e:
-                retries -= 1
-                await asyncio.sleep(back_off)
-                continue
-
-    async def main():
-        async with aiohttp.ClientSession() as session:
-            attendee_urls = get_urls(
-                "attendee"
-            )  # returns list of URLs to call asynchronously in get_data()
-            attendee_data = await asyncio.gather(
-                *[get_data(session, attendee_url) for attendee_url in attendee_urls]
-            )
-            return attendee_data
-    """
-
-
-class ProgressBar:
-    """
-    Manage progressbar data
-    """
-
-    prog_n: int
-    prog_tot: int
-    prog_succ_req: int
-    prog_req: int
-
-    def prog_func(self):
-        """
-        # TODO: delete
-        """
-
-    def __init__(self, **kwargs) -> None:
-        """
-        initialize progressbar data
-        """
-        default_settings = {
-            "prog_func": None,
-            "prog_n": 0,
-            "prog_tot": 100,
-            "prog_succ_req": None,
-            "prog_req": None,
-        }
-
-        bad_keys = [k for k in kwargs if k not in default_settings]
-        if bad_keys:
-            raise TypeError(f"Invalid arguments for ProgressBar.__init__: {bad_keys}")
-        self.update(**kwargs)
-
-    def update(self, **kwargs) -> None:
-        """
-        update progressbar data
-        """
-        self.__dict__.update(kwargs)
+        return {"succs": self.succs, "fails": self.fails, "pn": self.progressbar.prog_n}

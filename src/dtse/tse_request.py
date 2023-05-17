@@ -71,7 +71,7 @@ class TSERequest:
                 async with session.get(settings.API_URL, params=params) as response:
                     if response.status != 200:
                         response.raise_for_status()
-                    return response.text()
+                    return await response.text()
         except aiohttp.ClientResponseError as e:
             tse_logger.error(e)
             raise
