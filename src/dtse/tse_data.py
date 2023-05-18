@@ -10,14 +10,14 @@ from . import config as cfg
 from . import data_services as data_svs
 from .data_structs import TSEColumn, TSEInstrument
 from .price_update_helper import PricesUpdateHelper
+from .progress_bar import ProgressBar
 from .setup_logger import logger as tse_logger
 from .storage import Storage as strg
 from .tse_parser import parse_instruments
-from .progress_bar import ProgressBar as prog_bar
 
 
 # todo: complete
-async def update_prices(self, selection=None, should_cache=None, percents=None):
+async def _update_prices(self, selection=None, should_cache=None, **pb_args):
     """
     update prices
 
@@ -25,20 +25,20 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
     :should_cache: bool, should cache prices in csv files
     :percents: dict, data needed for progress bar
     """
-    progressbar = prog_bar(percents)
+    progressbar = ProgressBar(**pb_args)
     last_devens = strg.get_item("tse.inscode_lastdeven")
     ins_codes = None
     if last_devens:
         ins_codes = last_devens[1:]
     else:
         last_devens = {}
-    result = {"succs": [], "fails": [], "error": None, "pn": percents.pn}
-    prog_fin = percents.pn + percents.ptot
+    result = {"succs": [], "fails": [], "error": None, "pn": progressbar.pn}
+    prog_fin = progressbar.pn + progressbar.ptot
     last_possible_deven = await data_svs.get_last_possible_deven()
     if last_possible_deven:
         result["error"] = last_possible_deven
-        if callable(percents.progress_func):
-            percents.prog_func(prog_fin)
+        if callable(progressbar.progress_func):
+            progressbar.progressbar.prog_func(prog_fin)
         return result
     to_update = []
     first_possible_deven = cfg.default_settings["start_date"]
@@ -56,22 +56,22 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
             if data_svs.should_update(last_deven, last_possible_deven):
                 # has data but outdated
                 to_update.append([ins_code, last_deven, market])
-    if callable(percents.progress_func):
-        percents.prog_func(percents.pn + percents.ptot * (0.01))
+    if callable(progressbar.progress_func):
+        progressbar.progressbar.prog_func(progressbar.pn + progressbar.ptot * (0.01))
 
     sel_ins = list.map(lambda x: x.ins_code, selection)
     price_manager = PricesUpdateHelper()
     stored_ins = list.map(lambda x: x.keys, price_manager.stored_prices)
     if (not stored_ins) or (not sel_ins):
         await strg.get_items(sel_ins, price_manager.stored_prices)
-    if callable(percents.progress_func):
-        percents.prog_func(percents.pn + percents.ptot * (0.01))
+    if callable(progressbar.progress_func):
+        progressbar.progressbar.prog_func(progressbar.pn + progressbar.ptot * (0.01))
 
     if to_update:
         progress_tuple = (
-            percents.progress_func,
-            percents.pn,
-            percents.ptot - percents.ptot * (0.02),
+            progressbar.progress_func,
+            progressbar.pn,
+            progressbar.ptot - progressbar.ptot * (0.02),
         )
         manager_result = price_manager.start(
             update_needed=to_update,
@@ -80,13 +80,13 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
         )
         self.succs = manager_result.succs
         self.fails = manager_result.fails
-        percents.pn = manager_result.prog_n
+        progressbar.pn = progressbar.prog_n
 
         if self.succs and should_cache:
             await strg.set_items("tse.inscode_lastdeven", last_devens)
         result = (self.succs, self.fails)
-    if callable(percents.progress_func) and percents.pn != prog_fin:
-        percents.prog_func(prog_fin)
+    if callable(progressbar.progress_func) and progressbar.pn != prog_fin:
+        progressbar.progressbar.prog_func(prog_fin)
     result.pn = prog_fin
 
     return result
@@ -95,44 +95,51 @@ async def update_prices(self, selection=None, should_cache=None, percents=None):
 async def get_prices(symbols=None, conf=None):
     """
     get prices for symbols
+
     :symbols: list, symbols to get prices for
     :_settings: dict, settings to use
+
     :return: dict, prices for symbols
     """
+
+    progressbar = ProgressBar()
     if not symbols:
         return {}
     settings = cfg.default_settings
     if conf:
         settings.update(conf)
     result = {"data": [], "error": None}
-    prog_func = settings.get("on_progress")
-    if not callable(prog_func):
-        prog_func = None
-    prog_tot = settings.get("progress_tot")
-    if not isinstance(prog_tot, numbers.Number):
-        prog_tot = cfg.default_settings["progress_tot"]
-    prog_n = 0
+    """
+    progressbar.prog_func = settings.get("on_progress")
+    if not callable(progressbar.prog_func):
+        progressbar.prog_func = None
+    progressbar.prog_tot = settings.get("progress_tot")
+    if not isinstance(progressbar.prog_tot, numbers.Number):
+        progressbar.prog_tot = cfg.default_settings["progress_tot"]
+    progressbar.prog_n = 0
+    """
     await data_svs.update_instruments()
-    if callable(prog_func):
-        prog_n = prog_n + (prog_tot * 0.01)
-        prog_func(prog_n)
+    """
+    if callable(progressbar.prog_func):
+        progressbar.prog_n = progressbar.prog_n + (progressbar.prog_tot * 0.01)
+        progressbar.prog_func(progressbar.prog_n)
+    """
     instruments = await parse_instruments()
-    selected_symbols = [sym for sym in symbols if sym in instruments["Symbol"].values]
-    instrums_dict = {
-        ins["Symbol"]: TSEInstrument(ins) for _, ins in instruments.iterrows()
-    }
-    selection = [instrums_dict[sym] for sym in selected_symbols]
+
+    selected_syms_df = instruments[instruments["Symbol"].isin(symbols)]
+    selection = [TSEInstrument(sym) for sym in selected_syms_df.values]
     if not selection:
         raise ValueError(f"No instruments found for symbols: {symbols}.")
-    not_founds = [sym for sym in symbols if sym not in selected_symbols]
-    if callable(prog_func):
-        prog_n = prog_n + (prog_tot * 0.01)
-        prog_func(prog_n)
+    not_founds = [sym for sym in symbols if sym not in instruments["Symbol"].values]
     if not_founds:
-        tse_logger.warning("symbols not found: %s", not_founds)
-        if callable(prog_func):
-            prog_func(prog_tot)
-
+        tse_logger.warning(f"symbols not found: {not_founds}")
+    """
+    if callable(progressbar.prog_func):
+        progressbar.prog_n = progressbar.prog_n + (progressbar.prog_tot * 0.01)
+        progressbar.prog_func(progressbar.prog_n)
+        if callable(progressbar.prog_func):
+            progressbar.prog_func(progressbar.prog_tot)
+    """
     merge_similar_symbols = settings["merge_similar_symbols"]
     merges = {}
     extras_index = -1
@@ -157,16 +164,18 @@ async def get_prices(symbols=None, conf=None):
             extras_index = len(selection)
             selection.extend(extras)
 
-    update_result = await update_prices(
-        selection, settings.cache, (prog_func, prog_n, prog_tot * 0.78)
+    update_result = await _update_prices(
+        selection,
+        settings["cache"],
+        progressbar,
     )
     succs, fails, error = update_result
-    prog_n = update_result
+    progressbar.prog_n = update_result
     if error:
         err = (error.title, error.detail)
         result["error"] = (1, err)
-        if callable(prog_func):
-            prog_func(prog_tot)
+        if callable(progressbar.prog_func):
+            progressbar.prog_func(progressbar.prog_tot)
         return result
 
     if fails:
@@ -199,7 +208,7 @@ async def get_prices(symbols=None, conf=None):
     start_date = settings["start_date"]
     csv = settings["csv"]
     shares = await strg.read_tse_csv("tse.shares")
-    pi = prog_tot * 0.20 / selection.length
+    pi = progressbar.prog_tot * 0.20 / selection.length
     stored_prices_merged = {}
 
     prices_manager = PricesUpdateHelper()
@@ -221,7 +230,7 @@ async def get_prices(symbols=None, conf=None):
             if not instrument:
                 return
             res = headers
-            prices = get_instrument_prices(instrument)
+            prices = _get_instrument_prices(instrument)
             if not prices:
                 return res
             if prices == cfg.MERGED_SYMBOL_CONTENT:
@@ -244,9 +253,9 @@ async def get_prices(symbols=None, conf=None):
                     prices,
                 )
             ).join("\n")
-            if callable(prog_func):
+            if callable(progressbar.prog_func):
                 pn = pn + pi
-                prog_func(pn)
+                progressbar.prog_func(pn)
             return res
 
         result["data"] = list(map(map_selection, selection))
@@ -257,7 +266,7 @@ async def get_prices(symbols=None, conf=None):
             if not instrument:
                 return
             res = list(map((lambda x: [x.header, []]), columns))
-            prices = get_instrument_prices(instrument)
+            prices = _get_instrument_prices(instrument)
             if not prices:
                 return res
             if prices == cfg.MERGED_SYMBOL_CONTENT:
@@ -269,9 +278,9 @@ async def get_prices(symbols=None, conf=None):
 
         result["data"] = list(map(map_selection, selection))
 
-    if prog_func and prog_n != prog_tot:
-        prog_n = prog_tot
-        prog_func(prog_n)
+    if progressbar.prog_func and progressbar.prog_n != progressbar.prog_tot:
+        progressbar.prog_n = progressbar.prog_tot
+        progressbar.prog_func(progressbar.prog_n)
 
     return result
 
@@ -296,7 +305,7 @@ async def get_instruments(struct=True, arr=True, structKey="InsCode"):
     return await strg.read_tse_csv("tse.instruments")
 
 
-def get_instrument_prices(
+def _get_instrument_prices(
     instrument,
     start_date,
     shares,

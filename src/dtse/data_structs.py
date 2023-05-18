@@ -1,4 +1,3 @@
-
 """
 data structures
 """
@@ -10,16 +9,17 @@ class TSEClosingPrice:
     """
     daily price class
     """
-    def __init__(self, row='', **kwargs):
+
+    def __init__(self, row="", **kwargs):
         """
         constructor for TSEClosingPrice class
         """
         if kwargs:
             self.__dict__.update(kwargs)
         else:
-            row = row.split(',')
+            row = row.split(",")
             if len(row) != 11:
-                raise Exception('Invalid ClosingPrice row')
+                raise Exception("Invalid ClosingPrice row")
             self.ins_code = row[0]  # int64
             self.DEven = row[1]  # int32
             self.PClosing = row[2]  # close
@@ -36,23 +36,27 @@ class TSEClosingPrice:
         """
         string representation of TSEClosingPrice class
         """
-        fields = ['    {}={!r}'.format(k, v)
-                  for k, v in self.__dict__.items() if not k.startswith('_')]
+        fields = [
+            "    {}={!r}".format(k, v)
+            for k, v in self.__dict__.items()
+            if not k.startswith("_")
+        ]
 
-        return '{}(\n{})'.format(self.__class__.__name__, ',\n'.join(fields))
+        return "{}(\n{})".format(self.__class__.__name__, ",\n".join(fields))
 
 
 class TSEColumn:
     """
     column class
     """
+
     def __init__(self, row):
         """
         constructor for TSEColumn class
         """
         row_len = len(row)
-        if(row_len > 2 or row_len < 1):
-            raise Exception('Invalid column data')
+        if row_len > 2 or row_len < 1:
+            raise Exception("Invalid column data")
         self.name = settings.cols[row[0]]
         self.fname = settings.cols_fa[row[0]]
         self.header = row[1]
@@ -62,14 +66,15 @@ class TSEInstrument:
     """
     tse instrument class
     """
-    def __init__(self, row=''):
+
+    def __init__(self, row: str | list):
         """
         constructor for TSEInstrument class
         """
         if isinstance(row, str):
-            row = row.split(',')
+            row = row.split(",")
         if not (len(row) in [18, 19]):
-            raise Exception('Invalid instrument data')
+            raise Exception("Invalid instrument data")
         self.InsCode = row[0]  # int64 (کد داخلي نماد)
         self.InstrumentID = row[1]  # کد 12 رقمي لاتين نماد
         self.LatinSymbol = row[2]  # string
@@ -88,24 +93,27 @@ class TSEInstrument:
         self.CSecVal = row[15]  # []62 کد گروه صنعت
         self.CSoSecVal = row[16]  # []177 کد زیر گروه صنعت
         self.YVal = row[17]  # string نوع نماد (شاخص صندوق اوراق ... )
-        try: # if row[18] (original symbol name) exists
+        try:  # if row[18] (original symbol name) exists
             if row[18]:
                 self.SymbolOriginal = clean_fa(row[18]).strip()  # string
         except IndexError:
             pass
-    
+
     def __str__(self):
         """
         string representation of TSEInstrument class
         """
-        return '{}(\n{})'.format(self.__class__.__name__, ',\n'.join(self.list()))
+        return "{}(\n{})".format(self.__class__.__name__, ",\n".join(self.list()))
 
     def list(self):
         """
         list representation of TSEInstrument class
         """
-        fields = ['    {}={!r}'.format(k, v)
-                  for k, v in self.__dict__.items() if not k.startswith('_')]
+        fields = [
+            "    {}={!r}".format(k, v)
+            for k, v in self.__dict__.items()
+            if not k.startswith("_")
+        ]
 
         return fields
 
@@ -114,14 +122,15 @@ class TSEInstrumentItd:
     """
     intraday instrument class
     """
-    def __init__(self, row='') -> None:
+
+    def __init__(self, row="") -> None:
         """
         constructor for TSEInstrumentItd class
         """
         if isinstance(row, str):
-            row = row.split(',')
+            row = row.split(",")
         if len(row) != 11:
-            raise Exception('Invalid InstrumentItd data')
+            raise Exception("Invalid InstrumentItd data")
         self.InsCode = row[0]
         self.LVal30 = clean_fa(row[1]).trim()  # نام 30 رقمي فارسي نماد
         self.LVal18AFC = clean_fa(row[2]).trim()  # کد 18 رقمي فارسي نماد
@@ -139,7 +148,8 @@ class TSEShare:
     """
     TSE share class
     """
-    def __init__(self, row='', **kwargs):
+
+    def __init__(self, row="", **kwargs):
         """
         constructor for TSEShare class
         """
@@ -149,9 +159,9 @@ class TSEShare:
             self.NumberOfShareOld = int(self.NumberOfShareOld)  # decimal
         else:
             if isinstance(row, str):
-                row = row.split(',')
+                row = row.split(",")
             if len(row) != 5:
-                raise Exception('Invalid share data')
+                raise Exception("Invalid share data")
             self.Idn = row[0]  # long
             self.InsCode = row[1]  # long
             self.DEven = row[2]  # int32
@@ -162,7 +172,10 @@ class TSEShare:
         """
         string representation of TSEShare class
         """
-        fields = ['    {}={!r}'.format(k, v)
-                  for k, v in self.__dict__.items() if not k.startswith('_')]
+        fields = [
+            "    {}={!r}".format(k, v)
+            for k, v in self.__dict__.items()
+            if not k.startswith("_")
+        ]
 
-        return '{}(\n{})'.format(self.__class__.__name__, ',\n'.join(fields))
+        return "{}(\n{})".format(self.__class__.__name__, ",\n".join(fields))

@@ -45,17 +45,17 @@ tse_instrument_itd_info = [
 ]
 tse_share_info = ["Idn", "InsCode", "DEven", "NumberOfShareNew", "NumberOfShareOld"]
 tse_closing_prices_info = [
-    "DEven",
     "InsCode",
+    "DEven",
     "PClosing",
     "PDrCotVal",
-    "PriceFirst",
-    "PriceMax",
-    "PriceMin",
-    "PriceYesterday",
-    "QTotCap",
-    "QTotTran5J",
     "ZTotTran",
+    "QTotTran5J",
+    "QTotCap",
+    "PriceMin",
+    "PriceMax",
+    "PriceYesterday",
+    "PriceFirst",
 ]
 
 # data services

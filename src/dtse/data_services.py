@@ -36,29 +36,35 @@ def adjust(cond, closing_prices, all_shares, ins_codes):
     cp_len = len(closing_prices)
     adjusted_cl_prices = []
     res = cl_pr
-    if(cond in [1, 2] and cp_len > 1):
+    if cond in [1, 2] and cp_len > 1:
         gaps = 0
         num = 1
-        adjusted_cl_prices.append(cl_pr[cp_len-1])
+        adjusted_cl_prices.append(cl_pr[cp_len - 1])
         if cond == 1:
-            for i in range(cp_len-2, -1, -1):
-                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i+1]]
-                if (curr_prcs.PClosing != next_prcs.PriceYesterday and
-                        curr_prcs.InsCode == next_prcs.InsCode):
+            for i in range(cp_len - 2, -1, -1):
+                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i + 1]]
+                if (
+                    curr_prcs.PClosing != next_prcs.PriceYesterday
+                    and curr_prcs.InsCode == next_prcs.InsCode
+                ):
                     gaps += 1
-        if((cond == 1 and gaps/cp_len < 0.08) or cond == 2):
-            for i in range(cp_len-2, -1, -1):
-                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i+1]]
-                prcs_dont_match = ((curr_prcs.PClosing != next_prcs.PriceYesterday) and
-                                   (curr_prcs.InsCode == next_prcs.InsCode))
+        if (cond == 1 and gaps / cp_len < 0.08) or cond == 2:
+            for i in range(cp_len - 2, -1, -1):
+                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i + 1]]
+                prcs_dont_match = (curr_prcs.PClosing != next_prcs.PriceYesterday) and (
+                    curr_prcs.InsCode == next_prcs.InsCode
+                )
                 target_share = shares.get(next_prcs.DEven)
-                if (cond == 1 and prcs_dont_match):
-                    num = num*float(next_prcs.PriceYesterday) / \
-                        float(curr_prcs.PClosing)
-                elif (cond == 2 and prcs_dont_match and target_share):
+                if cond == 1 and prcs_dont_match:
+                    num = (
+                        num
+                        * float(next_prcs.PriceYesterday)
+                        / float(curr_prcs.PClosing)
+                    )
+                elif cond == 2 and prcs_dont_match and target_share:
                     old_shares = float(target_share.NumberOfShareOld)
                     new_shares = float(target_share.NumberOfShareNew)
-                    num = num * old_shares/new_shares
+                    num = num * old_shares / new_shares
                 close = round(num * float(curr_prcs.PClosing), 2)
                 last = round(num * float(curr_prcs.PDrCotVal), 2)
                 low = round(num * float(curr_prcs.PriceMin), 2)
@@ -66,19 +72,21 @@ def adjust(cond, closing_prices, all_shares, ins_codes):
                 yday = round(num * float(curr_prcs.PriceYesterday), 2)
                 first = round(num * float(curr_prcs.PriceFirst), 2)
 
-                adjusted_closing_price = data_structs.TSEClosingPrice(**{
-                    'InsCode': curr_prcs.InsCode,
-                    'DEven': curr_prcs.DEven,
-                    'PClosing': close,
-                    'PDrCotVal': last,
-                    'PriceMin': low,
-                    'PriceMax': high,
-                    'PriceYesterday': yday,
-                    'PriceFirst': first,
-                    'ZTotTran': curr_prcs.ZTotTran,
-                    'QTotTran5J': curr_prcs.QTotTran5J,
-                    'QTotCap': curr_prcs.QTotCap
-                })
+                adjusted_closing_price = data_structs.TSEClosingPrice(
+                    **{
+                        "InsCode": curr_prcs.InsCode,
+                        "DEven": curr_prcs.DEven,
+                        "PClosing": close,
+                        "PDrCotVal": last,
+                        "PriceMin": low,
+                        "PriceMax": high,
+                        "PriceYesterday": yday,
+                        "PriceFirst": first,
+                        "ZTotTran": curr_prcs.ZTotTran,
+                        "QTotTran5J": curr_prcs.QTotTran5J,
+                        "QTotCap": curr_prcs.QTotCap,
+                    }
+                )
                 adjusted_cl_prices.append(adjusted_closing_price)
             res = np.array(adjusted_cl_prices)[::-1]
     return res
@@ -94,43 +102,45 @@ def get_cell(column_name, instrument, closing_price) -> str:
     :return: cell value (str)
     """
 
-    cell_str = ''
-    if column_name == 'date':
+    cell_str = ""
+    if column_name == "date":
         cell_str = closing_price.DEven
-    elif column_name == 'dateshamsi':
-        cell_str = str(jdatetime.date.fromgregorian(
-            date=datetime.strptime(
-                closing_price.DEven, '%Y%m%d')))
-    elif column_name == 'open':
+    elif column_name == "dateshamsi":
+        cell_str = str(
+            jdatetime.date.fromgregorian(
+                date=datetime.strptime(closing_price.DEven, "%Y%m%d")
+            )
+        )
+    elif column_name == "open":
         cell_str = closing_price.PriceFirst
-    elif column_name == 'high':
+    elif column_name == "high":
         cell_str = closing_price.PriceMax
-    elif column_name == 'low':
+    elif column_name == "low":
         cell_str = closing_price.PriceMin
-    elif column_name == 'last':
+    elif column_name == "last":
         cell_str = closing_price.PDrCotVal
-    elif column_name == 'close':
+    elif column_name == "close":
         cell_str = closing_price.PClosing
-    elif column_name == 'vol':
+    elif column_name == "vol":
         cell_str = closing_price.QTotTran5J
-    elif column_name == 'count':
+    elif column_name == "count":
         cell_str = closing_price.ZTotTran
-    elif column_name == 'value':
+    elif column_name == "value":
         cell_str = closing_price.QTotCap
-    elif column_name == 'yesterday':
+    elif column_name == "yesterday":
         cell_str = closing_price.PriceYesterday
-    elif column_name == 'symbol':
+    elif column_name == "symbol":
         cell_str = instrument.Symbol
-    elif column_name == 'name':
+    elif column_name == "name":
         cell_str = instrument.Name
-    elif column_name == 'namelatin':
+    elif column_name == "namelatin":
         cell_str = instrument.NameLatin
-    elif cell_str == 'companycode':
+    elif cell_str == "companycode":
         cell_str = instrument.CompanyCode
     return cell_str
 
 
-def should_update(deven:str, last_possible_deven:str) -> bool:
+def should_update(deven: str, last_possible_deven: str) -> bool:
     """
     Check if the database should be updated
 
@@ -140,25 +150,29 @@ def should_update(deven:str, last_possible_deven:str) -> bool:
     :return: bool, True if the database should be updated, False otherwise
     """
 
-    if (not deven) or deven == '0':
+    if (not deven) or deven == "0":
         return True  # first time. never updated
     today = datetime.now()
-    today_deven = today.strftime('%Y%m%d')
-    days_passed = abs((datetime.strptime(last_possible_deven, "%Y%m%d")
-                       - datetime.strptime(deven, "%Y%m%d")).days)
+    today_deven = today.strftime("%Y%m%d")
+    days_passed = abs(
+        (
+            datetime.strptime(last_possible_deven, "%Y%m%d")
+            - datetime.strptime(deven, "%Y%m%d")
+        ).days
+    )
     in_weekend = today.weekday() in [4, 5]
-    last_update_weekday = datetime.strptime(
-        last_possible_deven, "%Y%m%d").weekday()
-    today_is_lpd = (today_deven == last_possible_deven)
-    shd_upd = (days_passed >= cfg.UPDATE_INTERVAL and
-               # wait until the end of trading session
-               ((True, today.hour > cfg.TRADING_SEASSON_END)[today_is_lpd]) and
-               # No update needed in weekend but ONLY if
-               # last time we updated was on last day (wednesday) of THIS week
-               not (in_weekend and
-                    last_update_weekday != 3
-                    and days_passed <= 3)
-               )
+    last_update_weekday = datetime.strptime(last_possible_deven, "%Y%m%d").weekday()
+    today_is_lpd = today_deven == last_possible_deven
+    shd_upd = (
+        days_passed >= cfg.UPDATE_INTERVAL
+        and
+        # wait until the end of trading session
+        ((True, today.hour > cfg.TRADING_SEASSON_END)[today_is_lpd])
+        and
+        # No update needed in weekend but ONLY if
+        # last time we updated was on last day (wednesday) of THIS week
+        not (in_weekend and last_update_weekday != 3 and days_passed <= 3)
+    )
     return shd_upd
 
 
@@ -170,22 +184,23 @@ async def get_last_possible_deven() -> str:
     """
 
     strg = Storage()
-    last_possible_deven = strg.get_item('tse.lastPossibleDeven')
+    last_possible_deven = strg.get_item("tse.lastPossibleDeven")
     if (not last_possible_deven) or should_update(
-            datetime.today().strftime('%Y%m%d'),
-            last_possible_deven):
+        datetime.today().strftime("%Y%m%d"), last_possible_deven
+    ):
         try:
             req = TSERequest()
             res = await req.last_possible_deven()
         except Exception as e:
             logger.error(e)
             raise
-        pattern = re.compile(r'^\d{8};\d{8}$')
+        pattern = re.compile(r"^\d{8};\d{8}$")
         if not pattern.search(res):
-            raise Exception('Invalid response from server: LastPossibleDeven')
-        last_possible_deven = res.split(';')[0] or res.split(';')[1]
-        strg.set_item('tse.lastPossibleDeven', last_possible_deven)
+            raise Exception("Invalid response from server: LastPossibleDeven")
+        last_possible_deven = res.split(";")[0] or res.split(";")[1]
+        strg.set_item("tse.lastPossibleDeven", last_possible_deven)
     return last_possible_deven
+
 
 # todo: incomplte
 
@@ -196,59 +211,76 @@ async def update_instruments() -> None:
     """
 
     strg = Storage()
-    last_update = strg.get_item('tse.lastInstrumentUpdate')
+    last_update = strg.get_item("tse.lastInstrumentUpdate")
     cached_instruments = {}
     cached_shares = {}
-    last_deven = '0'
+    last_deven: str = "0"
     last_id = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     if last_update:
         cached_instruments = await parse_instruments()
         cached_shares = await parse_shares()
-        last_deven = max(cached_instruments['DEven'])
+        last_deven = str(max(cached_instruments["DEven"]))
         if len(cached_shares) > 0:
-            last_id = max(cached_shares.keys())
+            last_id = max(cached_shares["Idn"])
     last_possible_deven = await get_last_possible_deven()
     if not should_update(last_deven, last_possible_deven):
         return
     req = TSERequest()
-    today = datetime.now().strftime('%Y%m%d')
+    today = datetime.now().strftime("%Y%m%d")
     orig_sym_dict = await req.instrument_and_share(today, last_id)
-    shares = orig_sym_dict.split('@')[1]
+    shares = orig_sym_dict.split("@")[1]
     instruments = await req.instrument(last_deven)
-    if instruments == '*':
-        logger.warning('No update during trading hours.')
-    elif instruments == '':
-        logger.warning('Already updated: Instruments')
+    if instruments == "*":
+        logger.warning("No update during trading hours.")
+    elif instruments == "":
+        logger.warning("Already updated: Instruments")
     else:
         convs = {5: tse_utils.clean_fa}
-        await _resp_to_csv(instruments,
-                     inst_col_names,
-                     ';',
-                     convs,
-                     'tse.instruments',
-                     strg)
-    if shares == '':
-        logger.warning('Already updated: Shares')
+        await resp_to_csv(
+            instruments, inst_col_names, ";", convs, "tse.instruments", strg
+        )
+    if shares == "":
+        logger.warning("Already updated: Shares")
     else:
-        await _resp_to_csv(resp=shares,
-                     col_names=share_col_names,
-                     line_terminator=';',
-                     converters=None,
-                     f_name='tse.shares',
-                     storage=strg)
+        await resp_to_csv(
+            resp=shares,
+            col_names=share_col_names,
+            line_terminator=";",
+            converters=None,
+            f_name="tse.shares",
+            storage=strg,
+        )
 
-    if len(instruments)>1:
-        strg.set_item('tse.lastInstrumentUpdate', today)
+    if len(instruments) > 1:
+        strg.set_item("tse.lastInstrumentUpdate", today)
 
 
-async def _resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
+async def resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
     """
     Wrtie API Request to csv file
     """
-    resp_df = pd.read_csv(StringIO(resp),
-                          names=col_names,
-                          lineterminator=line_terminator,
-                          converters=converters)
+    resp_df = pd.read_csv(
+        StringIO(resp),
+        names=col_names,
+        lineterminator=line_terminator,
+        converters=converters,
+    )
     await storage.write_tse_csv(f_name, resp_df)
+
+
+async def get_symbol_name(ins_code) -> str:
+    """
+    retrives the symbol name
+
+    :param ins_code: str, code of the selected symbol
+
+    :return: str, symbol name
+    """
+
+    strg = Storage()
+    instruments_df = await strg.read_tse_csv("tse.instruments")
+    search_df = instruments_df[["InsCode", "Symbol"]].astype(str)
+    ret_val = search_df.loc[search_df["InsCode"] == ins_code]["Symbol"].values[0]
+    return ret_val

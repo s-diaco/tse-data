@@ -72,6 +72,6 @@ class TSERequest:
                     if response.status != 200:
                         response.raise_for_status()
                     return await response.text()
-        except aiohttp.ClientResponseError as e:
-            tse_logger.error(e)
+        except aiohttp.ClientResponseError as ex:
+            tse_logger.error(ex)
             raise

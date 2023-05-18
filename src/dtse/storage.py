@@ -15,22 +15,22 @@ class Storage:
     """
 
     def __init__(self) -> None:
-        data_dir = Path(settings['TSE_CACHE_DIR'])
-        path_file = Path(settings['PATH_FILE_NAME'])
+        data_dir = Path(settings["TSE_CACHE_DIR"])
+        path_file = Path(settings["PATH_FILE_NAME"])
         home = Path.home()
         self._data_dir = home / data_dir
         path_file = home / path_file
         if path_file.is_file():
-            with open(path_file, 'r', encoding='utf-8') as f:
+            with open(path_file, "r", encoding="utf-8") as f:
                 data_path = Path(f.readline())
                 if data_path.is_dir():
                     self._data_dir = data_path
         else:
-            with open(path_file, 'w+', encoding='utf-8') as f:
+            with open(path_file, "w+", encoding="utf-8") as f:
                 f.write(str(self._data_dir))
 
         self._data_dir.mkdir(parents=True, exist_ok=True)
-        logger.info('data dir: %s', self._data_dir)
+        logger.info("data dir: %s", self._data_dir)
 
         # todo: uncomment
         # pylint: disable=W0105
@@ -51,15 +51,15 @@ class Storage:
         :param key: file name
         :return: string
         """
-        key = key.replace('tse.', '')
+        key = key.replace("tse.", "")
         tse_dir = self._data_dir
-        if key.startswith('prices.'):
-            tse_dir = self._data_dir / settings['PRICES_DIR']
-        file_path = tse_dir / (key + '.csv')
+        if key.startswith("prices."):
+            tse_dir = self._data_dir / settings["PRICES_DIR"]
+        file_path = tse_dir / (key + ".csv")
         if not file_path.is_file():
-            with open(file_path, 'w+', encoding='utf-8') as f:
-                return f.write('')
-        with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "w+", encoding="utf-8") as f:
+                return f.write("")
+        with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
 
     def set_item(self, key: str, value: str) -> None:
@@ -70,14 +70,14 @@ class Storage:
         :param value: text to write
         """
 
-        key = key.replace('tse.', '')
+        key = key.replace("tse.", "")
         tse_dir = self._data_dir
-        if key.startswith('prices.'):
-            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if key.startswith("prices."):
+            tse_dir = self._data_dir / settings["PRICES_DIR"]
         if not tse_dir.is_dir():
             tse_dir.mkdir(parents=True, exist_ok=True)
-        file_path = tse_dir / (key + '.csv')
-        with open(file_path, 'w+', encoding='utf-8') as f:
+        file_path = tse_dir / (key + ".csv")
+        with open(file_path, "w+", encoding="utf-8") as f:
             f.write(value)
 
     async def get_item_async(self, key: str, tse_zip=False):
@@ -87,25 +87,25 @@ class Storage:
         :param key: file name
         :return: string
         """
-        key = key.replace('tse.', '')
+        key = key.replace("tse.", "")
         tse_dir = self._data_dir
-        if key.startswith('prices.'):
-            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if key.startswith("prices."):
+            tse_dir = self._data_dir / settings["PRICES_DIR"]
         if not tse_dir.is_dir():
             tse_dir.mkdir(parents=True, exist_ok=True)
         if tse_zip:
-            file_path = tse_dir / (key + '.gz')
+            file_path = tse_dir / (key + ".gz")
             if not file_path.is_file():
                 with gzip.open(file_path, mode="wt") as zip_f:
-                    zip_f.write('')
-            with gzip.open(file_path, mode='rt') as zip_f:
+                    zip_f.write("")
+            with gzip.open(file_path, mode="rt") as zip_f:
                 return zip_f.read()
         else:
-            file_path = tse_dir / (key + '.csv')
+            file_path = tse_dir / (key + ".csv")
             if not file_path.is_file():
-                with open(file_path, 'w+', encoding='utf-8') as f:
-                    f.write('')
-            with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "w+", encoding="utf-8") as f:
+                    f.write("")
+            with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
 
     async def set_item_async(self, key: str, value: str, tse_zip=False):
@@ -116,19 +116,19 @@ class Storage:
         :param value: text to write
         """
 
-        key = key.replace('tse.', '')
+        key = key.replace("tse.", "")
         tse_dir = self._data_dir
-        if key.startswith('prices.'):
-            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if key.startswith("prices."):
+            tse_dir = self._data_dir / settings["PRICES_DIR"]
         if not tse_dir.is_dir():
             tse_dir.mkdir(parents=True, exist_ok=True)
         if tse_zip:
-            file_path = tse_dir / (key + '.gz')
+            file_path = tse_dir / (key + ".gz")
             with gzip.open(file_path, mode="wt") as zip_f:
                 zip_f.write(value)
         else:
-            file_path = tse_dir / (key + '.csv')
-            with open(file_path, 'w+', encoding='utf-8') as f:
+            file_path = tse_dir / (key + ".csv")
+            with open(file_path, "w+", encoding="utf-8") as f:
                 f.write(value)
 
     async def get_items(self, sel_ins=None) -> dict:
@@ -139,17 +139,17 @@ class Storage:
         """
 
         result = {}
-        tse_dir = self._data_dir / settings['PRICES_DIR']
+        tse_dir = self._data_dir / settings["PRICES_DIR"]
         if not tse_dir.is_dir():
             tse_dir.mkdir(parents=True, exist_ok=True)
-        file_list = tse_dir.glob('**/*')
+        file_list = tse_dir.glob("**/*")
         for x in file_list:
             if x.is_file():
-                key = x.name.replace('.csv', '')
+                key = x.name.replace(".csv", "")
                 if key not in sel_ins:
                     continue
-                file_path = tse_dir/x.name
-                with open(file_path, 'r', encoding='utf-8') as f:
+                file_path = tse_dir / x.name
+                with open(file_path, "r", encoding="utf-8") as f:
                     result[key] = f.read()
         return result
 
@@ -198,20 +198,20 @@ class Storage:
         :param f_name: str, file name
         :param data: DataFrame, list of dicts
         """
-        f_name = f_name.replace('tse.', '')
+        f_name = f_name.replace("tse.", "")
         tse_dir = self._data_dir
-        if f_name.startswith('prices.'):
-            tse_dir = self._data_dir / settings['PRICES_DIR']
-        file_path = tse_dir / (f_name + '.csv')
+        if f_name.startswith("prices."):
+            tse_dir = self._data_dir / settings["PRICES_DIR"]
+        file_path = tse_dir / (f_name + ".csv")
         res = pd.DataFrame()
         if file_path.is_file():
             try:
-                res = pd.read_csv(file_path, encoding='utf-8')
+                res = pd.read_csv(file_path, encoding="utf-8")
             except pd.errors.EmptyDataError:
                 pass
         else:
-            with open(file_path, 'w+', encoding='utf-8') as f:
-                f.write('')
+            with open(file_path, "w+", encoding="utf-8") as f:
+                f.write("")
         return res
 
     async def write_tse_csv(self, f_name: str, data: pd.DataFrame) -> None:
@@ -221,13 +221,14 @@ class Storage:
         :param f_name: str, file name
         :param data: list, list of dicts
         """
-        f_name = f_name.replace('tse.', '')
+        f_name = f_name.replace("tse.", "")
         tse_dir = self._data_dir
-        if f_name.startswith('prices.'):
-            tse_dir = self._data_dir / settings['PRICES_DIR']
+        if f_name.startswith("prices."):
+            f_name = f_name.replace("prices.", "")
+            tse_dir = self._data_dir / settings["PRICES_DIR"]
         if not tse_dir.is_dir():
             tse_dir.mkdir(parents=True, exist_ok=True)
         if len(data) == 0:
             return
-        file_path = tse_dir / (f_name + '.csv')
-        data.to_csv(file_path, index=False, encoding='utf-8')
+        file_path = tse_dir / (f_name + ".csv")
+        data.to_csv(file_path, index=False, encoding="utf-8")

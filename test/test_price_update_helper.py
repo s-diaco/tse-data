@@ -5,7 +5,8 @@ import json
 
 import pytest
 
-from dtse import price_update_helper as puh
+from dtse.price_update_helper import PricesUpdateHelper
+from dtse.progress_bar import ProgressBar
 
 
 @pytest.fixture(name="resp_data")
@@ -24,9 +25,11 @@ async def test_start(resp_data):
     """
     test start
     """
-    pu_helper = puh.PricesUpdateHelper()
+    pu_helper = PricesUpdateHelper()
     update_needed = resp_data
-    await pu_helper.start(update_needed=update_needed, should_cache=True)
+    await pu_helper.start(
+        update_needed=update_needed, should_cache=True, progressbar=ProgressBar()
+    )
 
     # TODO: delete
     """

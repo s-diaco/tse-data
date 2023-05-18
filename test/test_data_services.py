@@ -9,7 +9,6 @@ import pytest
 
 from dtse import data_services
 from dtse import data_structs
-from dtse import tse_parser as parser
 
 
 def test_adjust():
@@ -17,21 +16,21 @@ def test_adjust():
     Test the adjust function.
     """
     cond = 1
-    ins_codes = set(['68635710163497089', '26787658273107220'])
+    ins_codes = set(["68635710163497089", "26787658273107220"])
 
     # parse sample data for closing prices
-    sample_closing_prices_path = 'sample_data/closing_prices.json'
-    with open(sample_closing_prices_path, 'r', encoding='utf-8') as f_cp:
+    sample_closing_prices_path = "sample_data/closing_prices.json"
+    with open(sample_closing_prices_path, "r", encoding="utf-8") as f_cp:
         closing_prices_json = json.loads(f_cp.read())
-    closing_prices = [data_structs.TSEClosingPrice(**cp_dict)
-                      for cp_dict in closing_prices_json]
+    closing_prices = [
+        data_structs.TSEClosingPrice(**cp_dict) for cp_dict in closing_prices_json
+    ]
 
     # parse sample data for shares
-    sample_all_shares_path = 'sample_data/all_shares.json'
-    with open(sample_all_shares_path, 'r', encoding='utf-8') as f_as:
+    sample_all_shares_path = "sample_data/all_shares.json"
+    with open(sample_all_shares_path, "r", encoding="utf-8") as f_as:
         all_shares_json = json.loads(f_as.read())
-    all_shares = [data_structs.TSEShare(**share_dict)
-                  for share_dict in all_shares_json]
+    all_shares = [data_structs.TSEShare(**share_dict) for share_dict in all_shares_json]
 
     res = data_services.adjust(cond, closing_prices, all_shares, ins_codes)
     assert np.array(res).shape != (2, 2)
@@ -40,8 +39,9 @@ def test_adjust():
 test_data = [
     ("20220103", "20220302", True),
     ("20220223", "20220223", False),
-    ("20220302", "20220304", True)
+    ("20220302", "20220304", True),
 ]
+
 
 @pytest.mark.parametrize("last_update, last_possible_update, expected", test_data)
 def test_should_update(last_update, last_possible_update, expected):
@@ -58,7 +58,7 @@ async def test_get_last_possible_deven():
     Test the get_last_possible_deven function.
     """
     res = await data_services.get_last_possible_deven()
-    pattern = re.compile(r'^\d{8}$')
+    pattern = re.compile(r"^\d{8}$")
     assert pattern.search(res)
 
 
@@ -71,11 +71,11 @@ async def test_update_instruments():
     assert True
 
 
-@pytest.mark.asyncio
-async def test_procc_similar_syms():
+async def test_get_symbol_name():
     """
-    Test the procc_similar_syms function
+    test the get_symbol_name method
     """
-    cached_instruments = await parser.parse_instruments()
-    processed_instruments = data_services._procc_similar_syms(cached_instruments)
-    assert len(processed_instruments) > 0
+
+    symbol_name = await data_services.get_symbol_name("778253364357513")
+    expected_result = "وبملت"
+    assert symbol_name == expected_result

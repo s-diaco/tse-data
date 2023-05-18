@@ -6,10 +6,12 @@ import asyncio
 import math
 import re
 
+from dtse.data_services import get_symbol_name, resp_to_csv
+
 from . import config as cfg
-from .storage import Storage as strg
+from .storage import Storage
 from .tse_request import TSERequest
-from .progress_bar import ProgressBar as prog_bar
+from .progress_bar import ProgressBar
 
 
 class PricesUpdateHelper:
@@ -44,6 +46,7 @@ class PricesUpdateHelper:
             if len(ins_codes) != len(res):
                 raise ValueError()
 
+            strg = Storage()
             for i, ins_code in enumerate(ins_codes):
                 self.succs.append(ins_code)
                 if res[i] != "":
@@ -54,20 +57,34 @@ class PricesUpdateHelper:
                         data = old_data + ";" + res[i]
                     self.stored_prices[ins_code] = data
                     self.last_devens[ins_code] = res[i].split(",")[1]
+                    col_names = cfg.tse_closing_prices_info
+                    line_terminator = ";"
+                    file_name = await get_symbol_name(str(ins_code))
                     self.writing.append(
                         self.should_cache
-                        and await strg().set_item_async("tse.prices." + ins_code, data)
+                        and await resp_to_csv(
+                            resp=data,
+                            col_names=col_names,
+                            line_terminator=line_terminator,
+                            converters=None,
+                            f_name="tse.prices." + file_name,
+                            storage=strg,
+                        )
                     )
             self.fails = [x for x in self.fails if x not in ins_codes]
+            """
             if self.progressbar.prog_func:
                 filled = (
                     self.progressbar.prog_succ_req
                     / (cfg.PRICES_UPDATE_RETRY_COUNT + 2)
                     * (self.retries + 1)
                 )
-                self.progressbar.prog_func(
-                    pn=self.progressbar.prog_n + self.progressbar.prog_succ_req - filled
+                self.progressbar.prog_n = int(
+                    self.progressbar.prog_n + self.progressbar.prog_succ_req - filled
                 )
+                self.progressbar.prog_func(self.progressbar.prog_n = (
+                    self.progressbar.prog_n + self.progressbar.prog_succ_req - filled)
+            """
         else:
             self.fails.append(ins_codes)
             self.retry_chunks.append(chunk)
@@ -107,7 +124,9 @@ class PricesUpdateHelper:
         )
 
     # TODO: fix calculations for progress_dict and return value
-    async def start(self, update_needed, should_cache=True, progressbar) -> dict:
+    async def start(
+        self, update_needed, progressbar: ProgressBar, should_cache=True
+    ) -> dict:
         """
         start updating daily prices
 
@@ -116,9 +135,10 @@ class PricesUpdateHelper:
         :progress_dict: dict, data needed for progress bar
         """
         self.should_cache = should_cache
-        self.progressbar.update(**pb_args)
+        self.progressbar = progressbar
         self.total = len(update_needed)
         # each successful request
+        """
         self.progressbar.prog_succ_req = self.progressbar.prog_tot / math.ceil(
             self.total / cfg.PRICES_UPDATE_CHUNK
         )
@@ -126,10 +146,11 @@ class PricesUpdateHelper:
         self.progressbar.prog_req = self.progressbar.prog_succ_req / (
             cfg.PRICES_UPDATE_RETRY_COUNT + 2
         )
+        """
         # Yield successive evenly sized chunks from 'update_needed'.
         chunks = [
             update_needed[i : i + cfg.PRICES_UPDATE_CHUNK]
             for i in range(0, len(update_needed), cfg.PRICES_UPDATE_CHUNK)
         ]
         await self._batch(chunks)
-        return {"succs": self.succs, "fails": self.fails, "pn": self.progressbar.prog_n}
+        return {"succs": self.succs, "fails": self.fails}
