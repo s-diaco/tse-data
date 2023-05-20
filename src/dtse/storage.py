@@ -198,6 +198,27 @@ class Storage:
         :param f_name: str, file name
         :param data: DataFrame, list of dicts
         """
+
+        return self.read_tse_csv_blc(f_name=f_name)
+
+    async def write_tse_csv(self, f_name: str, data: pd.DataFrame) -> None:
+        """
+        Writes a csv file to the TSE
+
+        :param f_name: str, file name
+        :param data: list, list of dicts
+        """
+
+        self.write_tse_csv_bloc(f_name=f_name, data=data)
+
+    def read_tse_csv_blc(self, f_name: str) -> pd.DataFrame:
+        """
+        Reads a csv TSE file and returns a DataFrame
+
+        :param f_name: str, file name
+        :param data: DataFrame, list of dicts
+        """
+
         f_name = f_name.replace("tse.", "")
         tse_dir = self._data_dir
         if f_name.startswith("prices."):
@@ -214,13 +235,14 @@ class Storage:
                 f.write("")
         return res
 
-    async def write_tse_csv(self, f_name: str, data: pd.DataFrame) -> None:
+    def write_tse_csv_bloc(self, f_name: str, data: pd.DataFrame) -> None:
         """
         Writes a csv file to the TSE
 
         :param f_name: str, file name
         :param data: list, list of dicts
         """
+
         f_name = f_name.replace("tse.", "")
         tse_dir = self._data_dir
         if f_name.startswith("prices."):
