@@ -238,13 +238,11 @@ async def update_instruments() -> None:
         logger.warning("Already updated: Instruments")
     else:
         convs = {5: tse_utils.clean_fa}
-        await resp_to_csv(
-            instruments, inst_col_names, ";", convs, "tse.instruments", strg
-        )
+        resp_to_csv(instruments, inst_col_names, ";", convs, "tse.instruments", strg)
     if shares == "":
         logger.warning("Already updated: Shares")
     else:
-        await resp_to_csv(
+        resp_to_csv(
             resp=shares,
             col_names=share_col_names,
             line_terminator=";",
@@ -257,7 +255,7 @@ async def update_instruments() -> None:
         strg.set_item("tse.lastInstrumentUpdate", today)
 
 
-async def resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
+def resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
     """
     Wrtie API Request to csv file
     """
@@ -267,20 +265,23 @@ async def resp_to_csv(resp, col_names, line_terminator, converters, f_name, stor
         lineterminator=line_terminator,
         converters=converters,
     )
-    await storage.write_tse_csv(f_name, resp_df)
+    storage.write_tse_csv_blc(f_name, resp_df)
 
 
-async def get_symbol_name(ins_code) -> str:
+def get_symbol_names(ins_codes: list[str]) -> dict:
     """
-    retrives the symbol name
+    retrives the symbol names
 
-    :param ins_code: str, code of the selected symbol
+    :param ins_code: list of strings, codes of the selected symbols
 
-    :return: str, symbol name
+    :return: dict, symbol names
     """
 
+    # TODO: it doesnt collect inscodes for all given names
+    # i.e. '9211775239375291' & '26787658273107220'
     strg = Storage()
-    instruments_df = await strg.read_tse_csv("tse.instruments")
+    instruments_df = strg.read_tse_csv_blc("tse.instruments")
     search_df = instruments_df[["InsCode", "Symbol"]].astype(str)
-    ret_val = search_df.loc[search_df["InsCode"] == ins_code]["Symbol"].values[0]
+    ret_val_df = search_df.loc[search_df["InsCode"].isin(ins_codes)]
+    ret_val = {row[1]: row[2] for row in ret_val_df.itertuples()}
     return ret_val

@@ -131,27 +131,16 @@ class Storage:
             with open(file_path, "w+", encoding="utf-8") as f:
                 f.write(value)
 
-    async def get_items(self, sel_ins=None) -> dict:
+    def get_items(self, f_names: list[str]) -> dict:
         """
         Reads selected instruments files from the cache dir and returns a dict
 
         :return: dict
         """
 
-        result = {}
-        tse_dir = self._data_dir / settings["PRICES_DIR"]
-        if not tse_dir.is_dir():
-            tse_dir.mkdir(parents=True, exist_ok=True)
-        file_list = tse_dir.glob("**/*")
-        for x in file_list:
-            if x.is_file():
-                key = x.name.replace(".csv", "")
-                if key not in sel_ins:
-                    continue
-                file_path = tse_dir / x.name
-                with open(file_path, "r", encoding="utf-8") as f:
-                    result[key] = f.read()
-        return result
+        res = {}
+        res = {name: self.read_tse_csv_blc(f"prices.{name}") for name in f_names}
+        return res
 
     # todo: complete this
     # pylint: disable=W0105
@@ -222,6 +211,7 @@ class Storage:
         f_name = f_name.replace("tse.", "")
         tse_dir = self._data_dir
         if f_name.startswith("prices."):
+            f_name = f_name.replace("prices.", "")
             tse_dir = self._data_dir / settings["PRICES_DIR"]
         file_path = tse_dir / (f_name + ".csv")
         res = pd.DataFrame()
@@ -230,9 +220,6 @@ class Storage:
                 res = pd.read_csv(file_path, encoding="utf-8")
             except pd.errors.EmptyDataError:
                 pass
-        else:
-            with open(file_path, "w+", encoding="utf-8") as f:
-                f.write("")
         return res
 
     def write_tse_csv_bloc(self, f_name: str, data: pd.DataFrame) -> None:

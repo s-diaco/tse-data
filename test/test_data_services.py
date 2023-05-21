@@ -71,11 +71,12 @@ async def test_update_instruments():
     assert True
 
 
-async def test_get_symbol_name():
+def test_get_symbol_names():
     """
     test the get_symbol_name method
     """
 
-    symbol_name = await data_services.get_symbol_name("778253364357513")
-    expected_result = "وبملت"
-    assert symbol_name == expected_result
+    ins_codes = ["778253364357513"]
+    symbol_names = data_services.get_symbol_names(ins_codes=ins_codes)
+    expected_result = ["وبملت"]
+    assert list(symbol_names.values()) == expected_result

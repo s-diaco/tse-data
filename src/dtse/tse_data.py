@@ -19,34 +19,51 @@ from .tse_parser import parse_instruments
 
 
 # todo: complete
-async def _update_prices(selection, should_cache, progressbar: ProgressBar):
+async def _update_prices(selection, settings, progressbar: ProgressBar):
     """
-    update prices
+    update prices if there is no cached data for them or if cached data is outdated
 
     :selection: list, instruments to update
-    :should_cache: bool, should cache prices in csv files
-    :percents: dict, data needed for progress bar
+    :settings: dict, should_cache & merge_similar_symbols & ...
+    :percents: dict, progress bar data
     """
-    strg = Storage()
-    last_devens = strg.read_tse_csv_blc("tse.inscode_lastdeven")
-    ins_codes = []
-    if not last_devens.empty:
-        ins_codes = last_devens[0]
+
     result = {"succs": [], "fails": []}
+    price_manager = PricesUpdateHelper()
+    price_manager.update_stored_prices(selection["InsCode"].astype(str).values)
+    # TODO: Ensure it returns the last value not the first one.
+    # is it good to store last_devens in a file?
+    last_devens = DataFrame(
+        {
+            prc_df.astype(str).iloc[-1]["InsCode"]: prc_df.astype(str).iloc[-1]["DEven"]
+            for prc_df in price_manager.stored_prices.values()
+        }.items()
+    )
+    if not last_devens.empty:
+        last_devens.columns = ["InsCodes", "DEven"]
+    # TODO: merge last_devens & selection to find out witch syms need an update
+    ins_codes = []
+    if last_devens:
+        ins_codes = list(last_devens.keys())
     """
     prog_fin = progressbar.pn + progressbar.ptot
     """
-    try:
-        last_possible_deven = await data_svs.get_last_possible_deven()
-    except Exception as ex:
-        result["error"] = ex
-        """
-        if callable(progressbar.progress_func):
-            progressbar.progressbar.prog_func(prog_fin)"""
-        return result
-
+    last_possible_deven = await data_svs.get_last_possible_deven()
     to_update = []
-    first_possible_deven = cfg.default_settings["start_date"]
+    first_possible_deven = settings["start_date"]
+    syms_not_cached = selection[~selection["InsCode"].isin(ins_codes)][
+        ["InsCode", "YMarNSC"]
+    ]
+    syms_not_cached["DEven"] = first_possible_deven
+    syms_cached = selection[selection["InsCode"].isin(ins_codes)][
+        ["InsCode", "DEven", "YMarNSC"]
+    ]
+    syms_cached["should_update"] = syms_cached["DEven"].map(
+        lambda x: data_svs.should_update(x, last_possible_deven)
+    )
+    syms_cached = syms_cached[syms_cached["should_update"]][
+        ["InsCode", "DEven", "YMarNSC"]
+    ]
     for instrument in selection.to_dict("records"):
         ins_code = instrument["InsCode"]
         market = instrument["YMarNSC"] != "NO"
@@ -67,12 +84,7 @@ async def _update_prices(selection, should_cache, progressbar: ProgressBar):
         progressbar.progressbar.prog_func(progressbar.pn + progressbar.ptot * (0.01))
     """
     sel_ins = selection["InsCode"]
-    price_manager = PricesUpdateHelper()
-    # TODO: there is no stored_prices implemented
     stored_ins = price_manager.stored_prices
-    # TODO: WTF is this?
-    if (not stored_ins) or (not sel_ins):
-        price_manager.stored_prices = await strg.get_items(sel_ins)
     """
     if callable(progressbar.progress_func):
         progressbar.progressbar.prog_func(progressbar.pn + progressbar.ptot * (0.01))
@@ -85,7 +97,7 @@ async def _update_prices(selection, should_cache, progressbar: ProgressBar):
             progressbar.ptot - progressbar.ptot * (0.02),
         )"""
         manager_result = await price_manager.start(
-            update_needed=to_update, progressbar=progressbar, should_cache=should_cache
+            update_needed=to_update, progressbar=progressbar, settings=settings
         )
         succs = manager_result["succs"]
         fails = manager_result["fails"]
@@ -94,8 +106,6 @@ async def _update_prices(selection, should_cache, progressbar: ProgressBar):
         """
         # TODO: price update helper Should update inscode_lastdeven file
         # with new cached instruments in _on_result or do not read it from this file
-        if succs and should_cache:
-            await strg.write_tse_csv(f_name="tse.inscode_lastdeven", data=last_devens)
         result = (succs, fails)
     """
     if callable(progressbar.progress_func) and progressbar.pn != prog_fin:
@@ -121,7 +131,7 @@ async def get_prices(symbols=None, conf=None):
     settings = cfg.default_settings
     if conf:
         settings.update(conf)
-    result = {"data": [], "error": None}
+    result = {"succs": None, "fails": None}
     """
     progressbar.prog_func = settings.get("on_progress")
     if not callable(progressbar.prog_func):
@@ -131,18 +141,17 @@ async def get_prices(symbols=None, conf=None):
         progressbar.prog_tot = cfg.default_settings["progress_tot"]
     progressbar.prog_n = 0
     """
-    await data_svs.update_instruments()
     """
     if callable(progressbar.prog_func):
         progressbar.prog_n = progressbar.prog_n + (progressbar.prog_tot * 0.01)
         progressbar.prog_func(progressbar.prog_n)
     """
-    instruments = await parse_instruments()
 
-    selected_syms_df = instruments[instruments["Symbol"].isin(symbols)]
-    if not len(selected_syms_df):
+    # check if names in symbols are valid symbol names
+    selected_syms = await get_valid_syms(symbols)
+    if not len(selected_syms):
         raise ValueError(f"No instruments found for symbols: {symbols}.")
-    not_founds = [sym for sym in symbols if sym not in instruments["Symbol"].values]
+    not_founds = [sym for sym in symbols if sym not in selected_syms["Symbol"].values]
     if not_founds:
         tse_logger.warning(f"symbols not found: {not_founds}")
     """
@@ -152,17 +161,13 @@ async def get_prices(symbols=None, conf=None):
         if callable(progressbar.prog_func):
             progressbar.prog_func(progressbar.prog_tot)
     """
-    merge_similar_symbols = settings["merge_similar_symbols"]
-    if merge_similar_symbols:
-        # TODO: doesn't work
-        _merge_similars(syms=instruments, selected_syms=selected_syms_df)
 
     update_result = await _update_prices(
-        selected_syms_df,
-        settings["cache"],
+        selected_syms,
+        settings,
         progressbar,
     )
-    succs, fails = update_result
+    result = update_result
     """
     progressbar.prog_n = update_result
     if error:
@@ -197,89 +202,8 @@ async def get_prices(symbols=None, conf=None):
 
     columns = list(map(col, settings["columns"]))
     """
-
-    columns = settings["columns"]
-    adjust_prices = settings["adjust_prices"]
-    days_without_trade = settings["days_without_trade"]
-    start_date = settings["start_date"]
-    csv = settings["csv"]
-    strg = Storage()
-    shares = strg.read_tse_csv_blc("tse.shares")
     """
     pi = progressbar.prog_tot * 0.20 / selected_syms_df.length
-    """
-    stored_prices_merged = {}
-
-    prices_manager = PricesUpdateHelper()
-    if merge_similar_symbols:
-        for merge in merges:
-            codes = [i.code for i in merge.values()]
-            stored_prices_merged[codes] = list(
-                map((lambda x: prices_manager.stored_prices[x]), codes)
-            ).reverse()
-
-    if csv:
-        csv_headers = settings["csv_headers"]
-        csv_delimiter = settings["csv_delimiter"]
-        headers = ""
-        if csv_headers:
-            headers = list(map((lambda i: i.header), columns)).join() + "\n"
-
-        def map_selection(instrument):
-            if not instrument:
-                return
-            res = headers
-            prices = _get_instrument_prices(instrument)
-            if not prices:
-                return res
-            if prices == cfg.MERGED_SYMBOL_CONTENT:
-                return prices
-
-            res += list(
-                map(
-                    (
-                        lambda price: list(
-                            map(
-                                (
-                                    lambda i: data_svs.get_cell(
-                                        i.name, instrument, price
-                                    ).join(csv_delimiter)
-                                ),
-                                columns,
-                            )
-                        )
-                    ),
-                    prices,
-                )
-            ).join("\n")
-            if callable(progressbar.prog_func):
-                pn = pn + pi
-                progressbar.prog_func(pn)
-            return res
-
-        result["data"] = list(map(map_selection, selected_syms_df))
-    else:
-        text_cols = set(["CompanyCode", "LatinName", "Symbol", "Name"])
-
-        def map_selection(instrument):
-            if not instrument:
-                return
-            res = list(map((lambda x: [x.header, []]), columns))
-            prices = _get_instrument_prices(instrument)
-            if not prices:
-                return res
-            if prices == cfg.MERGED_SYMBOL_CONTENT:
-                return prices
-            for price in prices:
-                for header, name in columns:
-                    cell = data_svs.get_cell(name, instrument, price)
-                    res[header].push(cell if (name in text_cols) else float(cell))
-
-        result["data"] = list(map(map_selection, selected_syms_df))
-    """
-    if progressbar.prog_func and progressbar.prog_n != progressbar.prog_tot:
-        progressbar.prog_n = progressbar.prog_tot
-        progressbar.prog_func(progressbar.prog_n)
     """
 
     return result
@@ -409,8 +333,16 @@ def _procc_similar_syms(instrums_df: DataFrame) -> DataFrame:
     return instrums_df
 
 
-"""
- 3833483672193514,IRO7SMGP0001,SMGP1, Simorgh Co.,SMGP,سيمرغ-ق2,سيمرغ,IRO7SMGP0003,20180721,2,سيمرغ,A,P1,NO,7,01 ,0141,309,سيمرغ
+async def get_valid_syms(syms: list[str]) -> DataFrame:
+    """
+    check if names in symbols are valid symbol names
 
-28450080638096732,IRO1SMRG0001,SMRG1,Seamorgh Co.,SMRG,سيمرغ,سيمرغ,IRO1SMRG0007,20221008,1,سيمرغ,A,N1,NO,3,01 ,0122,300
-"""
+    :syms: list[str], list of symbol names to be validated
+
+    :return: DataFrame, codes and names of the valid symbols
+    """
+
+    await data_svs.update_instruments()
+    instruments = await parse_instruments()
+    selected_syms = instruments[instruments["Symbol"].isin(syms)]
+    return selected_syms
