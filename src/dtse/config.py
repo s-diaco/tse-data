@@ -70,7 +70,7 @@ default_settings = {
     "columns": [0, 2, 3, 4, 5, 6, 7, 8, 9],
     "adjust_prices": 0,
     "days_without_trade": False,
-    "start_date": "20010321",
+    "start_date": "20200321",
     "merge_similar_symbols": True,
     "cache": True,
     "csv": False,

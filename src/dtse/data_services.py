@@ -255,7 +255,9 @@ async def update_instruments() -> None:
         strg.set_item("tse.lastInstrumentUpdate", today)
 
 
-def resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
+def resp_to_csv(
+    resp, col_names, line_terminator, converters, f_name, storage, **kwargs
+):
     """
     Wrtie API Request to csv file
     """
@@ -265,7 +267,7 @@ def resp_to_csv(resp, col_names, line_terminator, converters, f_name, storage):
         lineterminator=line_terminator,
         converters=converters,
     )
-    storage.write_tse_csv_blc(f_name, resp_df)
+    storage.write_tse_csv_blc(f_name, resp_df, **kwargs)
 
 
 def get_symbol_names(ins_codes: list[str]) -> dict:

@@ -198,7 +198,7 @@ class Storage:
         :param data: list, list of dicts
         """
 
-        self.write_tse_csv_bloc(f_name=f_name, data=data)
+        self.write_tse_csv_blc(f_name=f_name, data=data)
 
     def read_tse_csv_blc(self, f_name: str) -> pd.DataFrame:
         """
@@ -222,7 +222,7 @@ class Storage:
                 pass
         return res
 
-    def write_tse_csv_bloc(self, f_name: str, data: pd.DataFrame) -> None:
+    def write_tse_csv_blc(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
         """
         Writes a csv file to the TSE
 
@@ -240,4 +240,9 @@ class Storage:
         if len(data) == 0:
             return
         file_path = tse_dir / (f_name + ".csv")
-        data.to_csv(file_path, index=False, encoding="utf-8")
+        if kwargs.get("append", False):
+            data.to_csv(file_path, index=False, encoding="utf-8")
+        else:
+            data.to_csv(
+                file_path, index=False, encoding="utf-8", mode="a", header=False
+            )

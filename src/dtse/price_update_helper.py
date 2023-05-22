@@ -3,8 +3,10 @@ update prices for selected symbols
 """
 
 import asyncio
-import math
 import re
+
+import pandas as pd
+from dtse.cache_manager import TSECachedData
 
 from dtse.data_services import get_symbol_names, resp_to_csv
 
@@ -19,7 +21,7 @@ class PricesUpdateHelper:
     update prices for selected symbols
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cache_manager: TSECachedData) -> None:
         """
         Initialize the PricesUpdateHelper class.
         """
@@ -29,7 +31,6 @@ class PricesUpdateHelper:
         self.retries: int = 0
         self.retry_chunks = []
         self.timeouts = {}
-        self.stored_prices = {}
         # TODO: is it needed?
         self.last_devens = {}
         self.sym_names: dict = {}
@@ -40,12 +41,13 @@ class PricesUpdateHelper:
         # TODO: implement
         self.merge_similar_syms: bool = True
         self.strg = Storage()
+        self.cache_manager = cache_manager
 
     async def _on_result(self, response, chunk, on_result_id):
         """
         proccess response
         """
-        ins_codes = [ins[0] for ins in chunk]
+        ins_codes = chunk.InsCode.values
         pattern = re.compile(r"^[\d.,;@-]+$")
         if isinstance(response, str) and (pattern.search(response) or response == ""):
             res = response.split("@")
@@ -58,26 +60,26 @@ class PricesUpdateHelper:
             for i, ins_code in enumerate(ins_codes):
                 self.succs.append(ins_code)
                 if res[i] != "":
-                    # TODO: review to add to existing data if needed
-                    old_data = self.stored_prices[ins_code]
-                    if old_data.empty:
-                        data = res[i]
-                    else:
-                        data = old_data + ";" + res[i]
-                    self.stored_prices[ins_code] = data
+                    old_data = self.cache_manager.stored_prices[ins_code]
+                    add_to_existing_data = False
+                    if not old_data.empty:
+                        add_to_existing_data = True
+                    data = res[i]
+                    # TODO: delete if inscode_lastdeven file is not used
                     self.last_devens[ins_code] = res[i].split(",")[1]
                     col_names = cfg.tse_closing_prices_info
                     line_terminator = ";"
                     file_name = self.sym_names[str(ins_code)]
                     self.writing.append(
                         self.should_cache
-                        and await resp_to_csv(
+                        and resp_to_csv(
                             resp=data,
                             col_names=col_names,
                             line_terminator=line_terminator,
                             converters=None,
                             f_name="tse.prices." + file_name,
-                            storage=strg,
+                            storage=self.strg,
+                            append=add_to_existing_data,
                         )
                     )
             self.fails = [x for x in self.fails if x not in ins_codes]
@@ -96,6 +98,7 @@ class PricesUpdateHelper:
             """
         else:
             self.fails.append(ins_codes)
+            # TODO: wo req_id?
             self.retry_chunks.append(chunk)
         self.timeouts.pop(on_result_id)
 
@@ -106,7 +109,7 @@ class PricesUpdateHelper:
 
         retries = cfg.PRICES_UPDATE_RETRY_COUNT
         back_off = cfg.PRICES_UPDATE_RETRY_DELAY  # seconds to try again
-        ins_codes = ";".join([",".join(map(str, x)) for x in chunk])
+        ins_codes = ";".join([",".join(map(str, x)) for x in chunk.values])
         for _ in range(retries):
             # TODO: is this line needed?
             self.timeouts[req_id] = chunk
@@ -123,7 +126,7 @@ class PricesUpdateHelper:
                 back_off = back_off * 2
                 continue
 
-    async def _batch(self, chunks):
+    async def _batch(self, chunks: list):
         """
         gather requests
         """
@@ -132,19 +135,10 @@ class PricesUpdateHelper:
             *[self._request(chunk, idx) for idx, chunk in enumerate(chunks)]
         )
 
-    def update_stored_prices(self, sel_ins: list):
-        """
-        updatex a dict of last devens for ins_codes in self.stored_prices
-
-        :sel_ins: list, instrument codes to look for last devens
-        """
-
-        self.sym_names = get_symbol_names(sel_ins)
-        prc_dict = self.strg.get_items(f_names=list(self.sym_names.values()))
-        self.stored_prices = {k: v for k, v in prc_dict.items() if not v.empty}
-
     # TODO: fix calculations for progress_dict and return value
-    async def start(self, update_needed, progressbar: ProgressBar, settings) -> dict:
+    async def start(
+        self, update_needed: pd.DataFrame, settings: dict, progressbar: ProgressBar
+    ) -> dict:
         """
         start updating daily prices
 
@@ -152,8 +146,8 @@ class PricesUpdateHelper:
         :settings: dict, should_cache & merge_similar_symbols & ...
         :progress_dict: dict, data needed for progress bar
         """
-        self.should_cache = settings["should_cache"]
-        self.merge_similar_syms = settings["merge_similar_syms"]
+        self.should_cache = settings["cache"]
+        self.merge_similar_syms = settings["merge_similar_symbols"]
         self.progressbar = progressbar
         self.total = len(update_needed)
         # each successful request
@@ -166,7 +160,6 @@ class PricesUpdateHelper:
             cfg.PRICES_UPDATE_RETRY_COUNT + 2
         )
         """
-        ins_codes = [str(sym[0]) for sym in update_needed]
         # Yield successive evenly sized chunks from 'update_needed'.
         chunks = [
             update_needed[i : i + cfg.PRICES_UPDATE_CHUNK]
