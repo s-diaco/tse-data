@@ -26,5 +26,9 @@ async def test_get_prices(symbols, settings):
     :param symbols: list of symbols
     :param settings: dict of settings
     """
-    prices = await tse_data.get_prices(symbols, settings)
+    tse = tse_data.TSE()
+    if settings["adjust_prices"]:
+        prices = await tse.get_prices(symbols=symbols, adjust_prices=1)
+    else:
+        prices = await tse.get_prices(symbols=symbols, adjust_prices=0)
     assert prices != "OK"

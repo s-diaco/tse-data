@@ -20,6 +20,9 @@ class TSECachedData:
         self.symbol_as_dict_key: bool = False
         self.selected_syms = selected_syms
         self.stored_prices = {}
+        self.merges = []
+        self.stored_prices_merged = {}
+        self.shares = {}
         self.update_stored_prices()
 
     def update_stored_prices(self, symbol_as_dict_key=False):

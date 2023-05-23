@@ -31,7 +31,7 @@ def adjust(cond, closing_prices, all_shares, ins_codes):
     :return: adjusted closing prices
     """
     filtered_shares = [d for d in all_shares if d.InsCode in ins_codes]
-    shares = {i.DEven: i for i in filtered_shares}
+    shares = [i.DEven: i for i in filtered_shares]
     cl_pr = closing_prices
     cp_len = len(closing_prices)
     adjusted_cl_prices = []
