@@ -4,7 +4,7 @@ test tse_data.py
 
 import pytest
 
-from dtse import tse_data
+from dtse.tse_data import TSE
 
 
 @pytest.mark.parametrize(
@@ -26,7 +26,7 @@ async def test_get_prices(symbols, settings):
     :param symbols: list of symbols
     :param settings: dict of settings
     """
-    tse = tse_data.TSE()
+    tse = TSE()
     if settings["adjust_prices"]:
         prices = await tse.get_prices(symbols=symbols, adjust_prices=1)
     else:

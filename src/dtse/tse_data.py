@@ -41,7 +41,7 @@ class TSE:
         containing that symbols (InsCode, DEven, YMarNSC)
 
         :selection: list, instruments to check
-        :self.settings: dict, should_cache & merge_similar_symbols & ...
+        :self.settings: dict, configs for the module
         :percents: dict, progress bar data
 
         :return: DataFrame, symbols to update
@@ -101,7 +101,7 @@ class TSE:
 
         return to_update
 
-    async def get_prices(self, symbols=None, **kwconf):
+    async def get_prices(self, symbols, **kwconf):
         """
         get prices for symbols
 
@@ -115,7 +115,6 @@ class TSE:
         self.settings = cfg.default_settings
         if kwconf:
             self.settings.update(kwconf)
-        result = {"succs": None, "fails": None}
         """
         progressbar.prog_func = self.settings.get("on_progress")
         if not callable(progressbar.prog_func):
@@ -131,15 +130,21 @@ class TSE:
             progressbar.prog_func(progressbar.prog_n)
         """
 
+        await data_svs.update_instruments()
+        self.cache_manager = TSECachedData()
+        self.cache_manager.upd_cached_instrums()
+        instruments = self.cache_manager.instruments
+        # TODO: does it return the full list before 8:30 a.m.?
         # check if names in symbols are valid symbol names
-        selected_syms = await get_valid_syms(symbols)
+        selected_syms = instruments[instruments["Symbol"].isin(symbols)]
         if selected_syms.empty:
             raise ValueError(f"No instruments found for symbols: {symbols}.")
         not_founds = [
             sym for sym in symbols if sym not in selected_syms["Symbol"].values
         ]
         if not_founds:
-            tse_logger.warning(f"symbols not found: {not_founds}")
+            tse_logger.warning("symbols not found: %s", not_founds)
+
         """
         if callable(progressbar.prog_func):
             progressbar.prog_n = progressbar.prog_n + (progressbar.prog_tot * 0.01)
@@ -148,17 +153,15 @@ class TSE:
                 progressbar.prog_func(progressbar.prog_tot)
         """
 
-        to_update = await _filter_expired_prices(selected_syms)
-        self.cache_manager = TSECachedData(selected_syms=selected_syms)
+        self.cache_manager.upd_cached_prices(selected_syms=selected_syms)
+        to_update = await self._filter_expired_prices(selected_syms)
         price_manager = PricesUpdateHelper(cache_manager=self.cache_manager)
         update_result = await price_manager.start(
             update_needed=to_update, settings=self.settings
         )
-        res = {}
-        for inst in selected_syms:
-            prices = _get_instrument_prices(inst)
-            if not prices.empty:
-                res[inst.Symbol] = prices
+        self.cache_manager.upd_cached_prices()
+        res = self.cache_manager.stored_prices_merged
+
         """
         progressbar.prog_n = update_result
         if error:
@@ -199,8 +202,9 @@ class TSE:
 
         return res
 
+    # TODO: delete
+    """
     async def get_instruments(self, struct=True, arr=True, struct_key="InsCode"):
-        """
         get instruments
 
         :struct: bool, return structure
@@ -208,7 +212,6 @@ class TSE:
         :structKey: str, key to use for structure
 
         :return: dict, instruments
-        """
         valids = None
         # TODO: complete
         if valids.indexOf(struct_key) == -1:
@@ -219,6 +222,7 @@ class TSE:
         if err and not last_update:
             raise err
         return await strg.read_tse_csv("tse.instruments")
+    """
 
     def _get_instrument_prices(self, instrument):
         """
@@ -242,7 +246,7 @@ class TSE:
         ins_codes = []
 
         if sym_orig:
-            if settings["merge_similar_symbols"]:
+            if self.settings["merge_similar_symbols"]:
                 return self.settings["MERGED_SYMBOL_CONTENT"]
             prices = stored_prices[ins_code]
             ins_codes = [instrument.InsCode]
@@ -294,39 +298,4 @@ class TSE:
             extras = selected_syms_df - merges
             extras_index = len(selected_syms_df)
             selected_syms_df.extend(extras)"""
-        return selected_syms
-
-    def _procc_similar_syms(self, instrums_df: DataFrame) -> DataFrame:
-        """
-        Process similar symbols an add "SymbolOriginal" column to DataFrame
-
-        :param instrums_df: pd.DataFrame, instruments dataframe
-
-        :return: pd.DataFrame, processed dataframe
-        """
-        """sym_groups = [x for x in instrums_df.groupby("Symbol")]
-        dups = [v for v in sym_groups if len(v[1]) > 1]
-        for dup in dups:
-            dup_sorted = dup[1].sort_values(by="DEven", ascending=False)
-            for i in range(1, len(dup_sorted)):
-                instrums_df.loc[
-                    dup_sorted.iloc[i].name, "SymbolOriginal"
-                ] = instrums_df.loc[dup_sorted.iloc[i].name, "Symbol"]
-                postfix = cfg.SYMBOL_RENAME_STRING + str(i)
-                instrums_df.loc[dup_sorted.iloc[i].name, "Symbol"] += postfix"""
-        return instrums_df
-
-    async def get_valid_syms(self, syms: list[str]) -> DataFrame:
-        """
-        check if names in symbols are valid symbol names
-
-        :syms: list[str], list of symbol names to be validated
-
-        :return: DataFrame, codes and names of the valid symbols
-        """
-
-        # TODO: does it return the full list before 8:30 a.m.?
-        await data_svs.update_instruments()
-        instruments = await parse_instruments()
-        selected_syms = instruments[instruments["Symbol"].isin(syms)]
         return selected_syms

@@ -31,7 +31,7 @@ def adjust(cond, closing_prices, all_shares, ins_codes):
     :return: adjusted closing prices
     """
     filtered_shares = [d for d in all_shares if d.InsCode in ins_codes]
-    shares = [i.DEven: i for i in filtered_shares]
+    shares = {i.DEven: i for i in filtered_shares}
     cl_pr = closing_prices
     cp_len = len(closing_prices)
     adjusted_cl_prices = []
@@ -219,8 +219,8 @@ async def update_instruments() -> None:
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     if last_update:
-        cached_instruments = await parse_instruments()
-        cached_shares = await parse_shares()
+        cached_instruments = parse_instruments()
+        cached_shares = parse_shares()
         last_deven = str(max(cached_instruments["DEven"]))
         if len(cached_shares) > 0:
             last_id = max(cached_shares["Idn"])

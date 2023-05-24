@@ -3,11 +3,10 @@ funtions to parse tse data
 """
 import pandas as pd
 
-from . import config as cfg
 from .storage import Storage
 
 
-async def parse_instruments(itd=False, dict_key="InsCode") -> pd.DataFrame:
+def parse_instruments(itd=False, dict_key="InsCode") -> pd.DataFrame:
     """
     parse instrument data
 
@@ -18,17 +17,17 @@ async def parse_instruments(itd=False, dict_key="InsCode") -> pd.DataFrame:
     if itd:
         # TODO: parse intraday instrument data
         raise NotImplementedError
-    csv_rows = await Storage().read_tse_csv("tse.instruments")
-    return csv_rows
+    instrums = Storage().read_tse_csv_blc("tse.instruments")
+    return instrums
 
 
-async def parse_shares() -> pd.DataFrame:
+def parse_shares() -> pd.DataFrame:
     """
     parse shares data
 
     :return: pd.DataFrame, parsed shares data
     """
-    rows = await Storage().read_tse_csv("tse.shares")
+    rows = Storage().read_tse_csv_blc("tse.shares")
     if len(rows.index):
         # TODO: delete
         """
