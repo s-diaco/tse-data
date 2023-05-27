@@ -6,7 +6,7 @@ import asyncio
 import re
 
 import pandas as pd
-from dtse.cache_manager import TSECachedData
+from dtse.cache_manager import TSECache
 
 from dtse.data_services import get_symbol_names, resp_to_csv
 
@@ -21,7 +21,7 @@ class PricesUpdateHelper:
     update prices for selected symbols
     """
 
-    def __init__(self, cache_manager: TSECachedData) -> None:
+    def __init__(self, cache_manager: TSECache) -> None:
         """
         Initialize the PricesUpdateHelper class.
         """

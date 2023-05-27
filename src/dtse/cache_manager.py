@@ -7,9 +7,10 @@ import pandas as pd
 from dtse.tse_parser import parse_instruments
 
 from dtse.storage import Storage
+from dtse import config as cfg
 
 
-class TSECachedData:
+class TSECache:
     """
     price data cached in csv files
     """
@@ -59,15 +60,23 @@ class TSECachedData:
         :return: pd.DataFrame, processed dataframe
         """
 
-        instrums = self.instruments
+        # TODO: pandalise!
+        instrums = self.instruments.sort_values(by="DEven", ascending=False)
+        dups = instrums[instrums.Symbol.duplicated()].sort_values(
+            by="DEven", ascending=False
+        )
+        instrums["SymbolOriginal"] = (
+            instrums.groupby(["Symbol"]).cumcount().astype("string")
+            + cfg.SYMBOL_RENAME_STRING
+        )
         sym_groups = [x for x in instrums.groupby("Symbol")]
         dups = [v for v in sym_groups if len(v[1]) > 1]
         for dup in dups:
             dup_sorted = dup[1].sort_values(by="DEven", ascending=False)
             for i in range(1, len(dup_sorted)):
-                instrums.loc[dup_sorted.iloc[i].name, "SymbolOriginal"] = instrums.loc[
-                    dup_sorted.iloc[i].name, "Symbol"
-                ]
-                postfix = self.settings["SYMBOL_RENAME_STRING"] + str(i)
-                instrums.loc[dup_sorted.iloc[i].name, "Symbol"] += postfix
+                instrums.loc[
+                    str(dup_sorted.iloc[i].name), "SymbolOriginal"
+                ] = instrums.loc[str(dup_sorted.iloc[i].name)].Symbol
+                postfix = cfg.SYMBOL_RENAME_STRING + str(i)
+                instrums.loc[str(dup_sorted.iloc[i].name)].Symbol += postfix
         return instrums

@@ -4,7 +4,7 @@ test price_ipdate_helper
 import json
 
 import pytest
-from dtse.cache_manager import TSECachedData
+from dtse.cache_manager import TSECache
 
 from dtse.price_update_helper import PricesUpdateHelper
 from dtse.progress_bar import ProgressBar
@@ -27,7 +27,7 @@ async def test_start(resp_data):
     test start
     """
 
-    cache_manager = TSECachedData()
+    cache_manager = TSECache()
     pu_helper = PricesUpdateHelper(cache_manager)
     update_needed = resp_data
     await pu_helper.start(

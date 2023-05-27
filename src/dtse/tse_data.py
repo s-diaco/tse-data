@@ -8,7 +8,7 @@ import re
 
 from pandas import DataFrame
 
-from dtse.cache_manager import TSECachedData
+from dtse.cache_manager import TSECache
 
 from . import config as cfg
 from . import data_services as data_svs
@@ -25,7 +25,7 @@ class TSE:
     Manage TSE Data
     """
 
-    cache_manager: TSECachedData
+    tse_cache: TSECache
     progressbar: ProgressBar
 
     def __init__(self):
@@ -47,7 +47,7 @@ class TSE:
         :return: DataFrame, symbols to update
         """
 
-        cache_mngr = self.cache_manager
+        cache_mngr = self.tse_cache
         # TODO: do not convert to string (remove astype(str))
         # TODO: stored_prices shouldn't be in PricesUpdateHelper Class
         to_update = selection[["InsCode", "DEven", "YMarNSC"]]
@@ -131,9 +131,9 @@ class TSE:
         """
 
         await data_svs.update_instruments()
-        self.cache_manager = TSECachedData()
-        self.cache_manager.upd_cached_instrums()
-        instruments = self.cache_manager.instruments
+        self.tse_cache = TSECache()
+        self.tse_cache.upd_cached_instrums()
+        instruments = self.tse_cache.instruments
         # TODO: does it return the full list before 8:30 a.m.?
         # check if names in symbols are valid symbol names
         selected_syms = instruments[instruments["Symbol"].isin(symbols)]
@@ -153,14 +153,14 @@ class TSE:
                 progressbar.prog_func(progressbar.prog_tot)
         """
 
-        self.cache_manager.upd_cached_prices(selected_syms=selected_syms)
+        self.tse_cache.upd_cached_prices(selected_syms=selected_syms)
         to_update = await self._filter_expired_prices(selected_syms)
-        price_manager = PricesUpdateHelper(cache_manager=self.cache_manager)
+        price_manager = PricesUpdateHelper(cache_manager=self.tse_cache)
         update_result = await price_manager.start(
             update_needed=to_update, settings=self.settings
         )
-        self.cache_manager.upd_cached_prices()
-        res = self.cache_manager.stored_prices_merged
+        self.tse_cache.upd_cached_prices()
+        res = self.tse_cache.stored_prices_merged
 
         """
         progressbar.prog_n = update_result
@@ -237,10 +237,10 @@ class TSE:
         sym = instrument.Symbol
         sym_orig = instrument.SymbolOriginal
         # TODO: copy values by ref
-        stored_prices = self.cache_manager.stored_prices
-        merges = self.cache_manager.merges
-        stored_prices_merged = self.cache_manager.stored_prices_merged
-        shares = self.cache_manager.shares
+        stored_prices = self.tse_cache.stored_prices
+        merges = self.tse_cache.merges
+        stored_prices_merged = self.tse_cache.stored_prices_merged
+        shares = self.tse_cache.shares
 
         prices = DataFrame()
         ins_codes = []
