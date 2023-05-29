@@ -6,7 +6,7 @@ import pandas as pd
 from .storage import Storage
 
 
-def parse_instruments(itd=False, dict_key="InsCode") -> pd.DataFrame:
+def parse_instruments(itd=False, dict_key="InsCode", **kwargs) -> pd.DataFrame:
     """
     parse instrument data
 
@@ -17,7 +17,8 @@ def parse_instruments(itd=False, dict_key="InsCode") -> pd.DataFrame:
     if itd:
         # TODO: parse intraday instrument data
         raise NotImplementedError
-    instrums = Storage().read_tse_csv_blc("tse.instruments")
+    strg = Storage(**kwargs)
+    instrums = strg.read_tse_csv_blc("tse.instruments")
     return instrums
 
 

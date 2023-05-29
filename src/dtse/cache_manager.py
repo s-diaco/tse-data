@@ -15,7 +15,7 @@ class TSECache:
     price data cached in csv files
     """
 
-    def __init__(self) -> None:
+    def __init__(self, **tse_cache_kwargs) -> None:
         """
         initialize TSECachedPrices class
 
@@ -29,8 +29,12 @@ class TSECache:
         self.shares = {}
         self.instruments = pd.DataFrame()
         self.merged_instruments = pd.DataFrame()
+        self.settings = {}
+        if tse_cache_kwargs:
+            self.settings.update(tse_cache_kwargs)
+        self.refresh_instrums()
 
-    def upd_cached_prices(self, selected_syms: pd.DataFrame, symbol_as_dict_key=False):
+    def refresh_prices(self, selected_syms: pd.DataFrame, symbol_as_dict_key=False):
         """
         updates a dict of last devens for ins_codes in self.stored_prices
         """
@@ -46,12 +50,13 @@ class TSECache:
                 v.InsCode[0]: v for _, v in prc_dict.items() if not v.empty
             }
 
-    def upd_cached_instrums(self):
+    def refresh_instrums(self, **kwargs):
         """
-        updates list of all cached instruments and returns a DataFrame
+        updates list of all cached instruments
+        and updates "instruments" and "merged_instruments" variables
         """
-        self.instruments = parse_instruments()
-        self._merge_similar_syms()
+        self.instruments = parse_instruments(**kwargs)
+        self.merged_instruments = self._merge_similar_syms()
 
     def _merge_similar_syms(self) -> pd.DataFrame:
         """
@@ -60,23 +65,16 @@ class TSECache:
         :return: pd.DataFrame, processed dataframe
         """
 
-        # TODO: pandalise!
+        postfix = self.settings.pop("SYMBOL_RENAME_STRING", cfg.SYMBOL_RENAME_STRING)
         instrums = self.instruments.sort_values(by="DEven", ascending=False)
-        dups = instrums[instrums.Symbol.duplicated()].sort_values(
-            by="DEven", ascending=False
+        instrums.loc[instrums["Symbol"].duplicated(), "SymbolOriginal"] = instrums[
+            "Symbol"
+        ]
+        instrums.loc[instrums["Symbol"].duplicated(), "SymbolRenamed"] = (
+            instrums["Symbol"]
+            + postfix
+            + instrums.groupby(["Symbol"]).cumcount().astype("string")
         )
-        instrums["SymbolOriginal"] = (
-            instrums.groupby(["Symbol"]).cumcount().astype("string")
-            + cfg.SYMBOL_RENAME_STRING
-        )
-        sym_groups = [x for x in instrums.groupby("Symbol")]
-        dups = [v for v in sym_groups if len(v[1]) > 1]
-        for dup in dups:
-            dup_sorted = dup[1].sort_values(by="DEven", ascending=False)
-            for i in range(1, len(dup_sorted)):
-                instrums.loc[
-                    str(dup_sorted.iloc[i].name), "SymbolOriginal"
-                ] = instrums.loc[str(dup_sorted.iloc[i].name)].Symbol
-                postfix = cfg.SYMBOL_RENAME_STRING + str(i)
-                instrums.loc[str(dup_sorted.iloc[i].name)].Symbol += postfix
+        instrums.Symbol = instrums.SymbolRenamed.fillna(instrums.Symbol)
+        instrums = instrums.drop(columns=["SymbolRenamed"])
         return instrums

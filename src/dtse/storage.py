@@ -14,7 +14,7 @@ class Storage:
     methods for reading and writing data
     """
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         data_dir = Path(settings["TSE_CACHE_DIR"])
         path_file = Path(settings["PATH_FILE_NAME"])
         home = Path.home()
@@ -30,6 +30,8 @@ class Storage:
                 f.write(str(self._data_dir))
 
         self._data_dir.mkdir(parents=True, exist_ok=True)
+        if "tse_dir" in kwargs:
+            self._data_dir = Path(kwargs["tse_dir"])
         logger.info("data dir: %s", self._data_dir)
 
         # todo: uncomment

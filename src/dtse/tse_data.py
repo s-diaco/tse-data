@@ -132,7 +132,6 @@ class TSE:
 
         await data_svs.update_instruments()
         self.tse_cache = TSECache()
-        self.tse_cache.upd_cached_instrums()
         instruments = self.tse_cache.instruments
         # TODO: does it return the full list before 8:30 a.m.?
         # check if names in symbols are valid symbol names
@@ -153,13 +152,13 @@ class TSE:
                 progressbar.prog_func(progressbar.prog_tot)
         """
 
-        self.tse_cache.upd_cached_prices(selected_syms=selected_syms)
+        self.tse_cache.refresh_prices(selected_syms=selected_syms)
         to_update = await self._filter_expired_prices(selected_syms)
         price_manager = PricesUpdateHelper(cache_manager=self.tse_cache)
         update_result = await price_manager.start(
             update_needed=to_update, settings=self.settings
         )
-        self.tse_cache.upd_cached_prices()
+        self.tse_cache.refresh_prices()
         res = self.tse_cache.stored_prices_merged
 
         """
