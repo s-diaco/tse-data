@@ -99,6 +99,8 @@ class TSE:
             progressbar.progressbar.prog_func(prog_fin)
         result.pn = prog_fin"""
 
+        to_update["InNormalMarket"] = (to_update.YMarNSC != "NO").astype(int)
+        to_update = to_update.drop("YMarNSC", axis=1)
         return to_update
 
     async def get_prices(self, symbols, **kwconf):
@@ -156,10 +158,13 @@ class TSE:
         to_update = await self._filter_expired_prices(selected_syms)
         price_manager = PricesUpdateHelper(cache_manager=self.tse_cache)
         update_result = await price_manager.start(
-            update_needed=to_update, settings=self.settings
+            update_needed=to_update,
+            settings=self.settings,
+            progressbar=self.progressbar,
         )
-        self.tse_cache.refresh_prices()
-        res = self.tse_cache.stored_prices_merged
+        self.tse_cache.refresh_prices(selected_syms=selected_syms)
+        for inst in selected_syms.values:
+            self._get_instrument_prices(inst)
 
         """
         progressbar.prog_n = update_result
@@ -223,18 +228,18 @@ class TSE:
         return await strg.read_tse_csv("tse.instruments")
     """
 
-    def _get_instrument_prices(self, instrument):
+    def _get_instrument_prices(self, instrument) -> DataFrame:
         """
         get instrument prices
 
-        :instrument: str, instrument to get prices for
+        :instrument: dict, instrument to get prices for
 
-        :return: dict, prices for instrument
+        :return: DataFrame, prices for instrument
         """
 
-        ins_code = instrument.InsCode
-        sym = instrument.Symbol
-        sym_orig = instrument.SymbolOriginal
+        ins_code = instrument["InsCode"]
+        sym = instrument["Symbol"]
+        sym_orig = instrument.pop("SymbolOriginal", None)
         # TODO: copy values by ref
         stored_prices = self.tse_cache.stored_prices
         merges = self.tse_cache.merges

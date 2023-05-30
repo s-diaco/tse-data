@@ -18,7 +18,6 @@ from dtse.tse_data import TSE
     ],
     indirect=False,
 )
-@pytest.mark.asyncio
 async def test_get_prices(symbols, settings):
     """
     test get_prices function

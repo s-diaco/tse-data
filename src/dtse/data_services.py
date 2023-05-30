@@ -1,9 +1,7 @@
 """
 functions to manage tse data
 """
-import itertools
 import re
-from collections import defaultdict
 from datetime import datetime
 from io import StringIO
 
