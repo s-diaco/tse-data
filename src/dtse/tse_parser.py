@@ -24,7 +24,7 @@ def parse_instruments(itd=False, dict_key="InsCode", **kwargs) -> pd.DataFrame:
 
 def parse_shares() -> pd.DataFrame:
     """
-    parse shares data
+    parse shares data (changes in total shares for each symbol)
 
     :return: pd.DataFrame, parsed shares data
     """

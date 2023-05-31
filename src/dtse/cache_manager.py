@@ -4,7 +4,7 @@ manage cached data
 
 import pandas as pd
 
-from dtse.tse_parser import parse_instruments
+from dtse.tse_parser import parse_instruments, parse_shares
 
 from dtse.storage import Storage
 from dtse import config as cfg
@@ -33,6 +33,7 @@ class TSECache:
         if tse_cache_kwargs:
             self.settings.update(tse_cache_kwargs)
         self.refresh_instrums()
+        self.refresh_shares()
 
     def refresh_prices(self, selected_syms: pd.DataFrame, symbol_as_dict_key=False):
         """
@@ -58,6 +59,13 @@ class TSECache:
         self.instruments = parse_instruments(**kwargs)
         self.merged_instruments = self._merge_similar_syms()
 
+    def refresh_shares(self, **kwargs):
+        """
+        updates cached share numbers (changes in total shares for each symbol)
+        """
+
+        self.shares = parse_shares(**kwargs)
+
     def _merge_similar_syms(self) -> pd.DataFrame:
         """
         Process similar symbols an add "SymbolOriginal" column to DataFrame
@@ -67,14 +75,12 @@ class TSECache:
 
         postfix = self.settings.pop("SYMBOL_RENAME_STRING", cfg.SYMBOL_RENAME_STRING)
         instrums = self.instruments.sort_values(by="DEven", ascending=False)
-        instrums.loc[instrums["Symbol"].duplicated(), "SymbolOriginal"] = instrums[
-            "Symbol"
-        ]
-        instrums.loc[instrums["Symbol"].duplicated(), "SymbolRenamed"] = (
+        instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
+        instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
+        instrums["SymbolOriginal"] = instrums["Symbol"]
+        instrums.loc[~instrums["IsRoot"], "Symbol"] = (
             instrums["Symbol"]
             + postfix
             + instrums.groupby(["Symbol"]).cumcount().astype("string")
         )
-        instrums.Symbol = instrums.SymbolRenamed.fillna(instrums.Symbol)
-        instrums = instrums.drop(columns=["SymbolRenamed"])
         return instrums

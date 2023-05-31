@@ -163,7 +163,7 @@ class TSE:
             progressbar=self.progressbar,
         )
         self.tse_cache.refresh_prices(selected_syms=selected_syms)
-        for inst in selected_syms.values:
+        for inst in selected_syms.to_dict(orient="records"):
             self._get_instrument_prices(inst)
 
         """
@@ -238,11 +238,11 @@ class TSE:
         """
 
         ins_code = instrument["InsCode"]
-        sym = instrument["Symbol"]
         sym_orig = instrument.pop("SymbolOriginal", None)
         # TODO: copy values by ref
-        stored_prices = self.tse_cache.stored_prices
-        merges = self.tse_cache.merges
+        merges = self.tse_cache.merged_instruments[
+            self.tse_cache.merged_instruments["Duplicated"]
+        ]
         stored_prices_merged = self.tse_cache.stored_prices_merged
         shares = self.tse_cache.shares
 
@@ -252,12 +252,15 @@ class TSE:
         if sym_orig:
             if self.settings["merge_similar_symbols"]:
                 return self.settings["MERGED_SYMBOL_CONTENT"]
-            prices = stored_prices[ins_code]
-            ins_codes = [instrument.InsCode]
+            prices = self.tse_cache.stored_prices[ins_code]
+            ins_codes = [ins_code]
         else:
-            is_root = sym.isin(merges)
-            prices = (stored_prices[ins_code], stored_prices_merged[ins_code])[is_root]
-            ins_codes = (ins_code, merges[sym].map(lambda i: i.code))[is_root]
+            is_root = instrument["IsRoot"]
+            prices = (
+                self.tse_cache.stored_prices[ins_code],
+                stored_prices_merged[ins_code],
+            )[is_root]
+            ins_codes = ([ins_code], merges["InsCode"].values)[is_root]
 
         if not prices:
             return
@@ -273,33 +276,3 @@ class TSE:
         prices = prices[prices["DEven" > self.settings["start_date"]]]
 
         return prices
-
-    def _merge_similars(self, syms: DataFrame, selected_syms: DataFrame) -> DataFrame:
-        """
-        merge similar symbols with the same 'Symbol' name
-
-        :syms: DataFrame, all available symbols from api response
-        :selected_syms: DataFrame, symbols that their prices are being requested
-
-        :return: DataFrame, merged data from the selected symbols and their older data
-        """
-        # TODO: implement
-        """syms = instruments.keys
-        roots = instruments["SymbolOriginal"][instruments["SymbolOriginal"].notna()]
-        merges = list(map((lambda x: [x, []]), roots))
-
-        for i in instruments.itertuples():
-            orig = i.SymbolOriginal
-            sym = i.Symbol
-            code = i.InsCode
-            renamed_or_root = orig or sym
-            if not renamed_or_root in merges:
-                return
-            pattern = re.compile(cfg.SYMBOL_RENAME_STRING + r"\d+")
-            order = int(pattern.match(sym)[1]) if orig else 1
-            merges[renamed_or_root].append({sym, code, order})
-            merges.sort(key=(lambda x: x.order))
-            extras = selected_syms_df - merges
-            extras_index = len(selected_syms_df)
-            selected_syms_df.extend(extras)"""
-        return selected_syms
