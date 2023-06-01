@@ -163,7 +163,11 @@ class TSE:
             progressbar=self.progressbar,
         )
         self.tse_cache.refresh_prices(selected_syms=selected_syms)
-        for inst in selected_syms.to_dict(orient="records"):
+        for inst in self.tse_cache.merged_instruments[
+            self.tse_cache.merged_instruments["SymbolOriginal"].isin(
+                selected_syms["Symbol"].values
+            )
+        ].to_dict(orient="records"):
             self._get_instrument_prices(inst)
 
         """

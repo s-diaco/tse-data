@@ -21,13 +21,13 @@ class Storage:
         self._data_dir = home / data_dir
         path_file = home / path_file
         if path_file.is_file():
-            with open(path_file, "r", encoding="utf-8") as f:
-                data_path = Path(f.readline())
+            with open(path_file, "r", encoding="utf-8") as file:
+                data_path = Path(file.readline())
                 if data_path.is_dir():
                     self._data_dir = data_path
         else:
-            with open(path_file, "w+", encoding="utf-8") as f:
-                f.write(str(self._data_dir))
+            with open(path_file, "w+", encoding="utf-8") as file:
+                file.write(str(self._data_dir))
 
         self._data_dir.mkdir(parents=True, exist_ok=True)
         if "tse_dir" in kwargs:
