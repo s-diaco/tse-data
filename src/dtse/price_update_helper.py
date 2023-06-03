@@ -69,7 +69,7 @@ class PricesUpdateHelper:
                     self.last_devens[ins_code] = res[i].split(",")[1]
                     col_names = cfg.tse_closing_prices_info
                     line_terminator = ";"
-                    file_name = self.sym_names[str(ins_code)]
+                    file_name = self.sym_names[ins_code]
                     self.writing.append(
                         self.should_cache
                         and resp_to_csv(

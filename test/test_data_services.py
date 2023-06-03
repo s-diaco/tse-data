@@ -76,7 +76,7 @@ def test_get_symbol_names():
     test the get_symbol_name method
     """
 
-    ins_codes = ["778253364357513"]
+    ins_codes = ["778253364357513", "9211775239375291", "26787658273107220"]
     symbol_names = data_services.get_symbol_names(ins_codes=ins_codes)
-    expected_result = ["وبملت"]
+    expected_result = ["وبملت", "ذوب", "همراه"]
     assert list(symbol_names.values()) == expected_result

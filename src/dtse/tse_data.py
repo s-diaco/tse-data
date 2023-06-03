@@ -242,7 +242,7 @@ class TSE:
         """
 
         ins_code = instrument["InsCode"]
-        sym_orig = instrument.pop("SymbolOriginal", None)
+        not_root = not instrument["IsRoot"]
         # TODO: copy values by ref
         merges = self.tse_cache.merged_instruments[
             self.tse_cache.merged_instruments["Duplicated"]
@@ -253,18 +253,21 @@ class TSE:
         prices = DataFrame()
         ins_codes = []
 
-        if sym_orig:
+        if not_root:
             if self.settings["merge_similar_symbols"]:
                 return self.settings["MERGED_SYMBOL_CONTENT"]
             prices = self.tse_cache.stored_prices[ins_code]
             ins_codes = [ins_code]
         else:
-            is_root = instrument["IsRoot"]
+            is_head = instrument["InsCode"] in (merges.InsCode.values)
             prices = (
                 self.tse_cache.stored_prices[ins_code],
                 stored_prices_merged[ins_code],
-            )[is_root]
-            ins_codes = ([ins_code], merges["InsCode"].values)[is_root]
+            )[is_head]
+            ins_codes = (
+                [ins_code],
+                merges[merges["Symbol"] == instrument["Symbol"]][["InsCode"]].values,
+            )[is_head]
 
         if not prices:
             return

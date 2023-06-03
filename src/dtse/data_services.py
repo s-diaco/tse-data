@@ -274,14 +274,14 @@ def get_symbol_names(ins_codes: list[str]) -> dict:
 
     :param ins_code: list of strings, codes of the selected symbols
 
-    :return: dict, symbol names
+    :return: dict, {code: symbol}
     """
 
-    # TODO: it doesnt collect inscodes for all given names
-    # i.e. '9211775239375291' & '26787658273107220'
     strg = Storage()
     instruments_df = strg.read_tse_csv_blc("tse.instruments")
-    search_df = instruments_df[["InsCode", "Symbol"]].astype(str)
-    ret_val_df = search_df.loc[search_df["InsCode"].isin(ins_codes)]
-    ret_val = {row[1]: row[2] for row in ret_val_df.itertuples()}
+    int_ins_codes = [int(ins_code) for ins_code in ins_codes]
+    ret_val_df = instruments_df[instruments_df["InsCode"].isin(int_ins_codes)]
+    ret_val = {
+        row["InsCode"]: row["Symbol"] for row in ret_val_df.to_dict(orient="records")
+    }
     return ret_val
