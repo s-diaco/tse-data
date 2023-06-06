@@ -99,7 +99,7 @@ class TSE:
             progressbar.progressbar.prog_func(prog_fin)
         result.pn = prog_fin"""
 
-        to_update["InNormalMarket"] = (to_update.YMarNSC != "NO").astype(int)
+        to_update["NotInNoMarket"] = (to_update.YMarNSC != "NO").astype(int)
         to_update = to_update.drop("YMarNSC", axis=1)
         return to_update
 
@@ -162,6 +162,7 @@ class TSE:
             settings=self.settings,
             progressbar=self.progressbar,
         )
+        # TODO: delete?
         self.tse_cache.refresh_prices(selected_syms=selected_syms)
         for inst in self.tse_cache.merged_instruments[
             self.tse_cache.merged_instruments["SymbolOriginal"].isin(

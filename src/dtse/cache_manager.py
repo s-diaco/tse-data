@@ -34,6 +34,7 @@ class TSECache:
             self.settings.update(tse_cache_kwargs)
         self.refresh_instrums()
         self.refresh_shares()
+        self.last_devens = {}
 
     def refresh_prices(self, selected_syms: pd.DataFrame, symbol_as_dict_key=False):
         """
@@ -42,7 +43,7 @@ class TSECache:
 
         strg = Storage()
         self.selected_syms = selected_syms
-        prc_dict = strg.get_items(f_names=self.selected_syms.Symbol.tolist())
+        prc_dict = strg.get_items(f_names=self.selected_syms.InsCode.tolist())
         if symbol_as_dict_key:
             self.symbol_as_dict_key = symbol_as_dict_key
             self.stored_prices = {k: v for k, v in prc_dict.items() if not v.empty}

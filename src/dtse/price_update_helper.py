@@ -4,16 +4,17 @@ update prices for selected symbols
 
 import asyncio
 import re
+from io import StringIO
 
 import pandas as pd
-from dtse.cache_manager import TSECache
 
+from dtse.cache_manager import TSECache
 from dtse.data_services import get_symbol_names, resp_to_csv
 
 from . import config as cfg
+from .progress_bar import ProgressBar
 from .storage import Storage
 from .tse_request import TSERequest
-from .progress_bar import ProgressBar
 
 
 class PricesUpdateHelper:
@@ -25,14 +26,11 @@ class PricesUpdateHelper:
         """
         Initialize the PricesUpdateHelper class.
         """
-        self.total: int = 0
         self.succs = []
         self.fails = []
         self.retries: int = 0
         self.retry_chunks = []
         self.timeouts = {}
-        # TODO: is it needed?
-        self.last_devens = {}
         self.sym_names: dict = {}
         self.resolve = None
         # TODO: remove
@@ -54,33 +52,29 @@ class PricesUpdateHelper:
             if len(ins_codes) != len(res):
                 raise ValueError()
 
-            if not self.sym_names:
-                self.sym_names = get_symbol_names(ins_codes)
-
             for i, ins_code in enumerate(ins_codes):
                 self.succs.append(ins_code)
-                if res[i] != "":
-                    old_data = self.cache_manager.stored_prices[ins_code]
-                    add_to_existing_data = False
-                    if not old_data.empty:
-                        add_to_existing_data = True
-                    data = res[i]
+                col_names = cfg.tse_closing_prices_info
+                line_terminator = ";"
+                file_name = ins_code
+                new_data = pd.read_csv(
+                    StringIO(res[i]), names=col_names, lineterminator=line_terminator
+                )
+                if not new_data.empty:
+                    old_data = pd.DataFrame()
+                    if (
+                        ins_code in self.cache_manager.stored_prices
+                        and not self.cache_manager.stored_prices[ins_code].empty()
+                    ):
+                        old_data = self.cache_manager.stored_prices[ins_code]
+                    data = new_data if old_data.empty else new_data + old_data
+                    self.cache_manager.stored_prices[ins_code] = data
                     # TODO: delete if inscode_lastdeven file is not used
-                    self.last_devens[ins_code] = res[i].split(",")[1]
-                    col_names = cfg.tse_closing_prices_info
-                    line_terminator = ";"
-                    file_name = self.sym_names[ins_code]
+                    self.cache_manager.last_devens[ins_code] = new_data.iloc[-1, 1]
+                    filename = "tse.prices." + file_name
                     self.writing.append(
                         self.should_cache
-                        and resp_to_csv(
-                            resp=data,
-                            col_names=col_names,
-                            line_terminator=line_terminator,
-                            converters=None,
-                            f_name="tse.prices." + file_name,
-                            storage=self.strg,
-                            append=add_to_existing_data,
-                        )
+                        and self.strg.write_tse_csv_blc(f_name=filename, data=data)
                     )
             self.fails = [x for x in self.fails if x not in ins_codes]
             """
@@ -137,7 +131,10 @@ class PricesUpdateHelper:
 
     # TODO: fix calculations for progress_dict and return value
     async def start(
-        self, update_needed: pd.DataFrame, settings: dict, progressbar: ProgressBar
+        self,
+        update_needed: pd.DataFrame,
+        settings: dict,
+        progressbar: ProgressBar,
     ) -> dict:
         """
         start updating daily prices
@@ -146,12 +143,12 @@ class PricesUpdateHelper:
         :settings: dict, should_cache & merge_similar_symbols & ...
         :progress_dict: dict, data needed for progress bar
         """
-        self.should_cache = settings["cache"]
+        self.should_cache = settings["should_cache"]
         self.merge_similar_syms = settings["merge_similar_symbols"]
         self.progressbar = progressbar
-        self.total = len(update_needed)
         # each successful request
         """
+        self.total = len(update_needed)
         self.progressbar.prog_succ_req = self.progressbar.prog_tot / math.ceil(
             self.total / cfg.PRICES_UPDATE_CHUNK
         )

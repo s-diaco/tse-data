@@ -38,7 +38,6 @@ async def test_refresh_prices():
     cache_manager.refresh_instrums()
     instruments = cache_manager.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
-    cache_manager = TSECache()
     cache_manager.refresh_prices(selected_syms)
     assert len(cache_manager.stored_prices) <= len(sample_data)
 
