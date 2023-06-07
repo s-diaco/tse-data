@@ -18,50 +18,53 @@ from .tse_parser import parse_instruments, parse_shares
 from .tse_request import TSERequest
 
 
-def adjust(cond, closing_prices, all_shares, ins_codes):
+def adjust(
+    cond: int,
+    closing_prices: pd.DataFrame,
+    split_and_divds: pd.DataFrame,
+    ins_codes: list[int],
+):
     """
     Adjust closing prices according to the condition
 
-    :param cond: condition
-    :param closing_prices: closing prices
-    :param all_shares: all shares
-    :param ins_codes: instrument codes
-    :return: adjusted closing prices
+    :cond: int, price adjust type. can be 0 (no adjustment), 1 or 2
+    :closing_prices: pd.DataFrame, stock prices for daily time frame
+    :split_and_dividends: pd.DataFrame, stock dividend and splits and their dates
+    :ins_codes: list, instrument codes
+    :return: pd.DataFrame, adjusted closing prices
     """
-    filtered_shares = [d for d in all_shares if d.InsCode in ins_codes]
-    shares = {i.DEven: i for i in filtered_shares}
+    filtered_shares = split_and_divds[split_and_divds["InsCode"].isin(ins_codes)]
+    shares = {i["DEven"]: i for i in filtered_shares.to_dict(orient="records")}
     cl_pr = closing_prices
     cp_len = len(closing_prices)
     adjusted_cl_prices = []
     res = cl_pr
-    if cond in [1, 2] and cp_len > 1:
+    if cond and cp_len:
         gaps = 0
         num = 1
-        adjusted_cl_prices.append(cl_pr[cp_len - 1])
+        adjusted_cl_prices.append(cl_pr.iloc[-1].to_dict())
         if cond == 1:
             for i in range(cp_len - 2, -1, -1):
-                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i + 1]]
+                curr_prcs = cl_pr.iloc[i]
+                next_prcs = cl_pr.iloc[i + 1]
                 if (
                     curr_prcs.PClosing != next_prcs.PriceYesterday
                     and curr_prcs.InsCode == next_prcs.InsCode
                 ):
                     gaps += 1
-        if (cond == 1 and gaps / cp_len < 0.08) or cond == 2:
+        if (cond == 1 and (gaps / cp_len < 0.08)) or cond == 2:
             for i in range(cp_len - 2, -1, -1):
-                [curr_prcs, next_prcs] = [cl_pr[i], cl_pr[i + 1]]
+                curr_prcs = cl_pr.iloc[i]
+                next_prcs = cl_pr.iloc[i + 1]
                 prcs_dont_match = (curr_prcs.PClosing != next_prcs.PriceYesterday) and (
                     curr_prcs.InsCode == next_prcs.InsCode
                 )
-                target_share = shares.get(next_prcs.DEven)
                 if cond == 1 and prcs_dont_match:
-                    num = (
-                        num
-                        * float(next_prcs.PriceYesterday)
-                        / float(curr_prcs.PClosing)
-                    )
-                elif cond == 2 and prcs_dont_match and target_share:
-                    old_shares = float(target_share.NumberOfShareOld)
-                    new_shares = float(target_share.NumberOfShareNew)
+                    num = num * next_prcs.PriceYesterday / curr_prcs.PClosing
+                elif cond == 2 and prcs_dont_match and (next_prcs.DEven in shares):
+                    target_share = shares[next_prcs.DEven]
+                    old_shares = target_share["NumberOfShareOld"]
+                    new_shares = target_share["NumberOfShareNew"]
                     num = num * old_shares / new_shares
                 close = round(num * float(curr_prcs.PClosing), 2)
                 last = round(num * float(curr_prcs.PDrCotVal), 2)
@@ -70,23 +73,21 @@ def adjust(cond, closing_prices, all_shares, ins_codes):
                 yday = round(num * float(curr_prcs.PriceYesterday), 2)
                 first = round(num * float(curr_prcs.PriceFirst), 2)
 
-                adjusted_closing_price = data_structs.TSEClosingPrice(
-                    **{
-                        "InsCode": curr_prcs.InsCode,
-                        "DEven": curr_prcs.DEven,
-                        "PClosing": close,
-                        "PDrCotVal": last,
-                        "PriceMin": low,
-                        "PriceMax": high,
-                        "PriceYesterday": yday,
-                        "PriceFirst": first,
-                        "ZTotTran": curr_prcs.ZTotTran,
-                        "QTotTran5J": curr_prcs.QTotTran5J,
-                        "QTotCap": curr_prcs.QTotCap,
-                    }
-                )
+                adjusted_closing_price = {
+                    "InsCode": curr_prcs.InsCode,
+                    "DEven": curr_prcs.DEven,
+                    "PClosing": close,
+                    "PDrCotVal": last,
+                    "PriceMin": low,
+                    "PriceMax": high,
+                    "PriceYesterday": yday,
+                    "PriceFirst": first,
+                    "ZTotTran": curr_prcs.ZTotTran,
+                    "QTotTran5J": curr_prcs.QTotTran5J,
+                    "QTotCap": curr_prcs.QTotCap,
+                }
                 adjusted_cl_prices.append(adjusted_closing_price)
-            res = np.array(adjusted_cl_prices)[::-1]
+            res = pd.DataFrame(adjusted_cl_prices[::-1])
     return res
 
 

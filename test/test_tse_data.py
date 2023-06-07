@@ -10,11 +10,9 @@ from dtse.tse_data import TSE
 @pytest.mark.parametrize(
     "symbols, settings",
     [
-        (
-            ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "شجم", "نماد غلط"],
-            {"adjust_prices": 1},
-        ),
+        (["همراه", "فولاد", "شجم", "نماد غلط"], {"adjust_prices": 1}),
         (["همراه", "ذوب", "فولاد", "شیراز", "وخارزم"], {"adjust_prices": 0}),
+        (["همراه", "ذوب", "فولاد", "شیراز", "وخارزم"], {"adjust_prices": 2}),
     ],
     indirect=False,
 )

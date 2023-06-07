@@ -2,22 +2,15 @@
 Manage TSE Data
 """
 
-
-import numbers
-import re
-
 from pandas import DataFrame
 
 from dtse.cache_manager import TSECache
 
 from . import config as cfg
 from . import data_services as data_svs
-from .data_structs import TSEColumn, TSEInstrument
 from .price_update_helper import PricesUpdateHelper
 from .progress_bar import ProgressBar
 from .setup_logger import logger as tse_logger
-from .storage import Storage
-from .tse_parser import parse_instruments
 
 
 class TSE:
@@ -47,16 +40,14 @@ class TSE:
         :return: DataFrame, symbols to update
         """
 
-        cache_mngr = self.tse_cache
-        # TODO: do not convert to string (remove astype(str))
-        # TODO: stored_prices shouldn't be in PricesUpdateHelper Class
+        cache = self.tse_cache
         to_update = selection[["InsCode", "DEven", "YMarNSC"]]
         # TODO: Ensure it returns the last value not the first one.
         # is it good to store last_devens in a file?
         last_devens = DataFrame(
             {
                 prc_df.iloc[-1]["InsCode"]: prc_df.iloc[-1]["DEven"]
-                for prc_df in cache_mngr.stored_prices.values()
+                for prc_df in cache.stored_prices.values()
             }.items(),
             columns=["InsCode", "cached_DEven"],
         ).astype("int64")
@@ -162,14 +153,13 @@ class TSE:
             settings=self.settings,
             progressbar=self.progressbar,
         )
-        # TODO: delete?
-        self.tse_cache.refresh_prices(selected_syms=selected_syms)
+        res = {}
         for inst in self.tse_cache.merged_instruments[
             self.tse_cache.merged_instruments["SymbolOriginal"].isin(
                 selected_syms["Symbol"].values
             )
         ].to_dict(orient="records"):
-            self._get_instrument_prices(inst)
+            res[inst["Symbol"]] = self._get_instrument_prices(inst)
 
         """
         progressbar.prog_n = update_result
@@ -243,13 +233,14 @@ class TSE:
         """
 
         ins_code = instrument["InsCode"]
+        # Old instruments with outdated InsCode
         not_root = not instrument["IsRoot"]
         # TODO: copy values by ref
         merges = self.tse_cache.merged_instruments[
             self.tse_cache.merged_instruments["Duplicated"]
         ]
         stored_prices_merged = self.tse_cache.stored_prices_merged
-        shares = self.tse_cache.shares
+        split_and_divds = self.tse_cache.shares
 
         prices = DataFrame()
         ins_codes = []
@@ -260,27 +251,29 @@ class TSE:
             prices = self.tse_cache.stored_prices[ins_code]
             ins_codes = [ins_code]
         else:
-            is_head = instrument["InsCode"] in (merges.InsCode.values)
-            prices = (
-                self.tse_cache.stored_prices[ins_code],
-                stored_prices_merged[ins_code],
-            )[is_head]
-            ins_codes = (
-                [ins_code],
-                merges[merges["Symbol"] == instrument["Symbol"]][["InsCode"]].values,
-            )[is_head]
+            # New instrument with similar old symbols
+            is_head = instrument["InsCode"] in merges.InsCode.values
+            if is_head:
+                prices = stored_prices_merged[ins_code]
+                ins_codes = merges[merges["Symbol"] == instrument["Symbol"]][
+                    ["InsCode"]
+                ].values
+            else:
+                prices = self.tse_cache.stored_prices[ins_code]
+                ins_codes = [ins_code]
 
-        if not prices:
-            return
+        if prices.empty:
+            return prices
 
-        if self.settings["adjust_prices"] == 1 or self.settings["adjust_prices"] == 2:
+        # if self.settings["adjust_prices"] in [1, 2]
+        if self.settings["adjust_prices"]:
             prices = data_svs.adjust(
-                self.settings["adjust_prices"], prices, shares, ins_codes
+                self.settings["adjust_prices"], prices, split_and_divds, ins_codes
             )
 
         if not self.settings["days_without_trade"]:
             prices = prices[prices["ZTotTran"] > 0]
 
-        prices = prices[prices["DEven" > self.settings["start_date"]]]
+        prices = prices[prices["DEven"] > int(self.settings["start_date"])]
 
         return prices

@@ -45,7 +45,7 @@ class PricesUpdateHelper:
         """
         proccess response
         """
-        ins_codes = chunk.InsCode.values
+        ins_codes = chunk.InsCode.values.astype(int)
         pattern = re.compile(r"^[\d.,;@-]+$")
         if isinstance(response, str) and (pattern.search(response) or response == ""):
             res = response.split("@")
@@ -64,14 +64,18 @@ class PricesUpdateHelper:
                     old_data = pd.DataFrame()
                     if (
                         ins_code in self.cache_manager.stored_prices
-                        and not self.cache_manager.stored_prices[ins_code].empty()
+                        and not self.cache_manager.stored_prices[ins_code].empty
                     ):
                         old_data = self.cache_manager.stored_prices[ins_code]
-                    data = new_data if old_data.empty else new_data + old_data
+                    data = (
+                        new_data
+                        if old_data.empty
+                        else pd.concat([old_data, new_data], ignore_index=True)
+                    )
                     self.cache_manager.stored_prices[ins_code] = data
                     # TODO: delete if inscode_lastdeven file is not used
                     self.cache_manager.last_devens[ins_code] = new_data.iloc[-1, 1]
-                    filename = "tse.prices." + file_name
+                    filename = f"tse.prices.{file_name}"
                     self.writing.append(
                         self.should_cache
                         and self.strg.write_tse_csv_blc(f_name=filename, data=data)
@@ -143,7 +147,7 @@ class PricesUpdateHelper:
         :settings: dict, should_cache & merge_similar_symbols & ...
         :progress_dict: dict, data needed for progress bar
         """
-        self.should_cache = settings["should_cache"]
+        self.should_cache = settings["cache"]
         self.merge_similar_syms = settings["merge_similar_symbols"]
         self.progressbar = progressbar
         # each successful request
