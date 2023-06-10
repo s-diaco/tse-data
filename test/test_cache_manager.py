@@ -31,7 +31,8 @@ async def test_refresh_prices():
     """
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
-    cache_manager = TSECache()
+    tse_cache_args = {"merge_similar_symbols": True}
+    cache_manager = TSECache(**tse_cache_args)
     cache_manager.refresh_instrums()
     if cache_manager.instruments.empty:
         await data_svs.update_instruments()
@@ -54,5 +55,24 @@ def test_refresh_instrums(sample_instrumnts):
     refresh_args = {"tse_dir": str(test_instrums_path)}
     tse_cache.refresh_instrums(**refresh_args)
     # make sure res is duplicate of expected_res
-    compare_data = pd.concat([tse_cache.merged_instruments, expected_res])
+    compare_data = pd.concat(
+        [
+            tse_cache.merged_instruments.drop(
+                ["IsRoot", "Duplicated", "SymbolOriginal"], axis=1
+            ),
+            expected_res.drop(["SymbolOriginal"], axis=1),
+        ]
+    )
     assert compare_data.drop_duplicates(keep=False).empty
+
+
+def test_get_symbol_names():
+    """
+    test the get_symbol_name method
+    """
+
+    ins_codes = ["778253364357513", "9211775239375291", "26787658273107220"]
+    cache = TSECache()
+    symbol_names = cache.get_symbol_names(ins_codes=ins_codes)
+    expected_result = ["وبملت", "ذوب", "همراه"]
+    assert list(symbol_names.values()) == expected_result

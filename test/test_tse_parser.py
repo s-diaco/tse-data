@@ -8,12 +8,15 @@ async def test_parse_instruments():
     """
     test parse_instruments
     """
-    cached_instruments = await parser.parse_instruments()
+
+    cached_instruments = parser.parse_instruments()
     assert len(cached_instruments) > 0
+
 
 async def test_parse_shares():
     """
     test parse_instruments
     """
-    cached_shares = await parser.parse_shares()
+
+    cached_shares = parser.parse_shares()
     assert len(cached_shares) > 0

@@ -3,43 +3,50 @@ tests for the data_services module
 """
 import json
 import re
+import time
 
 import numpy as np
+import pandas as pd
 import pytest
 
-from dtse import data_services
-from dtse import data_structs
+from dtse import data_services, data_structs
+from dtse.cache_manager import TSECache
 
 
 def test_adjust():
     """
     Test the adjust function.
     """
+
     cond = 1
-    ins_codes = set(["68635710163497089", "26787658273107220"])
+    ins_codes = [35796086458096255]
 
     # parse sample data for closing prices
-    sample_closing_prices_path = "sample_data/closing_prices.json"
-    with open(sample_closing_prices_path, "r", encoding="utf-8") as f_cp:
-        closing_prices_json = json.loads(f_cp.read())
-    closing_prices = [
-        data_structs.TSEClosingPrice(**cp_dict) for cp_dict in closing_prices_json
-    ]
+    sample_closing_prices_path = "sample_data/closing_prices.csv"
+    closing_prices = pd.read_csv(sample_closing_prices_path)
+    closing_prices = closing_prices.set_index(keys=["InsCode", "DEven"])
 
-    # parse sample data for shares
-    sample_all_shares_path = "sample_data/all_shares.json"
-    with open(sample_all_shares_path, "r", encoding="utf-8") as f_as:
-        all_shares_json = json.loads(f_as.read())
-    all_shares = [data_structs.TSEShare(**share_dict) for share_dict in all_shares_json]
+    adjusted_closing_prices_path = "sample_data/adjusted_closing_prices.csv"
+    expected_res = pd.read_csv(adjusted_closing_prices_path).set_index(
+        keys=["InsCode", "DEven"]
+    )
 
-    res = data_services.adjust(cond, closing_prices, all_shares, ins_codes)
-    assert np.array(res).shape != (2, 2)
+    # parse sample data for stock splits
+    sample_all_shares_path = "sample_data/all_shares.csv"
+    splits = pd.read_csv(sample_all_shares_path)
+    splits = splits.set_index(keys=["InsCode", "DEven"])
+    splits = splits.drop(labels=["Idn"], axis=1)
+    t0 = time.time()
+    res = data_services.adjust(cond, closing_prices, splits, ins_codes)
+    t1 = time.time()
+    total = t1 - t0
+    assert len(np.array(res)) == len(np.array(expected_res))
 
 
 test_data = [
     ("20220103", "20220302", True),
     ("20220223", "20220223", False),
-    ("20220302", "20220304", True),
+    ("20220301", "20220304", True),
 ]
 
 
@@ -52,7 +59,7 @@ def test_should_update(last_update, last_possible_update, expected):
     assert res == expected
 
 
-@pytest.mark.asyncio
+@pytest.mark.vcr()
 async def test_get_last_possible_deven():
     """
     Test the get_last_possible_deven function.
@@ -62,21 +69,10 @@ async def test_get_last_possible_deven():
     assert pattern.search(res)
 
 
-@pytest.mark.asyncio
+@pytest.mark.vcr()
 async def test_update_instruments():
     """
     Test the update_instruments function.
     """
     await data_services.update_instruments()
     assert True
-
-
-def test_get_symbol_names():
-    """
-    test the get_symbol_name method
-    """
-
-    ins_codes = ["778253364357513", "9211775239375291", "26787658273107220"]
-    symbol_names = data_services.get_symbol_names(ins_codes=ins_codes)
-    expected_result = ["وبملت", "ذوب", "همراه"]
-    assert list(symbol_names.values()) == expected_result

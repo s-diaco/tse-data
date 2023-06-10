@@ -8,7 +8,7 @@ import pytest
 from dtse.cache_manager import TSECache
 from dtse.data_services import update_instruments
 
-from dtse.price_update_helper import PricesUpdateHelper
+from dtse.price_update_helper import PricesUpdateManager
 from dtse.progress_bar import ProgressBar
 
 
@@ -24,13 +24,14 @@ def fixture_resp_data():
         yield update_needed
 
 
+@pytest.mark.vcr()
 async def test_start(resp_data):
     """
     test start
     """
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
-    cache_manager = TSECache()
+    cache_manager = TSECache(merge_similar_symbols=True)
     cache_manager.refresh_instrums()
     if cache_manager.instruments.empty:
         await update_instruments()
@@ -38,11 +39,11 @@ async def test_start(resp_data):
     instruments = cache_manager.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache_manager.refresh_prices(selected_syms)
-    pu_helper = PricesUpdateHelper(cache_manager)
+    pu_helper = PricesUpdateManager(cache_manager)
     update_needed = DataFrame(resp_data, columns=["InsCode", "DEven", "NotInNoMarket"])
     await pu_helper.start(
         update_needed=update_needed,
-        settings={"should_cache": True, "merge_similar_symbols": True},
+        settings={"cache": True, "merge_similar_symbols": True},
         progressbar=ProgressBar(),
     )
 

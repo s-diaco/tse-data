@@ -243,8 +243,6 @@ class Storage:
             return
         file_path = tse_dir / (f_name + ".csv")
         if kwargs.get("append", False):
-            data.to_csv(
-                file_path, index=False, encoding="utf-8", mode="a", header=False
-            )
+            data.to_csv(file_path, encoding="utf-8", mode="a", header=False)
         else:
-            data.to_csv(file_path, index=False, encoding="utf-8")
+            data.to_csv(file_path, encoding="utf-8")

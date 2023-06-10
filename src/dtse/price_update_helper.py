@@ -9,7 +9,6 @@ from io import StringIO
 import pandas as pd
 
 from dtse.cache_manager import TSECache
-from dtse.data_services import get_symbol_names, resp_to_csv
 
 from . import config as cfg
 from .progress_bar import ProgressBar
@@ -17,15 +16,16 @@ from .storage import Storage
 from .tse_request import TSERequest
 
 
-class PricesUpdateHelper:
+class PricesUpdateManager:
     """
     update prices for selected symbols
     """
 
     def __init__(self, cache_manager: TSECache) -> None:
         """
-        Initialize the PricesUpdateHelper class.
+        Initialize the PricesUpdateManager class.
         """
+
         self.succs = []
         self.fails = []
         self.retries: int = 0
@@ -58,7 +58,10 @@ class PricesUpdateHelper:
                 line_terminator = ";"
                 file_name = ins_code
                 new_data = pd.read_csv(
-                    StringIO(res[i]), names=col_names, lineterminator=line_terminator
+                    StringIO(res[i]),
+                    names=col_names,
+                    lineterminator=line_terminator,
+                    index_col=["InsCode", "DEven"],
                 )
                 if not new_data.empty:
                     old_data = pd.DataFrame()
@@ -68,9 +71,7 @@ class PricesUpdateHelper:
                     ):
                         old_data = self.cache_manager.stored_prices[ins_code]
                     data = (
-                        new_data
-                        if old_data.empty
-                        else pd.concat([old_data, new_data], ignore_index=True)
+                        new_data if old_data.empty else pd.concat([old_data, new_data])
                     )
                     self.cache_manager.stored_prices[ins_code] = data
                     # TODO: delete if inscode_lastdeven file is not used

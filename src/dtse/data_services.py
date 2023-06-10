@@ -4,13 +4,13 @@ functions to manage tse data
 import re
 from datetime import datetime
 from io import StringIO
+import time
 
 import jdatetime
 import numpy as np
 import pandas as pd
 
 from . import config as cfg
-from . import data_structs
 from . import tse_utils
 from .setup_logger import logger
 from .storage import Storage
@@ -21,25 +21,81 @@ from .tse_request import TSERequest
 def adjust(
     cond: int,
     closing_prices: pd.DataFrame,
-    split_and_divds: pd.DataFrame,
+    splits: pd.DataFrame,
     ins_codes: list[int],
 ):
     """
     Adjust closing prices according to the condition
+    0: make no adjustments
+    1: adjust according to dividends and splits (yday price / close of yesterday)
+    2: adjust according to splits
+    3: adjust according to cash dividends
 
     :cond: int, price adjust type. can be 0 (no adjustment), 1 or 2
-    :closing_prices: pd.DataFrame, stock prices for daily time frame
-    :split_and_dividends: pd.DataFrame, stock dividend and splits and their dates
+    :closing_prices: pd.DataFrame, prices (daily time frame) for a stock symbol
+    :splits: pd.DataFrame, stock splits and their dates
     :ins_codes: list, instrument codes
+
     :return: pd.DataFrame, adjusted closing prices
     """
-    filtered_shares = split_and_divds[split_and_divds["InsCode"].isin(ins_codes)]
-    shares = {i["DEven"]: i for i in filtered_shares.to_dict(orient="records")}
+
+    # TODO: use only new method after timing both
+    # TODO: should work when there is multple codes
+    new_method = True
+    if new_method:
+        cl_pr = closing_prices
+        cl_pr_cols = list(cl_pr.columns)
+        cp_len = len(closing_prices)
+        if cond and cp_len > 1:
+            for ins_code in ins_codes:
+                filtered_shares = splits[splits.index.isin([ins_code], level="InsCode")]
+                if cond in [1, 3]:
+                    cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
+                    cl_pr["YDayDiff"] = cl_pr["PClosing"] / cl_pr["ShiftedYDay"]
+                if cond in [2, 3]:
+                    cl_pr = cl_pr.join(filtered_shares[["StockSplits"]]).fillna(0)
+                    filtered_shares["StockSplits"] = (
+                        filtered_shares["NumberOfShareNew"]
+                        / filtered_shares["NumberOfShareOld"]
+                    )
+                if cond == 1:
+                    cl_pr["YDayDiffFactor"] = (
+                        (1 / cl_pr.YDayDiff.iloc[::-1])
+                        .replace(np.inf, 1)
+                        .cumprod()
+                        .iloc[::-1]
+                    )
+                    cl_pr["AdjPClosing"] = cl_pr.YDayDiffFactor * cl_pr.PClosing
+                elif cond == 2:
+                    cl_pr["SplitFactor"] = (
+                        (1 / cl_pr.StockSplits.iloc[::-1])
+                        .replace(np.inf, 1)
+                        .cumprod()
+                        .iloc[::-1]
+                    )
+                    cl_pr["AdjPClosing"] = cl_pr.SplitFactor * cl_pr.PClosing
+                elif cond == 3:
+                    cl_pr["DividDiff"] = 1
+                    cl_pr.loc[
+                        ~cl_pr["YDayDiff"].isin([1]) & cl_pr["StockSplits"].isin([0]),
+                        "DividDiff",
+                    ] = cl_pr[["YDayDiff"]]
+                    cl_pr["DividDiffFactor"] = (
+                        (1 / cl_pr.DividDiff.iloc[::-1])
+                        .replace(np.inf, 1)
+                        .cumprod()
+                        .iloc[::-1]
+                    )
+                    cl_pr["AdjPClosing"] = cl_pr.DividDiffFactor * cl_pr.PClosing
+                cl_pr_cols.append("AdjPClosing")
+        return cl_pr[cl_pr_cols]
+
+    filtered_shares = splits[splits.index.isin(ins_codes, level="InsCode")]
     cl_pr = closing_prices
     cp_len = len(closing_prices)
     adjusted_cl_prices = []
     res = cl_pr
-    if cond and cp_len:
+    if cond and cp_len > 1:
         gaps = 0
         num = 1
         adjusted_cl_prices.append(cl_pr.iloc[-1].to_dict())
@@ -61,8 +117,16 @@ def adjust(
                 )
                 if cond == 1 and prcs_dont_match:
                     num = num * next_prcs.PriceYesterday / curr_prcs.PClosing
-                elif cond == 2 and prcs_dont_match and (next_prcs.DEven in shares):
-                    target_share = shares[next_prcs.DEven]
+                elif (
+                    cond == 2
+                    and prcs_dont_match
+                    and filtered_shares.index.isin(
+                        [next_prcs.DEven], level="DEven"
+                    ).any()
+                ):
+                    target_share = filtered_shares.xs(
+                        next_prcs.DEven, level="DEven"
+                    ).iloc[0]
                     old_shares = target_share["NumberOfShareOld"]
                     new_shares = target_share["NumberOfShareNew"]
                     num = num * old_shares / new_shares
@@ -88,7 +152,7 @@ def adjust(
                 }
                 adjusted_cl_prices.append(adjusted_closing_price)
             res = pd.DataFrame(adjusted_cl_prices[::-1])
-    return res
+    return res.astype(int)
 
 
 def get_cell(column_name, instrument, closing_price) -> str:
@@ -143,7 +207,7 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
     """
     Check if the database should be updated
 
-    :param deven: str, current date of the database update
+    :param deven: str, current date of the cache update
     :param last_possible_deven: str, last possible date of the database
 
     :return: bool, True if the database should be updated, False otherwise
@@ -168,8 +232,8 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
         # wait until the end of trading session
         ((True, today.hour > cfg.TRADING_SEASSON_END)[today_is_lpd])
         and
-        # No update needed in weekend but ONLY if
-        # last time we updated was on last day (wednesday) of THIS week
+        # No update needed in weekend if last update was
+        # on last day (wednesday) of THIS week
         not (in_weekend and last_update_weekday != 3 and days_passed <= 3)
     )
     return shd_upd
@@ -190,8 +254,8 @@ async def get_last_possible_deven() -> str:
         try:
             req = TSERequest()
             res = await req.last_possible_deven()
-        except Exception as e:
-            logger.error(e)
+        except Exception as err:
+            logger.error(err)
             raise
         pattern = re.compile(r"^\d{8};\d{8}$")
         if not pattern.search(res):
@@ -267,22 +331,3 @@ def resp_to_csv(
         converters=converters,
     )
     storage.write_tse_csv_blc(f_name, resp_df, **kwargs)
-
-
-def get_symbol_names(ins_codes: list[str]) -> dict:
-    """
-    retrives the symbol names
-
-    :param ins_code: list of strings, codes of the selected symbols
-
-    :return: dict, {code: symbol}
-    """
-
-    strg = Storage()
-    instruments_df = strg.read_tse_csv_blc("tse.instruments")
-    int_ins_codes = [int(ins_code) for ins_code in ins_codes]
-    ret_val_df = instruments_df[instruments_df["InsCode"].isin(int_ins_codes)]
-    ret_val = {
-        row["InsCode"]: row["Symbol"] for row in ret_val_df.to_dict(orient="records")
-    }
-    return ret_val

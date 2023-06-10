@@ -2,13 +2,14 @@
 Manage TSE Data
 """
 
+import pandas as pd
 from pandas import DataFrame
 
 from dtse.cache_manager import TSECache
 
 from . import config as cfg
 from . import data_services as data_svs
-from .price_update_helper import PricesUpdateHelper
+from .price_update_helper import PricesUpdateManager
 from .progress_bar import ProgressBar
 from .setup_logger import logger as tse_logger
 
@@ -25,10 +26,7 @@ class TSE:
         self.settings = cfg.default_settings
         self.progressbar = ProgressBar()
 
-    async def _filter_expired_prices(
-        self,
-        selection,
-    ) -> DataFrame:
+    async def _filter_expired_prices(self, selection) -> DataFrame:
         """
         check if there is no updated cached data for symbol and return a dataframe
         containing that symbols (InsCode, DEven, YMarNSC)
@@ -46,7 +44,7 @@ class TSE:
         # is it good to store last_devens in a file?
         last_devens = DataFrame(
             {
-                prc_df.iloc[-1]["InsCode"]: prc_df.iloc[-1]["DEven"]
+                prc_df.iloc[-1].name[0]: prc_df.iloc[-1].name[1]
                 for prc_df in cache.stored_prices.values()
             }.items(),
             columns=["InsCode", "cached_DEven"],
@@ -124,7 +122,9 @@ class TSE:
         """
 
         await data_svs.update_instruments()
-        self.tse_cache = TSECache()
+        self.tse_cache = TSECache(
+            merge_similar_symbols=self.settings["merge_similar_symbols"]
+        )
         instruments = self.tse_cache.instruments
         # TODO: does it return the full list before 8:30 a.m.?
         # check if names in symbols are valid symbol names
@@ -147,19 +147,23 @@ class TSE:
 
         self.tse_cache.refresh_prices(selected_syms=selected_syms)
         to_update = await self._filter_expired_prices(selected_syms)
-        price_manager = PricesUpdateHelper(cache_manager=self.tse_cache)
+        price_manager = PricesUpdateManager(cache_manager=self.tse_cache)
         update_result = await price_manager.start(
             update_needed=to_update,
             settings=self.settings,
             progressbar=self.progressbar,
         )
+        if self.settings["merge_similar_symbols"]:
+            self.tse_cache.refresh_prices_merged(selected_syms=selected_syms)
         res = {}
         for inst in self.tse_cache.merged_instruments[
             self.tse_cache.merged_instruments["SymbolOriginal"].isin(
                 selected_syms["Symbol"].values
             )
         ].to_dict(orient="records"):
-            res[inst["Symbol"]] = self._get_instrument_prices(inst)
+            res[inst["Symbol"]] = self.tse_cache.get_instrument_prices(
+                inst, self.settings
+            )
 
         """
         progressbar.prog_n = update_result
@@ -222,58 +226,3 @@ class TSE:
             raise err
         return await strg.read_tse_csv("tse.instruments")
     """
-
-    def _get_instrument_prices(self, instrument) -> DataFrame:
-        """
-        get instrument prices
-
-        :instrument: dict, instrument to get prices for
-
-        :return: DataFrame, prices for instrument
-        """
-
-        ins_code = instrument["InsCode"]
-        # Old instruments with outdated InsCode
-        not_root = not instrument["IsRoot"]
-        # TODO: copy values by ref
-        merges = self.tse_cache.merged_instruments[
-            self.tse_cache.merged_instruments["Duplicated"]
-        ]
-        stored_prices_merged = self.tse_cache.stored_prices_merged
-        split_and_divds = self.tse_cache.shares
-
-        prices = DataFrame()
-        ins_codes = []
-
-        if not_root:
-            if self.settings["merge_similar_symbols"]:
-                return self.settings["MERGED_SYMBOL_CONTENT"]
-            prices = self.tse_cache.stored_prices[ins_code]
-            ins_codes = [ins_code]
-        else:
-            # New instrument with similar old symbols
-            is_head = instrument["InsCode"] in merges.InsCode.values
-            if is_head:
-                prices = stored_prices_merged[ins_code]
-                ins_codes = merges[merges["Symbol"] == instrument["Symbol"]][
-                    ["InsCode"]
-                ].values
-            else:
-                prices = self.tse_cache.stored_prices[ins_code]
-                ins_codes = [ins_code]
-
-        if prices.empty:
-            return prices
-
-        # if self.settings["adjust_prices"] in [1, 2]
-        if self.settings["adjust_prices"]:
-            prices = data_svs.adjust(
-                self.settings["adjust_prices"], prices, split_and_divds, ins_codes
-            )
-
-        if not self.settings["days_without_trade"]:
-            prices = prices[prices["ZTotTran"] > 0]
-
-        prices = prices[prices["DEven"] > int(self.settings["start_date"])]
-
-        return prices

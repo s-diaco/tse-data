@@ -1,0 +1,46 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=9211775239375291,20211213,0%3B26787658273107220,20130818,0
+  response:
+    body:
+      string: '@'
+    headers:
+      Cache-Control:
+      - public, no-cache="Set-Cookie", max-age=900
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '121'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Sat, 10 Jun 2023 21:40:02 GMT
+      Expires:
+      - Sat, 10 Jun 2023 21:55:02 GMT
+      Last-Modified:
+      - Sat, 10 Jun 2023 21:40:02 GMT
+      Server:
+      - Microsoft-IIS/10.0
+      Set-Cookie:
+      - ASP.NET_SessionId=n3af53k0n4lloc4iagmqhrsz; domain=.tsetmc.com; path=/; HttpOnly;
+        SameSite=Lax
+      Vary:
+      - '*'
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=9211775239375291,20211213,0%3B26787658273107220,20130818,0
+version: 1

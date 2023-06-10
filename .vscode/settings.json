@@ -14,15 +14,7 @@
     "editor.multiCursorModifier": "ctrlCmd",
     "editor.snippetSuggestions": "top",
     "editor.rulers": [
-        {
-            "column": 79,
-            "color": "#424142"
-        },
-        100, // <- a ruler in the default color or as customized at column 0
-        {
-            "column": 120,
-            "color": "#ff0000"
-        },
+        88, // <- a ruler in the default color or as customized at column 0
     ],
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"

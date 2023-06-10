@@ -1,0 +1,46 @@
+interactions:
+- request:
+    body: null
+    headers: {}
+    method: GET
+    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
+  response:
+    body:
+      string: 20230610;20230610
+    headers:
+      Cache-Control:
+      - public, no-cache="Set-Cookie", max-age=900
+      Content-Encoding:
+      - gzip
+      Content-Length:
+      - '131'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Sat, 10 Jun 2023 17:13:05 GMT
+      Expires:
+      - Sat, 10 Jun 2023 17:28:05 GMT
+      Last-Modified:
+      - Sat, 10 Jun 2023 17:13:05 GMT
+      Server:
+      - Microsoft-IIS/10.0
+      Set-Cookie:
+      - ASP.NET_SessionId=5eyllst5xti5sw4keso52uhn; domain=.tsetmc.com; path=/; HttpOnly;
+        SameSite=Lax
+      Vary:
+      - '*'
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
+version: 1

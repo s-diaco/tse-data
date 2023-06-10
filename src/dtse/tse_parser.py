@@ -28,13 +28,5 @@ def parse_shares() -> pd.DataFrame:
 
     :return: pd.DataFrame, parsed shares data
     """
-    rows = Storage().read_tse_csv_blc("tse.shares")
-    if len(rows.index):
-        # TODO: delete
-        """
-        shares = [TSEShare(row) for row in rows.values.tolist()]
-        shares_dict = dict(zip(rows['Idn'], shares))
-        return shares_dict
-        """
-        return rows
-    return pd.DataFrame()
+    splits = Storage().read_tse_csv_blc("tse.shares")
+    return splits
