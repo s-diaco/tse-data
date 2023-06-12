@@ -6,7 +6,9 @@ import pandas as pd
 from .storage import Storage
 
 
-def parse_instruments(itd=False, dict_key="InsCode", **kwargs) -> pd.DataFrame:
+def parse_instruments(
+    strg: TSEStorage, itd=False, dict_key="InsCode", **kwargs
+) -> pd.DataFrame:
     """
     parse instrument data
 
@@ -14,11 +16,8 @@ def parse_instruments(itd=False, dict_key="InsCode", **kwargs) -> pd.DataFrame:
 
     :return: pd.DataFrame, parsed instrument data
     """
-    if itd:
-        # TODO: parse intraday instrument data
-        raise NotImplementedError
-    strg = Storage(**kwargs)
-    instrums = strg.read_tse_csv_blc("tse.instruments")
+
+    instrums = strg.read_tse_csv_blc("tse.instruments").set_index("InsCode")
     return instrums
 
 

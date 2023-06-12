@@ -22,20 +22,31 @@ class TSECache:
 
         :selected_syms: list, instrument codes to look for in cached data
         """
+        self.storage = Storage()
         self.symbol_as_dict_key: bool = False
         self.selected_syms = pd.DataFrame()
+        self._instruments=pd.DataFrame()
         self.stored_prices = {}
         self.stored_prices_merged = {}
         self.merges = []
         self.splits = pd.DataFrame()
-        self.instruments = pd.DataFrame()
         self.merged_instruments = pd.DataFrame()
         self.settings = {}
         if tse_cache_kwargs:
             self.settings.update(tse_cache_kwargs)
-        self.refresh_instrums()
+        self._refresh_instrums()
         self.refresh_splits()
         self.last_devens = {}
+        self.last_instrument_update=self.strg.get_item("tse.lastInstrumentUpdate")
+
+    @property
+    def instruments(self):
+        """All instruments and their details."""
+        return self._instruments
+
+    @instruments.setter
+    def radius(self, value:pd.Dataframe):
+        self._instruments = value
 
     def refresh_prices(self, selected_syms: pd.DataFrame, symbol_as_dict_key=False):
         """
@@ -43,9 +54,8 @@ class TSECache:
         self.stored_prices and self.stored_prices_merged
         """
 
-        strg = Storage()
         self.selected_syms = selected_syms
-        prc_dict = strg.get_items(f_names=self.selected_syms.InsCode.tolist())
+        prc_dict = self.strg.get_items(f_names=self.selected_syms.InsCode.tolist())
         if symbol_as_dict_key:
             self.symbol_as_dict_key = symbol_as_dict_key
             self.stored_prices = {
@@ -86,11 +96,12 @@ class TSECache:
                 similar_prcs.reverse()
                 self.stored_prices_merged[latest] = pd.concat(similar_prcs)
 
-    def refresh_instrums(self, **kwargs):
+    def _refresh_instrums(self, **kwargs):
         """
         updates list of all cached instruments
         and updates "instruments" and "merged_instruments" variables
         """
+
         self.instruments = parse_instruments(**kwargs)
         self.merged_instruments = self._merge_similar_syms()
 
@@ -102,7 +113,6 @@ class TSECache:
         self.splits = parse_shares(**kwargs)
         if len(self.splits.index):
             self.splits = self.splits.set_index(keys=["InsCode", "DEven"])
-            self.splits = self.splits.drop(labels=["Idn"], axis=1)
 
     def _merge_similar_syms(self) -> pd.DataFrame:
         """
@@ -152,7 +162,7 @@ class TSECache:
             ins_codes = [ins_code]
         else:
             # New instrument with similar old symbols
-            is_head = instrument["InsCode"] in merges.InsCode.values
+            is_head = instrument["InsCode"] in merges.InsCode.values & settings["merge_similar_symbols"]:
             if is_head:
                 # TODO: why is this "if" needed?
                 if ins_code in stored_prices_merged:
@@ -169,7 +179,7 @@ class TSECache:
         if prices.empty:
             return prices
 
-        # if settings["adjust_prices"] in [1, 2]
+        # if settings["adjust_prices"] in [1, 2, 3]
         if settings["adjust_prices"]:
             prices = adjust(
                 settings["adjust_prices"], prices, split_and_divds, ins_codes

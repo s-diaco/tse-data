@@ -1,12 +1,11 @@
 """
 Read and write tse files
 """
-import gzip
 from pathlib import Path
 
 import pandas as pd
-from .config import storage as settings
-from .setup_logger import logger
+from dtse.config import storage as settings
+from dtse.setup_logger import logger
 
 
 class Storage:
@@ -33,18 +32,6 @@ class Storage:
         if "tse_dir" in kwargs:
             self._data_dir = Path(kwargs["tse_dir"])
         logger.info("data dir: %s", self._data_dir)
-
-        # todo: uncomment
-        # pylint: disable=W0105
-        """
-        class ITD:
-            def __init__(self, stg: Storage):
-                self.get_items = stg._itd_get_items
-                self.set_item = stg._itd_set_item
-
-        self.itd = ITD(self)
-        """
-        # pylint: enable=W0105
 
     def get_item(self, key: str) -> str:
         """
@@ -82,57 +69,6 @@ class Storage:
         with open(file_path, "w+", encoding="utf-8") as f:
             f.write(value)
 
-    async def get_item_async(self, key: str, tse_zip=False):
-        """
-        Reads a file from the cache dir and returns a string
-
-        :param key: file name
-        :return: string
-        """
-        key = key.replace("tse.", "")
-        tse_dir = self._data_dir
-        if key.startswith("prices."):
-            tse_dir = self._data_dir / settings["PRICES_DIR"]
-        if not tse_dir.is_dir():
-            tse_dir.mkdir(parents=True, exist_ok=True)
-        if tse_zip:
-            file_path = tse_dir / (key + ".gz")
-            if not file_path.is_file():
-                with gzip.open(file_path, mode="wt") as zip_f:
-                    zip_f.write("")
-            with gzip.open(file_path, mode="rt") as zip_f:
-                return zip_f.read()
-        else:
-            file_path = tse_dir / (key + ".csv")
-            if not file_path.is_file():
-                with open(file_path, "w+", encoding="utf-8") as f:
-                    f.write("")
-            with open(file_path, "r", encoding="utf-8") as f:
-                return f.read()
-
-    async def set_item_async(self, key: str, value: str, tse_zip=False):
-        """
-        Writes a file to the cache dir
-
-        :param key: file name
-        :param value: text to write
-        """
-
-        key = key.replace("tse.", "")
-        tse_dir = self._data_dir
-        if key.startswith("prices."):
-            tse_dir = self._data_dir / settings["PRICES_DIR"]
-        if not tse_dir.is_dir():
-            tse_dir.mkdir(parents=True, exist_ok=True)
-        if tse_zip:
-            file_path = tse_dir / (key + ".gz")
-            with gzip.open(file_path, mode="wt") as zip_f:
-                zip_f.write(value)
-        else:
-            file_path = tse_dir / (key + ".csv")
-            with open(file_path, "w+", encoding="utf-8") as f:
-                f.write(value)
-
     def get_items(self, f_names: list[str]) -> dict:
         """
         Reads selected instruments files from the cache dir and returns a dict
@@ -143,33 +79,6 @@ class Storage:
         res = {}
         res = {name: self.read_tse_csv_blc(f"prices.{name}") for name in f_names}
         return res
-
-    # todo: complete this
-    # pylint: disable=W0105
-    """
-    # todo: line 83 tse.js is not correctly ported to python
-    def _itd_get_items(self, keys: list, full=False):
-        result = {}
-        tse_dir = self._data_dir / settings['INTRADAY_DIR']
-        p = tse_dir.glob('**/*')
-        for x in p:
-            if x.is_file():
-                key = x.name.replace('.gz', '').replace('.csv', '')
-                if key in keys:
-                    result[key] = self.itd_get_item(key, full)
-        return result
-
-    # set intraday item
-    # todo: line 107 tse.js is not correctly ported to python
-    def _itd_set_item(self, key: str, obj: dict):
-        key = key.replace('tse.', '')
-        tse_dir = self._data_dir / settings.INTRADAY_DIR
-        for k in obj.keys:
-            file_path = tse_dir / (key + '.' + k + '.gz')
-            with open(file_path, 'w+', encoding='utf-8') as f:
-                f.write(obj[k])
-    """
-    # pylint: enable=W0105
 
     @property
     def cache_dir(self):

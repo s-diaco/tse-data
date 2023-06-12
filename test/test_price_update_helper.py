@@ -32,10 +32,10 @@ async def test_start(resp_data):
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
     cache_manager = TSECache(merge_similar_symbols=True)
-    cache_manager.refresh_instrums()
+    cache_manager._refresh_instrums()
     if cache_manager.instruments.empty:
         await update_instruments()
-    cache_manager.refresh_instrums()
+    cache_manager._refresh_instrums()
     instruments = cache_manager.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache_manager.refresh_prices(selected_syms)
@@ -43,7 +43,7 @@ async def test_start(resp_data):
     update_needed = DataFrame(resp_data, columns=["InsCode", "DEven", "NotInNoMarket"])
     await pu_helper.start(
         update_needed=update_needed,
-        settings={"cache": True, "merge_similar_symbols": True},
+        settings={"cache": False, "merge_similar_symbols": True},
         progressbar=ProgressBar(),
     )
 

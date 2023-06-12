@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from io import StringIO
 import time
+from dtse.cache_manager import TSECache
 
 import jdatetime
 import numpy as np
@@ -248,9 +249,8 @@ async def get_last_possible_deven() -> str:
 
     strg = Storage()
     last_possible_deven = strg.get_item("tse.lastPossibleDeven")
-    if (not last_possible_deven) or should_update(
-        datetime.today().strftime("%Y%m%d"), last_possible_deven
-    ):
+    should_upd = should_update(datetime.today().strftime("%Y%m%d"), last_possible_deven)
+    if (not last_possible_deven) or should_upd:
         try:
             req = TSERequest()
             res = await req.last_possible_deven()
@@ -268,66 +268,67 @@ async def get_last_possible_deven() -> str:
 # todo: incomplte
 
 
-async def update_instruments() -> None:
+async def update_instruments(cache: TSECache) -> None:
     """
     Get data from tsetmc.com API (if needed) and save to the cache
     """
 
-    strg = Storage()
-    last_update = strg.get_item("tse.lastInstrumentUpdate")
-    cached_instruments = {}
-    cached_shares = {}
-    last_deven: str = "0"
-    last_id = 0
+    last_update = cache.last_instrument_update
+    cached_instruments = pd.DataFrame()
+    cached_splits = pd.DataFrame()
+    last_cached_instrum_date: str = "0"
+    last_split_id = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
+    line_terminator = ";"
     if last_update:
-        cached_instruments = parse_instruments()
-        cached_shares = parse_shares()
-        last_deven = str(max(cached_instruments["DEven"]))
-        if len(cached_shares) > 0:
-            last_id = max(cached_shares["Idn"])
+        cached_instruments = cache.instruments
+        cached_splits = cache.splits
+        last_cached_instrum_date = str(max(cached_instruments["DEven"]))
+        if len(cached_splits) > 0:
+            last_split_id = max(cached_splits["Idn"])
     last_possible_deven = await get_last_possible_deven()
-    if not should_update(last_deven, last_possible_deven):
-        return
-    req = TSERequest()
-    today = datetime.now().strftime("%Y%m%d")
-    orig_sym_dict = await req.instrument_and_share(today, last_id)
-    shares = orig_sym_dict.split("@")[1]
-    instruments = await req.instrument(last_deven)
-    if instruments == "*":
-        logger.warning("No update during trading hours.")
-    elif instruments == "":
-        logger.warning("Already updated: Instruments")
-    else:
-        convs = {5: tse_utils.clean_fa}
-        resp_to_csv(instruments, inst_col_names, ";", convs, "tse.instruments", strg)
-    if shares == "":
-        logger.warning("Already updated: Shares")
-    else:
-        resp_to_csv(
-            resp=shares,
-            col_names=share_col_names,
-            line_terminator=";",
-            converters=None,
-            f_name="tse.shares",
-            storage=strg,
-        )
+    if should_update(last_cached_instrum_date, last_possible_deven):
+        req = TSERequest()
+        today = datetime.now().strftime("%Y%m%d")
+        orig_sym_dict = await req.instruments_and_splits(today, last_split_id)
+        shares = orig_sym_dict.split("@")[1]
+        instruments = await req.instrument(last_cached_instrum_date)
+        if instruments == "*":
+            logger.warning("No update during trading hours.")
+        elif instruments == "":
+            logger.warning("Already updated: Instruments")
+        else:
+            converters = {5: tse_utils.clean_fa}
+            instrums_df = pd.read_csv(
+                StringIO(instruments),
+                names=inst_col_names,
+                lineterminator=line_terminator,
+                converters=converters,
+            ).set_index("InsCode")
+            cache.instruments = instrums_df
+            filename = "tse.instruments"
+            # TODO: move resp_to_csv to tsecache class
+            resp_to_csv(instrums_df, filename, cache.storage)
+        if shares == "":
+            logger.warning("Already updated: Shares")
+        else:
 
-    if len(instruments) > 1:
-        strg.set_item("tse.lastInstrumentUpdate", today)
+            shares_df = pd.read_csv(
+                StringIO(shares), names=share_col_names, lineterminator=line_terminator
+            ).set_index(["InsCode", "DEven"])
+            # TODO: move resp_to_csv to tsecache class
+            resp_to_csv(resp_df=shares_df, f_name=filename, storage=cache.storage)
+            filename = "tse.shares"
+
+        if len(instruments) > 1:
+            # TODO: move this to tsecache class
+            cache.storage.set_item("tse.lastInstrumentUpdate", today)
 
 
-def resp_to_csv(
-    resp, col_names, line_terminator, converters, f_name, storage, **kwargs
-):
+def resp_to_csv(resp_df, f_name, storage, **kwargs):
     """
-    Wrtie API Request to csv file
+    Wrtie API response to csv file
     """
-    resp_df = pd.read_csv(
-        StringIO(resp),
-        names=col_names,
-        lineterminator=line_terminator,
-        converters=converters,
-    )
+
     storage.write_tse_csv_blc(f_name, resp_df, **kwargs)

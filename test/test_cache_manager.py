@@ -33,10 +33,10 @@ async def test_refresh_prices():
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
     tse_cache_args = {"merge_similar_symbols": True}
     cache_manager = TSECache(**tse_cache_args)
-    cache_manager.refresh_instrums()
+    cache_manager._refresh_instrums()
     if cache_manager.instruments.empty:
         await data_svs.update_instruments()
-    cache_manager.refresh_instrums()
+    cache_manager._refresh_instrums()
     instruments = cache_manager.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache_manager.refresh_prices(selected_syms)
@@ -53,7 +53,7 @@ def test_refresh_instrums(sample_instrumnts):
     tse_cache = TSECache(**tse_cache_args)
     test_instrums_path = Path.cwd() / "sample_data"
     refresh_args = {"tse_dir": str(test_instrums_path)}
-    tse_cache.refresh_instrums(**refresh_args)
+    tse_cache._refresh_instrums(**refresh_args)
     # make sure res is duplicate of expected_res
     compare_data = pd.concat(
         [

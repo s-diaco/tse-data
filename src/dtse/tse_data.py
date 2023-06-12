@@ -26,7 +26,7 @@ class TSE:
         self.settings = cfg.default_settings
         self.progressbar = ProgressBar()
 
-    async def _filter_expired_prices(self, selection) -> DataFrame:
+    async def _get_expired_prices(self, selection) -> DataFrame:
         """
         check if there is no updated cached data for symbol and return a dataframe
         containing that symbols (InsCode, DEven, YMarNSC)
@@ -92,7 +92,7 @@ class TSE:
         to_update = to_update.drop("YMarNSC", axis=1)
         return to_update
 
-    async def get_prices(self, symbols, **kwconf):
+    async def get_prices(self, symbols: list[str], **kwconf) -> dict:
         """
         get prices for symbols
 
@@ -102,7 +102,8 @@ class TSE:
         """
 
         if not symbols:
-            return
+            tse_logger.warning("No symbols requested")
+            return {}
         self.settings = cfg.default_settings
         if kwconf:
             self.settings.update(kwconf)
@@ -121,16 +122,15 @@ class TSE:
             progressbar.prog_func(progressbar.prog_n)
         """
 
-        await data_svs.update_instruments()
         self.tse_cache = TSECache(
             merge_similar_symbols=self.settings["merge_similar_symbols"]
         )
+        await data_svs.update_instruments(self.tse_cache)
         instruments = self.tse_cache.instruments
         # TODO: does it return the full list before 8:30 a.m.?
-        # check if names in symbols are valid symbol names
         selected_syms = instruments[instruments["Symbol"].isin(symbols)]
         if selected_syms.empty:
-            raise ValueError(f"No instruments found for symbols: {symbols}.")
+            raise ValueError(f"No instruments found for symbol names: {symbols}.")
         not_founds = [
             sym for sym in symbols if sym not in selected_syms["Symbol"].values
         ]
@@ -146,7 +146,7 @@ class TSE:
         """
 
         self.tse_cache.refresh_prices(selected_syms=selected_syms)
-        to_update = await self._filter_expired_prices(selected_syms)
+        to_update = await self._get_expired_prices(selected_syms)
         price_manager = PricesUpdateManager(cache_manager=self.tse_cache)
         update_result = await price_manager.start(
             update_needed=to_update,
