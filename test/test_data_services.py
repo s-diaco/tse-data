@@ -36,10 +36,10 @@ def test_adjust():
     splits = pd.read_csv(sample_all_shares_path)
     splits = splits.set_index(keys=["InsCode", "DEven"])
     splits = splits.drop(labels=["Idn"], axis=1)
-    t0 = time.time()
+    start_time = time.time()
     res = data_services.adjust(cond, closing_prices, splits, ins_codes)
-    t1 = time.time()
-    total = t1 - t0
+    end_time = time.time()
+    total = end_time - start_time
     assert len(np.array(res)) == len(np.array(expected_res))
 
 

@@ -307,28 +307,10 @@ async def update_instruments(cache: TSECache) -> None:
                 converters=converters,
             ).set_index("InsCode")
             cache.instruments = instrums_df
-            filename = "tse.instruments"
-            # TODO: move resp_to_csv to tsecache class
-            resp_to_csv(instrums_df, filename, cache.storage)
         if shares == "":
             logger.warning("Already updated: Shares")
         else:
-
             shares_df = pd.read_csv(
                 StringIO(shares), names=share_col_names, lineterminator=line_terminator
             ).set_index(["InsCode", "DEven"])
-            # TODO: move resp_to_csv to tsecache class
-            resp_to_csv(resp_df=shares_df, f_name=filename, storage=cache.storage)
-            filename = "tse.shares"
-
-        if len(instruments) > 1:
-            # TODO: move this to tsecache class
-            cache.storage.set_item("tse.lastInstrumentUpdate", today)
-
-
-def resp_to_csv(resp_df, f_name, storage, **kwargs):
-    """
-    Wrtie API response to csv file
-    """
-
-    storage.write_tse_csv_blc(f_name, resp_df, **kwargs)
+            cache.splits = shares_df

@@ -123,7 +123,8 @@ class TSE:
         """
 
         self.tse_cache = TSECache(
-            merge_similar_symbols=self.settings["merge_similar_symbols"]
+            merge_similar_symbols=self.settings["merge_similar_symbols"],
+            cache=self.settings["cache"],
         )
         await data_svs.update_instruments(self.tse_cache)
         instruments = self.tse_cache.instruments
@@ -167,62 +168,7 @@ class TSE:
 
         """
         progressbar.prog_n = update_result
-        if error:
-            err = (error.title, error.detail)
-            result["error"] = (1, err)
-            if callable(progressbar.prog_func):
-                progressbar.prog_func(progressbar.prog_tot)
-            return result
-
-        if fails:
-            syms = [(i.ins_code, i.SymbolOriginal) for i in selected_syms_df]
-            title = "Incomplete Price Update"
-            succs = list(map((lambda x: syms[x]), succs))
-            fails = list(map((lambda x: syms[x]), fails))
-            err = (title, succs, fails)
-            result["error"] = (3, err)
-            for v, i, a in selected_syms_df:
-                if fails.include(v.ins_code):
-                    a[i] = None
-                else:
-                    a[i] = 0
-        if merge_similar_symbols:
-            selected_syms_df = selected_syms_df[:extras_index]
-
-        columns = self.settings["columns"]
-
-        def col(col_name):
-            row = col_name
-            column = TSEColumn(row)
-            final_header = column.header or column.name
-            return {column, final_header}
-
-        columns = list(map(col, self.settings["columns"]))
-        """
-        """
         pi = progressbar.prog_tot * 0.20 / selected_syms_df.length
         """
 
         return res
-
-    # TODO: delete
-    """
-    async def get_instruments(self, struct=True, arr=True, struct_key="InsCode"):
-        get instruments
-
-        :struct: bool, return structure
-        :arr: bool, return array
-        :structKey: str, key to use for structure
-
-        :return: dict, instruments
-        valids = None
-        # TODO: complete
-        if valids.indexOf(struct_key) == -1:
-            struct_key = "InsCode"
-
-        last_update = strg.get_item("tse.lastInstrumentUpdate")
-        err = await data_svs.update_instruments()
-        if err and not last_update:
-            raise err
-        return await strg.read_tse_csv("tse.instruments")
-    """

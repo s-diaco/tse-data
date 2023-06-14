@@ -2,6 +2,7 @@
 manage cached data
 """
 
+import datetime
 from dtse.data_services import adjust
 import pandas as pd
 
@@ -26,6 +27,7 @@ class TSECache:
         self.symbol_as_dict_key: bool = False
         self.selected_syms = pd.DataFrame()
         self._instruments=pd.DataFrame()
+        self._splits = pd.DataFrame()
         self.stored_prices = {}
         self.stored_prices_merged = {}
         self.merges = []
@@ -37,7 +39,7 @@ class TSECache:
         self._refresh_instrums()
         self.refresh_splits()
         self.last_devens = {}
-        self.last_instrument_update=self.strg.get_item("tse.lastInstrumentUpdate")
+        self._last_instrument_update=self.strg.get_item("tse.lastInstrumUpdate")
 
     @property
     def instruments(self):
@@ -45,8 +47,38 @@ class TSECache:
         return self._instruments
 
     @instruments.setter
-    def radius(self, value:pd.Dataframe):
-        self._instruments = value
+    def instruments(self, value:pd.Dataframe):
+        if not value.empty:
+            self._instruments = value
+            if self.settings["cache"]:
+                filename = "tse.instruments"
+                self.storage.write_tse_csv_blc(f_name=filename, data= self._instruments)
+                today = datetime.now().strftime("%Y%m%d")
+                if self._last_instrument_update != today:
+                    self._last_instrument_update = today
+                    self.storage.set_item("tse.lastInstrumUpdate", today)
+
+    @property
+    def splits(self):
+        """stock splits and their dates"""
+        return self._splits
+
+    @splits.setter
+    def splits(self, value:pd.DataFrame()):
+        if not value.empty:
+            self._splits = value
+            if self.settings["cache"]:
+                filename = "tse.splits"
+                self.storage.write_tse_csv_blc(f_name=filename, data= self._instruments)
+                today = datetime.now().strftime("%Y%m%d")
+                if self._last_instrument_update != today:
+                    self._last_instrument_update = today
+                    self.storage.set_item("tse.lastInstrumUpdate", today)
+
+    @property
+    def last_instrument_update(self):
+        """last date of updating list of instrument and splits"""
+        return self._last_instrument_update
 
     def refresh_prices(self, selected_syms: pd.DataFrame, symbol_as_dict_key=False):
         """

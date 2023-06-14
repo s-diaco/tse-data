@@ -27,5 +27,5 @@ def parse_shares() -> pd.DataFrame:
 
     :return: pd.DataFrame, parsed shares data
     """
-    splits = Storage().read_tse_csv_blc("tse.shares")
+    splits = Storage().read_tse_csv_blc("tse.splits")
     return splits
