@@ -1,47 +1,16 @@
 """
 tests for the data_services module
 """
-import json
+
 import re
-import time
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from dtse import data_services, data_structs
 from dtse.cache_manager import TSECache
 
-
-def test_adjust():
-    """
-    Test the adjust function.
-    """
-
-    cond = 1
-    ins_codes = [35796086458096255]
-
-    # parse sample data for closing prices
-    sample_closing_prices_path = "sample_data/closing_prices.csv"
-    closing_prices = pd.read_csv(sample_closing_prices_path)
-    closing_prices = closing_prices.set_index(keys=["InsCode", "DEven"])
-
-    adjusted_closing_prices_path = "sample_data/adjusted_closing_prices.csv"
-    expected_res = pd.read_csv(adjusted_closing_prices_path).set_index(
-        keys=["InsCode", "DEven"]
-    )
-
-    # parse sample data for stock splits
-    sample_all_shares_path = "sample_data/all_shares.csv"
-    splits = pd.read_csv(sample_all_shares_path)
-    splits = splits.set_index(keys=["InsCode", "DEven"])
-    splits = splits.drop(labels=["Idn"], axis=1)
-    start_time = time.time()
-    res = data_services.adjust(cond, closing_prices, splits, ins_codes)
-    end_time = time.time()
-    total = end_time - start_time
-    assert len(np.array(res)) == len(np.array(expected_res))
-
+from dtse import data_services
 
 test_data = [
     ("20220103", "20220302", True),
@@ -74,5 +43,7 @@ async def test_update_instruments():
     """
     Test the update_instruments function.
     """
-    await data_services.update_instruments()
+
+    cache = TSECache()
+    await data_services.update_instruments(cache=cache)
     assert True

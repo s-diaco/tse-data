@@ -19,7 +19,7 @@ class TSE:
     Manage TSE Data
     """
 
-    tse_cache: TSECache
+    cache: TSECache
     progressbar: ProgressBar
 
     def __init__(self):
@@ -38,7 +38,7 @@ class TSE:
         :return: DataFrame, symbols to update
         """
 
-        cache = self.tse_cache
+        cache = self.cache
         to_update = selection[["InsCode", "DEven", "YMarNSC"]]
         # TODO: Ensure it returns the last value not the first one.
         # is it good to store last_devens in a file?
@@ -122,12 +122,12 @@ class TSE:
             progressbar.prog_func(progressbar.prog_n)
         """
 
-        self.tse_cache = TSECache(
+        self.cache = TSECache(
             merge_similar_symbols=self.settings["merge_similar_symbols"],
             cache=self.settings["cache"],
         )
-        await data_svs.update_instruments(self.tse_cache)
-        instruments = self.tse_cache.instruments
+        await data_svs.update_instruments(self.cache)
+        instruments = self.cache.instruments
         # TODO: does it return the full list before 8:30 a.m.?
         selected_syms = instruments[instruments["Symbol"].isin(symbols)]
         if selected_syms.empty:
@@ -146,25 +146,26 @@ class TSE:
                 progressbar.prog_func(progressbar.prog_tot)
         """
 
-        self.tse_cache.refresh_prices(selected_syms=selected_syms)
+        self.cache.read_prc_csv(selected_syms=selected_syms)
         to_update = await self._get_expired_prices(selected_syms)
-        price_manager = PricesUpdateManager(cache_manager=self.tse_cache)
+        price_manager = PricesUpdateManager(cache_manager=self.cache)
         update_result = await price_manager.start(
             update_needed=to_update,
             settings=self.settings,
             progressbar=self.progressbar,
         )
+        res = update_result
         if self.settings["merge_similar_symbols"]:
-            self.tse_cache.refresh_prices_merged(selected_syms=selected_syms)
-        res = {}
-        for inst in self.tse_cache.merged_instruments[
-            self.tse_cache.merged_instruments["SymbolOriginal"].isin(
-                selected_syms["Symbol"].values
-            )
-        ].to_dict(orient="records"):
-            res[inst["Symbol"]] = self.tse_cache.get_instrument_prices(
-                inst, self.settings
-            )
+            self.cache.refresh_prices_merged(selected_syms=selected_syms)
+            # TODO: is redundant
+            for inst in self.cache.merged_instruments[
+                self.cache.merged_instruments["SymbolOriginal"].isin(
+                    selected_syms["Symbol"].values
+                )
+            ].to_dict(orient="records"):
+                res[inst["Symbol"]] = self.cache.get_instrument_prices(
+                    inst, self.settings
+                )
 
         """
         progressbar.prog_n = update_result

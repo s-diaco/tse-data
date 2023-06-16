@@ -26,5 +26,5 @@ async def test_get_items():
     """
 
     instanse = storage.Storage()
-    res = instanse.get_items(["prices.test2"])
+    res = instanse.read_prc_csv(["prices.test2"])
     assert len(res) < 2

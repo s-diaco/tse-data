@@ -4,12 +4,11 @@ functions to manage tse data
 import re
 from datetime import datetime
 from io import StringIO
-import time
-from dtse.cache_manager import TSECache
 
 import jdatetime
-import numpy as np
 import pandas as pd
+
+from dtse.cache_manager import TSECache
 
 from . import config as cfg
 from . import tse_utils
@@ -17,143 +16,6 @@ from .setup_logger import logger
 from .storage import Storage
 from .tse_parser import parse_instruments, parse_shares
 from .tse_request import TSERequest
-
-
-def adjust(
-    cond: int,
-    closing_prices: pd.DataFrame,
-    splits: pd.DataFrame,
-    ins_codes: list[int],
-):
-    """
-    Adjust closing prices according to the condition
-    0: make no adjustments
-    1: adjust according to dividends and splits (yday price / close of yesterday)
-    2: adjust according to splits
-    3: adjust according to cash dividends
-
-    :cond: int, price adjust type. can be 0 (no adjustment), 1 or 2
-    :closing_prices: pd.DataFrame, prices (daily time frame) for a stock symbol
-    :splits: pd.DataFrame, stock splits and their dates
-    :ins_codes: list, instrument codes
-
-    :return: pd.DataFrame, adjusted closing prices
-    """
-
-    # TODO: use only new method after timing both
-    # TODO: should work when there is multple codes
-    new_method = True
-    if new_method:
-        cl_pr = closing_prices
-        cl_pr_cols = list(cl_pr.columns)
-        cp_len = len(closing_prices)
-        if cond and cp_len > 1:
-            for ins_code in ins_codes:
-                filtered_shares = splits[splits.index.isin([ins_code], level="InsCode")]
-                if cond in [1, 3]:
-                    cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
-                    cl_pr["YDayDiff"] = cl_pr["PClosing"] / cl_pr["ShiftedYDay"]
-                if cond in [2, 3]:
-                    cl_pr = cl_pr.join(filtered_shares[["StockSplits"]]).fillna(0)
-                    filtered_shares["StockSplits"] = (
-                        filtered_shares["NumberOfShareNew"]
-                        / filtered_shares["NumberOfShareOld"]
-                    )
-                if cond == 1:
-                    cl_pr["YDayDiffFactor"] = (
-                        (1 / cl_pr.YDayDiff.iloc[::-1])
-                        .replace(np.inf, 1)
-                        .cumprod()
-                        .iloc[::-1]
-                    )
-                    cl_pr["AdjPClosing"] = cl_pr.YDayDiffFactor * cl_pr.PClosing
-                elif cond == 2:
-                    cl_pr["SplitFactor"] = (
-                        (1 / cl_pr.StockSplits.iloc[::-1])
-                        .replace(np.inf, 1)
-                        .cumprod()
-                        .iloc[::-1]
-                    )
-                    cl_pr["AdjPClosing"] = cl_pr.SplitFactor * cl_pr.PClosing
-                elif cond == 3:
-                    cl_pr["DividDiff"] = 1
-                    cl_pr.loc[
-                        ~cl_pr["YDayDiff"].isin([1]) & cl_pr["StockSplits"].isin([0]),
-                        "DividDiff",
-                    ] = cl_pr[["YDayDiff"]]
-                    cl_pr["DividDiffFactor"] = (
-                        (1 / cl_pr.DividDiff.iloc[::-1])
-                        .replace(np.inf, 1)
-                        .cumprod()
-                        .iloc[::-1]
-                    )
-                    cl_pr["AdjPClosing"] = cl_pr.DividDiffFactor * cl_pr.PClosing
-                cl_pr_cols.append("AdjPClosing")
-        return cl_pr[cl_pr_cols]
-
-    filtered_shares = splits[splits.index.isin(ins_codes, level="InsCode")]
-    cl_pr = closing_prices
-    cp_len = len(closing_prices)
-    adjusted_cl_prices = []
-    res = cl_pr
-    if cond and cp_len > 1:
-        gaps = 0
-        num = 1
-        adjusted_cl_prices.append(cl_pr.iloc[-1].to_dict())
-        if cond == 1:
-            for i in range(cp_len - 2, -1, -1):
-                curr_prcs = cl_pr.iloc[i]
-                next_prcs = cl_pr.iloc[i + 1]
-                if (
-                    curr_prcs.PClosing != next_prcs.PriceYesterday
-                    and curr_prcs.InsCode == next_prcs.InsCode
-                ):
-                    gaps += 1
-        if (cond == 1 and (gaps / cp_len < 0.08)) or cond == 2:
-            for i in range(cp_len - 2, -1, -1):
-                curr_prcs = cl_pr.iloc[i]
-                next_prcs = cl_pr.iloc[i + 1]
-                prcs_dont_match = (curr_prcs.PClosing != next_prcs.PriceYesterday) and (
-                    curr_prcs.InsCode == next_prcs.InsCode
-                )
-                if cond == 1 and prcs_dont_match:
-                    num = num * next_prcs.PriceYesterday / curr_prcs.PClosing
-                elif (
-                    cond == 2
-                    and prcs_dont_match
-                    and filtered_shares.index.isin(
-                        [next_prcs.DEven], level="DEven"
-                    ).any()
-                ):
-                    target_share = filtered_shares.xs(
-                        next_prcs.DEven, level="DEven"
-                    ).iloc[0]
-                    old_shares = target_share["NumberOfShareOld"]
-                    new_shares = target_share["NumberOfShareNew"]
-                    num = num * old_shares / new_shares
-                close = round(num * float(curr_prcs.PClosing), 2)
-                last = round(num * float(curr_prcs.PDrCotVal), 2)
-                low = round(num * float(curr_prcs.PriceMin), 2)
-                high = round(num * float(curr_prcs.PriceMax), 2)
-                yday = round(num * float(curr_prcs.PriceYesterday), 2)
-                first = round(num * float(curr_prcs.PriceFirst), 2)
-
-                adjusted_closing_price = {
-                    "InsCode": curr_prcs.InsCode,
-                    "DEven": curr_prcs.DEven,
-                    "PClosing": close,
-                    "PDrCotVal": last,
-                    "PriceMin": low,
-                    "PriceMax": high,
-                    "PriceYesterday": yday,
-                    "PriceFirst": first,
-                    "ZTotTran": curr_prcs.ZTotTran,
-                    "QTotTran5J": curr_prcs.QTotTran5J,
-                    "QTotCap": curr_prcs.QTotCap,
-                }
-                adjusted_cl_prices.append(adjusted_closing_price)
-            res = pd.DataFrame(adjusted_cl_prices[::-1])
-    return res.astype(int)
 
 
 def get_cell(column_name, instrument, closing_price) -> str:
@@ -214,10 +76,10 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
     :return: bool, True if the database should be updated, False otherwise
     """
 
-    if (not deven) or deven == "0":
+    if (not deven) or (not last_possible_deven) or deven == "0":
         return True  # first time. never updated
     today = datetime.now()
-    today_deven = today.strftime("%Y%m%d")
+    today_str = today.strftime("%Y%m%d")
     days_passed = abs(
         (
             datetime.strptime(last_possible_deven, "%Y%m%d")
@@ -226,7 +88,7 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
     )
     in_weekend = today.weekday() in [4, 5]
     last_update_weekday = datetime.strptime(last_possible_deven, "%Y%m%d").weekday()
-    today_is_lpd = today_deven == last_possible_deven
+    today_is_lpd = today_str == last_possible_deven
     shd_upd = (
         days_passed >= cfg.UPDATE_INTERVAL
         and

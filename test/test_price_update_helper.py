@@ -1,5 +1,5 @@
 """
-test price_ipdate_helper
+test price_update_helper
 """
 import json
 from pandas import DataFrame
@@ -18,8 +18,8 @@ def fixture_resp_data():
     get response data
     """
     test_data_file = "sample_data/prices_update_helper.json"
-    with open(test_data_file, "r", encoding="utf-8") as f:
-        test_data = json.load(f)["start"]
+    with open(test_data_file, "r", encoding="utf-8") as file:
+        test_data = json.load(file)["start"]
         update_needed = test_data["update_needed"]
         yield update_needed
 
@@ -31,15 +31,15 @@ async def test_start(resp_data):
     """
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
-    cache_manager = TSECache(merge_similar_symbols=True)
-    cache_manager._refresh_instrums()
-    if cache_manager.instruments.empty:
-        await update_instruments()
-    cache_manager._refresh_instrums()
-    instruments = cache_manager.instruments
+    cache = TSECache(merge_similar_symbols=True, cache=False)
+    cache._read_instrums_csv()
+    if cache.instruments.empty:
+        await update_instruments(cache=cache)
+    cache._read_instrums_csv()
+    instruments = cache.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
-    cache_manager.refresh_prices(selected_syms)
-    pu_helper = PricesUpdateManager(cache_manager)
+    cache.read_prc_csv(selected_syms)
+    pu_helper = PricesUpdateManager(cache)
     update_needed = DataFrame(resp_data, columns=["InsCode", "DEven", "NotInNoMarket"])
     await pu_helper.start(
         update_needed=update_needed,

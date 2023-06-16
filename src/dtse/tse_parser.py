@@ -7,7 +7,7 @@ from .storage import Storage
 
 
 def parse_instruments(
-    strg: TSEStorage, itd=False, dict_key="InsCode", **kwargs
+    strg: Storage, itd=False, dict_key="InsCode", **kwargs
 ) -> pd.DataFrame:
     """
     parse instrument data
@@ -17,7 +17,9 @@ def parse_instruments(
     :return: pd.DataFrame, parsed instrument data
     """
 
-    instrums = strg.read_tse_csv_blc("tse.instruments").set_index("InsCode")
+    instrums = strg.read_tse_csv_blc("tse.instruments")
+    if not instrums.empty:
+        instrums = instrums.set_index("InsCode")
     return instrums
 
 

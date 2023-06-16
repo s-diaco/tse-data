@@ -69,15 +69,21 @@ class Storage:
         with open(file_path, "w+", encoding="utf-8") as f:
             f.write(value)
 
-    def get_items(self, f_names: list[str]) -> dict:
+    def read_prc_csv(self, f_names: list[str]) -> pd.DataFrame:
         """
-        Reads selected instruments files from the cache dir and returns a dict
+        Reads selected instruments files from the cache dir and returns a dict.
+
+        :f_names: list[str], list of file names to read from.
 
         :return: dict
         """
 
-        res = {}
-        res = {name: self.read_tse_csv_blc(f"prices.{name}") for name in f_names}
+        prices_list = [self.read_tse_csv_blc(f"prices.{name}") for name in f_names]
+        prices_list = [prcs for prcs in prices_list if not prcs.empty]
+        if prices_list:
+            res = pd.concat(prices_list).set_index(["InsCode", "DEven"]).sort_index
+        else:
+            res = pd.DataFrame()
         return res
 
     @property
