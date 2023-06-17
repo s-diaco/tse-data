@@ -64,7 +64,7 @@ class TSERequest:
 
         :return: str, response
 
-        :raise: aiohttp.ClientError, if request failed
+        :raise: aiohttp.ClientResponseError, if request failed
         """
         try:
             async with aiohttp.ClientSession() as session:

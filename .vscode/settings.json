@@ -21,4 +21,5 @@
     },
     "python.formatting.provider": "black",
     "editor.formatOnSaveMode": "file",
+    "editor.defaultFormatter": "ms-python.black-formatter",
 }
