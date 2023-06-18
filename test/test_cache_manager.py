@@ -83,7 +83,6 @@ def test_adjust():
     sample_all_shares_path = "sample_data/all_shares.csv"
     splits = pd.read_csv(sample_all_shares_path)
     splits = splits.set_index(keys=["InsCode", "DEven"])
-    splits = splits.drop(labels=["Idn"], axis=1)
     cache = TSECache()
     start_time = time.time()
     res = cache.adjust(cond, closing_prices, ins_codes)

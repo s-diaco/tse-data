@@ -6,15 +6,11 @@ import pandas as pd
 from .storage import Storage
 
 
-def parse_instruments(
-    strg: Storage, itd=False, dict_key="InsCode", **kwargs
-) -> pd.DataFrame:
+def parse_instruments(strg: Storage, **kwargs) -> pd.DataFrame:
     """
-    parse instrument data
+    Parse instruments list and their data from cached files.
 
-    :param itd: bool, if True, parse instruments in intraday data api
-
-    :return: pd.DataFrame, parsed instrument data
+    :return: pd.DataFrame, Instrument data
     """
 
     instrums = strg.read_tse_csv_blc("tse.instruments")

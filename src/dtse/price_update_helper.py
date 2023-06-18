@@ -8,12 +8,12 @@ from io import StringIO
 
 import pandas as pd
 
+from dtse import config as cfg
 from dtse.cache_manager import TSECache
-
-from . import config as cfg
-from .progress_bar import ProgressBar
-from .storage import Storage
-from .tse_request import TSERequest
+from dtse.progress_bar import ProgressBar
+from dtse.setup_logger import logger as tse_logger
+from dtse.storage import Storage
+from dtse.tse_request import TSERequest
 
 
 class PricesUpdateManager:
@@ -148,6 +148,8 @@ class PricesUpdateManager:
         :settings: dict, should_cache & merge_similar_symbols & ...
         :progress_dict: dict, data needed for progress bar
         """
+
+        tse_logger.info("Getting ready to download prices.")
         self.should_cache = settings["cache"]
         self.merge_similar_syms = settings["merge_similar_symbols"]
         self.progressbar = progressbar

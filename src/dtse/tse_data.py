@@ -3,15 +3,13 @@ Manage TSE Data
 """
 
 import pandas as pd
-from pandas import DataFrame
 
+from dtse import config as cfg
+from dtse import data_services as data_svs
 from dtse.cache_manager import TSECache
-
-from . import config as cfg
-from . import data_services as data_svs
-from .price_update_helper import PricesUpdateManager
-from .progress_bar import ProgressBar
-from .setup_logger import logger as tse_logger
+from dtse.price_update_helper import PricesUpdateManager
+from dtse.progress_bar import ProgressBar
+from dtse.setup_logger import logger as tse_logger
 
 
 class TSE:
@@ -26,7 +24,7 @@ class TSE:
         self.settings = cfg.default_settings
         self.progressbar = ProgressBar()
 
-    async def _get_expired_prices(self, selection) -> DataFrame:
+    async def _get_expired_prices(self, selection) -> pd.DataFrame:
         """
         check if there is no updated cached data for symbol and return a dataframe
         containing that symbols (InsCode, DEven, YMarNSC)
@@ -35,24 +33,25 @@ class TSE:
         :self.settings: dict, configs for the module
         :percents: dict, progress bar data
 
-        :return: DataFrame, symbols to update
+        :return: pd.DataFrame, symbols to update
         """
 
         cache = self.cache
         to_update = selection[["InsCode", "DEven", "YMarNSC"]]
         # TODO: Ensure it returns the last value not the first one.
         # is it good to store last_devens in a file?
-        last_devens = DataFrame(
+        last_devens = pd.DataFrame(
             {
                 prc_df.iloc[-1].name[0]: prc_df.iloc[-1].name[1]
-                for prc_df in cache.stored_prices.values()
+                for prc_df in cache.stored_prices.values
             }.items(),
             columns=["InsCode", "cached_DEven"],
         ).astype("int64")
         first_possible_deven = self.settings["start_date"]
         if not last_devens.empty:
             last_possible_deven = await data_svs.get_last_possible_deven()
-            # merge selection with last_devens (from cached data) to find out witch syms need an update
+            # merge selection with last_devens (from cached data)
+            # to find out witch syms need an update
             sel_merged = selection.merge(last_devens, how="left", on="InsCode")
             # symbol doesn't have data
             sel_merged.cached_DEven = sel_merged.cached_DEven.fillna(
