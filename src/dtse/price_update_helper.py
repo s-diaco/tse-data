@@ -48,40 +48,51 @@ class PricesUpdateManager:
         ins_codes = chunk.InsCode.values.astype(int)
         pattern = re.compile(r"^[\d.,;@-]+$")
         if isinstance(response, str) and (pattern.search(response) or response == ""):
-            res = response.split("@")
-            if len(ins_codes) != len(res):
-                raise ValueError()
-
-            for i, ins_code in enumerate(ins_codes):
-                self.succs.append(ins_code)
-                col_names = cfg.tse_closing_prices_info
-                line_terminator = ";"
-                file_name = ins_code
-                new_data = pd.read_csv(
-                    StringIO(res[i]),
+            resp_list = response.split("@")
+            if len(ins_codes) != len(resp_list):
+                raise ValueError(
+                    f"requested {len(ins_codes)} codes, got {len(resp_list)}"
+                )
+            df_list = [self.cache_manager.stored_prices]
+            col_names = cfg.tse_closing_prices_info
+            line_terminator = ";"
+            new_prc_df_list = [
+                pd.read_csv(
+                    StringIO(resp),
                     names=col_names,
                     lineterminator=line_terminator,
                     index_col=["InsCode", "DEven"],
                 )
-                if not new_data.empty:
-                    old_data = pd.DataFrame()
-                    if (
-                        ins_code in self.cache_manager.stored_prices
-                        and not self.cache_manager.stored_prices[ins_code].empty
-                    ):
-                        old_data = self.cache_manager.stored_prices[ins_code]
-                    data = (
-                        new_data if old_data.empty else pd.concat([old_data, new_data])
+                for resp in resp_list
+                if resp
+            ]
+            df_list.extend(new_prc_df_list)
+            self.cache_manager.stored_prices = pd.concat(df_list).sort_index()
+            self.succs.extend(ins_codes)
+
+            # TODO: delete if inscode_lastdeven file is not used
+            self.cache_manager.last_devens = (
+                self.cache_manager.stored_prices.reset_index()
+                .groupby("InsCode")["DEven"]
+                .max()
+            )
+
+            # TODO: Delete?
+            """
+            self.writing.append(
+                self.should_cache
+                and self.strg.write_tse_csv_blc(f_name=filename, data=data)
+            )"""
+
+            if self.should_cache:
+                for ins_code in self.cache_manager.stored_prices.index.levels[0]:
+                    filename = f"tse.prices.{ins_code}"
+                    data = self.cache_manager.stored_prices.xs(
+                        ins_code, drop_level=False
                     )
-                    self.cache_manager.stored_prices[ins_code] = data
-                    # TODO: delete if inscode_lastdeven file is not used
-                    self.cache_manager.last_devens[ins_code] = new_data.iloc[-1, 1]
-                    filename = f"tse.prices.{file_name}"
-                    self.writing.append(
-                        self.should_cache
-                        and self.strg.write_tse_csv_blc(f_name=filename, data=data)
-                    )
+                    self.strg.write_tse_csv_blc(f_name=filename, data=data)
             self.fails = [x for x in self.fails if x not in ins_codes]
+
             """
             if self.progressbar.prog_func:
                 filled = (

@@ -35,7 +35,7 @@ class TSECache:
             self.settings.update(tse_cache_kwargs)
         self._read_instrums_csv()
         self.read_splits_csv()
-        self.last_devens = {}
+        self.last_devens = pd.DataFrame()
         self._last_instrument_update = self.storage.get_item("tse.lastInstrumUpdate")
 
     @property
