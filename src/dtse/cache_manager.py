@@ -68,7 +68,7 @@ class TSECache:
             cache_to_file = self.settings["cache"] if "cache" in self.settings else True
             if cache_to_file:
                 filename = "tse.splits"
-                self.storage.write_tse_csv_blc(f_name=filename, data=self._instruments)
+                self.storage.write_tse_csv_blc(f_name=filename, data=self._splits)
                 today = datetime.now().strftime("%Y%m%d")
                 if self._last_instrument_update != today:
                     self._last_instrument_update = today
