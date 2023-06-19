@@ -33,10 +33,10 @@ class TSECache:
         self.settings = {}
         if tse_cache_kwargs:
             self.settings.update(tse_cache_kwargs)
+        self._last_instrument_update = self.storage.get_item("tse.lastInstrumUpdate")
         self._read_instrums_csv()
         self.read_splits_csv()
-        self.last_devens = pd.DataFrame()
-        self._last_instrument_update = self.storage.get_item("tse.lastInstrumUpdate")
+        self.last_devens = pd.Series()
 
     @property
     def instruments(self):
@@ -85,6 +85,7 @@ class TSECache:
         self.stored_prices and self.stored_prices_merged
         """
 
+        # TODO: do not load all price files at one. there may be hundreds of them.
         self.selected_syms = selected_syms
         self.stored_prices = self.storage.read_prc_csv(
             f_names=self.selected_syms.index.tolist()

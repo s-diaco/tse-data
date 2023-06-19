@@ -5,3 +5,5 @@ https://realpython.com/async-io-python/#a-full-program-asynchronous-requests
 -remove unnecessary requirements from reuiremewnts.txt
 does آ اس پ create any problems?
 dtse does not have a version number yet
+add jalali date to prices
+https://hypothesis.readthedocs.io/en/latest/quickstart.html
