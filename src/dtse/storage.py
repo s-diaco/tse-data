@@ -81,7 +81,7 @@ class Storage:
         prices_list = [self.read_tse_csv_blc(f"prices.{name}") for name in f_names]
         prices_list = [prcs for prcs in prices_list if not prcs.empty]
         if prices_list:
-            res = pd.concat(prices_list).set_index(["InsCode", "DEven"]).sort_index
+            res = pd.concat(prices_list).set_index(["InsCode", "DEven"]).sort_index()
         else:
             res = pd.DataFrame()
         return res

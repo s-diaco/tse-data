@@ -71,18 +71,18 @@ def test_adjust():
 
     # parse sample data for closing prices
     sample_closing_prices_path = "sample_data/closing_prices.csv"
-    closing_prices = pd.read_csv(sample_closing_prices_path)
-    closing_prices = closing_prices.set_index(keys=["InsCode", "DEven"])
+    closing_prices = pd.read_csv(
+        sample_closing_prices_path, index_col=["InsCode", "DEven"]
+    )
 
     adjusted_closing_prices_path = "sample_data/adjusted_closing_prices.csv"
-    expected_res = pd.read_csv(adjusted_closing_prices_path).set_index(
-        keys=["InsCode", "DEven"]
+    expected_res = pd.read_csv(
+        adjusted_closing_prices_path, index_col=["InsCode", "DEven"]
     )
 
     # parse sample data for stock splits
     sample_all_shares_path = "sample_data/all_shares.csv"
-    splits = pd.read_csv(sample_all_shares_path)
-    splits = splits.set_index(keys=["InsCode", "DEven"])
+    splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
     cache = TSECache()
     start_time = time.time()
     res = cache.adjust(cond, closing_prices, ins_codes)

@@ -119,3 +119,17 @@ cols_fa = [
     "نام لاتین",
     "کد شرکت",
 ]
+
+renames = {
+    "InsCode": "code",  # int64
+    "DEven": "date",  # int32
+    "PClosing": "close",
+    "PDrCotVal": "last",
+    "ZTotTran": "number",  # تعداد معاملات
+    "QTotTran5J": "volume",  # حجم معاملات
+    "QTotCap": "value",  # ارزش معاملات
+    "PriceMin": "min",
+    "PriceMax": "max",
+    "PriceYesterday": "yday",
+    "PriceFirst": "first",
+}

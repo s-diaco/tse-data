@@ -167,12 +167,16 @@ async def update_instruments(cache: TSECache) -> None:
                 names=inst_col_names,
                 lineterminator=line_terminator,
                 converters=converters,
-            ).set_index("InsCode")
+                index_col="InsCode",
+            )
             cache.instruments = instrums_df
         if shares == "":
             logger.warning("Already updated: Shares")
         else:
             shares_df = pd.read_csv(
-                StringIO(shares), names=share_col_names, lineterminator=line_terminator
-            ).set_index(["InsCode", "DEven"])
+                StringIO(shares),
+                names=share_col_names,
+                lineterminator=line_terminator,
+                index_col=["InsCode", "DEven"],
+            )
             cache.splits = shares_df

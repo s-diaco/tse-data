@@ -102,7 +102,7 @@ class TSECache:
         if self._last_instrument_update != today:
             self._last_instrument_update = today
             key = "lastInstrumUpdate"
-            file_path = self.cache_dir / (key + ".csv")
+            file_path = self.cache_dir / "{key}.csv"
             with open(file_path, "w+", encoding="utf-8") as file:
                 file.write(today)
 
@@ -148,11 +148,16 @@ class TSECache:
 
         csv_dir = self.cache_dir / self.settings["PRICES_DIR"]
         prices_list = [
-            pd.read_csv(csv_dir / f"{name}.csv", encoding="utf-8") for name in f_names
+            pd.read_csv(
+                csv_dir / f"{name}.csv",
+                encoding="utf-8",
+                index_col=["InsCode", "DEven"],
+            )
+            for name in f_names
         ]
         prices_list = [prcs for prcs in prices_list if not prcs.empty]
         if prices_list:
-            res = pd.concat(prices_list).set_index(["InsCode", "DEven"]).sort_index
+            res = pd.concat(prices_list).sort_index
         else:
             res = pd.DataFrame()
         return res
@@ -187,10 +192,10 @@ class TSECache:
         and updates "instruments" and "merged_instruments" properties
         """
 
-        instrums_file = self.cache_dir / ("instrums" + ".csv")
-        instrums = pd.read_csv(instrums_file, encoding="utf-8")
+        f_name = "instruments"
+        instrums_file = self.cache_dir / f"{f_name}.csv"
+        instrums = pd.read_csv(instrums_file, encoding="utf-8", index_col="InsCode")
         if not instrums.empty:
-            self._instruments = instrums.set_index("InsCode")
             self.merged_instruments = self._find_similar_syms()
 
     def read_splits_csv(self, **kwargs):
@@ -200,9 +205,7 @@ class TSECache:
 
         file = "splits"
         path = self.cache_dir / f"{file}.csv"
-        splits = pd.read_csv(path, encoding="utf-8")
-        if not splits.empty:
-            self._splits = splits.set_index(keys=["InsCode", "DEven"])
+        splits = pd.read_csv(path, encoding="utf-8", index_col=["InsCode", "DEven"])
 
     def _find_similar_syms(self) -> pd.DataFrame:
         """
