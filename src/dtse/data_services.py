@@ -14,7 +14,7 @@ from . import config as cfg
 from . import tse_utils
 from .setup_logger import logger
 from .storage import Storage
-from .tse_parser import parse_instruments, parse_shares
+from .tse_parser import parse_instruments, parse_splits
 from .tse_request import TSERequest
 
 

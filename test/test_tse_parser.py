@@ -18,5 +18,5 @@ async def test_parse_shares():
     test parse_instruments
     """
 
-    cached_shares = parser.parse_shares()
+    cached_shares = parser.parse_splits()
     assert len(cached_shares) > 0

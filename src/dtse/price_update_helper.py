@@ -35,17 +35,17 @@ class PricesUpdateManager:
         self.resolve = None
         # TODO: remove
         self.writing = []
-        self.should_cache: bool = True
+        self.cache_to_csv: bool = False
         # TODO: implement
         self.merge_similar_syms: bool = True
-        self.strg = Storage()
-        self.cache_manager = cache_manager
+        self.cache: TSECache = cache_manager
 
     async def _on_result(self, response, chunk, on_result_id):
         """
-        proccess response
+        Proccess response
         """
-        ins_codes = chunk.InsCode.values.astype(int)
+
+        ins_codes = chunk.index
         pattern = re.compile(r"^[\d.,;@-]+$")
         if isinstance(response, str) and (pattern.search(response) or response == ""):
             resp_list = response.split("@")
@@ -53,7 +53,6 @@ class PricesUpdateManager:
                 raise ValueError(
                     f"requested {len(ins_codes)} codes, got {len(resp_list)}"
                 )
-            df_list = [self.cache_manager.stored_prices]
             col_names = cfg.tse_closing_prices_info
             line_terminator = ";"
             new_prc_df_list = [
@@ -66,16 +65,8 @@ class PricesUpdateManager:
                 for resp in resp_list
                 if resp
             ]
-            df_list.extend(new_prc_df_list)
-            self.cache_manager.stored_prices = pd.concat(df_list).sort_index()
+            self.cache.add_to_stored_prices(new_prc_df_list)
             self.succs.extend(ins_codes)
-
-            # TODO: delete if inscode_lastdeven file is not used
-            self.cache_manager.last_devens = (
-                self.cache_manager.stored_prices.reset_index()
-                .groupby("InsCode")["DEven"]
-                .max()
-            )
 
             # TODO: Delete?
             """
@@ -84,13 +75,11 @@ class PricesUpdateManager:
                 and self.strg.write_tse_csv_blc(f_name=filename, data=data)
             )"""
 
-            if self.should_cache:
-                for ins_code in self.cache_manager.stored_prices.index.levels[0]:
+            if self.cache_to_csv:
+                for ins_code in self.cache.stored_prices.index.levels[0]:
                     filename = f"tse.prices.{ins_code}"
-                    data = self.cache_manager.stored_prices.xs(
-                        ins_code, drop_level=False
-                    )
-                    self.strg.write_tse_csv_blc(f_name=filename, data=data)
+                    data = self.cache.stored_prices.xs(ins_code, drop_level=False)
+                    self.cache.write_tse_csv(f_name=filename, data=data)
             self.fails = [x for x in self.fails if x not in ins_codes]
 
             """
@@ -119,22 +108,23 @@ class PricesUpdateManager:
 
         retries = cfg.PRICES_UPDATE_RETRY_COUNT
         back_off = cfg.PRICES_UPDATE_RETRY_DELAY  # seconds to try again
-        ins_codes = ";".join([",".join(map(str, x)) for x in chunk.values])
+        request_param_str = ",".join(
+            chunk.to_string(header=False, index_names=False).replace("\n", ";").split()
+        )
         for _ in range(retries):
             # TODO: is this line needed?
             self.timeouts[req_id] = chunk
 
             try:
                 tse_req = TSERequest()
-                res = await tse_req.closing_prices(ins_codes)
-                await self._on_result(res, chunk, req_id)
-                break
-            except:
+                res = await tse_req.closing_prices(request_param_str)
+            except Exception as ex:
                 retries -= 1
                 await asyncio.sleep(back_off)
                 # Double the waiting time after each retry
                 back_off = back_off * 2
-                continue
+                break
+            await self._on_result(res, chunk, req_id)
 
     async def _batch(self, chunks: list):
         """
@@ -148,7 +138,7 @@ class PricesUpdateManager:
     # TODO: fix calculations for progress_dict and return value
     async def start(
         self,
-        update_needed: pd.DataFrame,
+        upd_needed: pd.DataFrame,
         settings: dict,
         progressbar: ProgressBar,
     ) -> dict:
@@ -161,8 +151,10 @@ class PricesUpdateManager:
         """
 
         tse_logger.info("Getting ready to download prices.")
-        self.should_cache = settings["cache"]
-        self.merge_similar_syms = settings["merge_similar_symbols"]
+        if "cache" in settings:
+            self.cache_to_csv = settings["cache"]
+        if "merge_similar_symbols" in settings:
+            self.merge_similar_syms = settings["merge_similar_symbols"]
         self.progressbar = progressbar
         # each successful request
         """
@@ -175,10 +167,8 @@ class PricesUpdateManager:
             cfg.PRICES_UPDATE_RETRY_COUNT + 2
         )
         """
-        # Yield successive evenly sized chunks from 'update_needed'.
-        chunks = [
-            update_needed[i : i + cfg.PRICES_UPDATE_CHUNK]
-            for i in range(0, len(update_needed), cfg.PRICES_UPDATE_CHUNK)
-        ]
+        # Yield successive evenly sized chunks from 'upd_needed'.
+        n_rows = cfg.PRICES_UPDATE_CHUNK
+        chunks = [upd_needed[i : i + n_rows] for i in range(0, len(upd_needed), n_rows)]
         await self._batch(chunks)
         return {"succs": self.succs, "fails": self.fails}

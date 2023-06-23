@@ -42,7 +42,7 @@ async def test_start(resp_data):
     pu_helper = PricesUpdateManager(cache)
     update_needed = DataFrame(resp_data, columns=["InsCode", "DEven", "NotInNoMarket"])
     await pu_helper.start(
-        update_needed=update_needed,
+        upd_needed=update_needed,
         settings={"cache": False, "merge_similar_symbols": True},
         progressbar=ProgressBar(),
     )

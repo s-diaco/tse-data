@@ -19,7 +19,7 @@ def parse_instruments(strg: Storage, **kwargs) -> pd.DataFrame:
     return instrums
 
 
-def parse_shares() -> pd.DataFrame:
+def parse_splits() -> pd.DataFrame:
     """
     parse shares data (changes in total shares for each symbol)
 

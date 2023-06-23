@@ -13,27 +13,30 @@ from dtse.setup_logger import logger as tse_logger
 
 class TSECache:
     """
-    price data cached in csv files
+    Manage TSE data cached in memory and/or csv files
     """
 
-    def __init__(self, **tse_cache_kwargs) -> None:
+    def __init__(self, settings) -> None:
         """
-        initialize TSECachedPrices class
+        Initialize TSECache class
+
+        :settings: dict, Configuration from config file and user input.
         """
 
-        self._instruments = pd.DataFrame()
-        self._splits = pd.DataFrame()
-        self.stored_prices = pd.DataFrame()
-        self.stored_prices_merged = pd.DataFrame()
-        self.merged_instruments = pd.DataFrame()
-        self.settings = {}
-        if tse_cache_kwargs:
-            self.settings.update(tse_cache_kwargs)
+        self.settings = settings
+        self._instruments: pd.DataFrame | None = None
+        self._splits: pd.DataFrame | None = None
+        self._stored_prices: pd.DataFrame | None = None
+        self._stored_prices_merged: pd.DataFrame | None = None
+        self.merged_instruments: pd.DataFrame | None = None
+        # TODO: delete if not used
+        self.last_devens: pd.Series | None = None
+        self.cache_to_csv = self.settings["cache"] if "cache" in self.settings else True
+        if self.cache_to_csv:
+            self._init_cache_dir(settings)
         self._last_instrument_update = self._get_last_inst_upd()
         self._read_instrums_csv()
-        self.read_splits_csv()
-        self.last_devens = pd.Series()
-        self.cache_to_csv = self.settings["cache"] if "cache" in self.settings else True
+        self._read_splits_csv()
 
     def _get_last_inst_upd(self) -> str:
         """
@@ -51,7 +54,7 @@ class TSECache:
         with open(file_path, "r", encoding="utf-8") as file:
             return file.read()
 
-    def _init_cache_dir(self, **kwargs) -> None:
+    def _init_cache_dir(self, settings) -> None:
         data_dir = Path(self.settings["TSE_CACHE_DIR"])
         path_file = Path(self.settings["PATH_FILE_NAME"])
         home = Path.home()
@@ -67,8 +70,8 @@ class TSECache:
                 file.write(str(self._data_dir))
 
         self._data_dir.mkdir(parents=True, exist_ok=True)
-        if "tse_dir" in kwargs:
-            self._data_dir = Path(kwargs["tse_dir"])
+        if "tse_dir" in settings:
+            self._data_dir = Path(settings["tse_dir"])
         tse_logger.info("data dir: %s", self._data_dir)
 
     @property
@@ -122,6 +125,35 @@ class TSECache:
                 self._save_last_inst_upd()
 
     @property
+    def stored_prices(self):
+        """Price data. Can be None or pd.DataFrame"""
+        if self._stored_prices is not None:
+            if not self._stored_prices.empty:
+                return self._stored_prices.sort_index()
+        return None
+
+    @property
+    def stored_prices_merged(self):
+        """Price data. Can be None or pd.DataFrame"""
+        if self._stored_prices_merged is not None:
+            return self._stored_prices_merged.sort_index()
+        return None
+
+    def add_to_stored_prices(self, value: list[pd.DataFrame]):
+        """
+        Adds a list of dataframes to "stored_prices" property.
+        """
+
+        if value:
+            value = [data for data in value if not data.empty]
+            if self._stored_prices is None:
+                self._stored_prices = pd.concat(value)
+            else:
+                tot_prices = [self._stored_prices]
+                tot_prices.extend(value)
+                self._stored_prices = pd.concat(tot_prices)
+
+    @property
     def last_instrument_update(self):
         """last date of updating list of instrument and splits"""
         return self._last_instrument_update
@@ -133,9 +165,11 @@ class TSECache:
         """
 
         # TODO: do not load all price files at one. there may be hundreds of them.
-        self.stored_prices = self._parse_prc_csv(f_names=selected_syms.index.tolist())
-        if self.settings["merge_similar_symbols"] and not self.stored_prices.empty:
-            self.refresh_prices_merged(selected_syms)
+        prices = self._parse_prc_csv(f_names=selected_syms.index.tolist())
+        if not prices.empty:
+            self._stored_prices = prices
+            if self.settings["merge_similar_symbols"]:
+                self.refresh_prices_merged(selected_syms)
 
     def _parse_prc_csv(self, f_names: list[str]) -> pd.DataFrame:
         """
@@ -154,10 +188,11 @@ class TSECache:
                 index_col=["InsCode", "DEven"],
             )
             for name in f_names
+            if (csv_dir / f"{name}.csv").is_file()
         ]
         prices_list = [prcs for prcs in prices_list if not prcs.empty]
         if prices_list:
-            res = pd.concat(prices_list).sort_index
+            res = pd.concat(prices_list)
         else:
             res = pd.DataFrame()
         return res
@@ -167,26 +202,15 @@ class TSECache:
         Updates stored_prices_merged property.
         """
 
-        code_groups = [
-            selected_syms[selected_syms["Symbol"].isin([sym])]["InsCode"]
-            for sym in selected_syms[
-                selected_syms["Symbol"].duplicated(keep=False)
-            ].Symbol.unique()
-        ]
-        for code_group_df in code_groups:
-            # TODO: why the first one? test [26787658273107220, 68635710163497089] codes
-            latest = code_group_df.iloc[0]
-            # TODO: why is this "if" needed?
-            similar_prcs = [
-                self.stored_prices[code]
-                for code in code_group_df.values
-                if code in self.stored_prices
+        if not self._stored_prices is None:
+            merged_prcs = self._stored_prices[
+                self._stored_prices.index.isin(selected_syms.index, level=0)
             ]
-            if similar_prcs:
-                similar_prcs.reverse()
-                self.stored_prices_merged[latest] = pd.concat(similar_prcs)
+            merged_prcs = merged_prcs.join(selected_syms["Symbol"])
+            merged_prcs = merged_prcs.reset_index().set_index(["Symbol", "DEven"])
+            self._stored_prices_merged = merged_prcs
 
-    def _read_instrums_csv(self, **kwargs):
+    def _read_instrums_csv(self):
         """
         reads list of all cached instruments
         and updates "instruments" and "merged_instruments" properties
@@ -194,37 +218,40 @@ class TSECache:
 
         f_name = "instruments"
         instrums_file = self.cache_dir / f"{f_name}.csv"
-        instrums = pd.read_csv(instrums_file, encoding="utf-8", index_col="InsCode")
-        if not instrums.empty:
-            self.merged_instruments = self._find_similar_syms()
+        if instrums_file.is_file():
+            try:
+                instrums = pd.read_csv(
+                    instrums_file, encoding="utf-8", index_col="InsCode"
+                )
+                self._instruments = instrums
+                if self.settings["merge_similar_symbols"]:
+                    instrums = self._instruments
+                    instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
+                    instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
+            except pd.errors.EmptyDataError:
+                pass
 
-    def read_splits_csv(self, **kwargs):
+    def _read_splits_csv(self):
         """
         reads stock splits and their dates from cache file an updates splits property
         """
 
         file = "splits"
-        path = self.cache_dir / f"{file}.csv"
-        splits = pd.read_csv(path, encoding="utf-8", index_col=["InsCode", "DEven"])
+        splits_file = self.cache_dir / f"{file}.csv"
+        if splits_file.is_file():
+            try:
+                splits = pd.read_csv(
+                    splits_file, encoding="utf-8", index_col=["InsCode", "DEven"]
+                )
+                self._splits = splits
+            except pd.errors.EmptyDataError:
+                pass
 
-    def _find_similar_syms(self) -> pd.DataFrame:
-        """
-        Process similar symbols an add "SymbolOriginal" column to DataFrame
-
-        :return: pd.DataFrame, processed dataframe
-        """
-
-        instrums = self._instruments.sort_values(by="DEven", ascending=False)
-        instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
-        instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
-        return instrums
-
-    def get_instrument_prices(self, instrument: dict, settings: dict) -> pd.DataFrame:
+    def get_instrum_prcs(self, instrument: dict, settings: dict) -> pd.DataFrame:
         """
         get cached instrument prices
 
         :instrument: dict, instrument to get prices for
-        :cache: TSECache, local tse cache
         :settings: dict, app config from the config file or user input
 
         :return: DataFrame, prices for instrument
@@ -235,8 +262,7 @@ class TSECache:
         not_root = not instrument["IsRoot"]
         # TODO: copy values by ref
         merges = self.merged_instruments[self.merged_instruments["Duplicated"]]
-        stored_prices_merged = self.stored_prices_merged
-        split_and_divds = self._splits
+        stored_prices_merged = self._stored_prices_merged
 
         prices = pd.DataFrame()
         ins_codes = []
@@ -267,9 +293,7 @@ class TSECache:
 
         # if settings["adjust_prices"] in [1, 2, 3]
         if settings["adjust_prices"]:
-            prices = adjust(
-                settings["adjust_prices"], prices, split_and_divds, ins_codes
-            )
+            prices = adjust(settings["adjust_prices"], prices, self.splits, ins_codes)
 
         if not settings["days_without_trade"]:
             prices = prices[prices["ZTotTran"] > 0]
@@ -435,3 +459,36 @@ class TSECache:
                     adjusted_cl_prices.append(adjusted_closing_price)
                 res = pd.DataFrame(adjusted_cl_prices[::-1])
         return res.astype(int)
+
+    def write_prc_csv(self, f_name: str, data: pd.DataFrame) -> None:
+        """
+        Write price data to csv file.
+
+        :f_name: str, File name
+        :data: pd.DataFrame, Stock price data
+        """
+
+        self.write_tse_csv(
+            f_name=f_name,
+            data=data,
+            subdir=self.settings["PRICES_DIR"],
+        )
+
+    def write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
+        """
+        Write data to csv file.
+
+        :f_name: str, File name
+        :data: pd.DataFrame, Stock price data
+        """
+
+        if "subdir" in kwargs:
+            tse_dir = self._data_dir / str(kwargs.get("subdir"))
+        else:
+            tse_dir = self._data_dir
+        if not tse_dir.is_dir():
+            tse_dir.mkdir(parents=True, exist_ok=True)
+        if len(data) == 0:
+            return
+        file_path = tse_dir / f"{f_name}.csv"
+        data.to_csv(file_path, encoding="utf-8")

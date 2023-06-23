@@ -37,33 +37,37 @@ class TSE:
         """
 
         cache = self.cache
-        to_update = selection[["InsCode", "DEven", "YMarNSC"]]
+        to_update = selection[["DEven", "YMarNSC"]]
         # TODO: Ensure it returns the last value not the first one.
         # is it good to store last_devens in a file?
-        last_devens = pd.DataFrame(
-            {
-                prc_df.iloc[-1].name[0]: prc_df.iloc[-1].name[1]
-                for prc_df in cache.stored_prices.values
-            }.items(),
-            columns=["InsCode", "cached_DEven"],
-        ).astype("int64")
+        if not cache.stored_prices is None:
+            # TODO: delete if inscode_lastdeven file is not used
+            cache.last_devens = (
+                cache.stored_prices.reset_index().groupby("InsCode")["DEven"].max()
+            )
         first_possible_deven = self.settings["start_date"]
-        if not last_devens.empty:
-            last_possible_deven = await data_svs.get_last_possible_deven()
-            # merge selection with last_devens (from cached data)
-            # to find out witch syms need an update
-            sel_merged = selection.merge(last_devens, how="left", on="InsCode")
+        last_possible_deven = await data_svs.get_last_possible_deven()
+        # merge selection with last_devens (from cached data)
+        # to find out witch syms need an update
+        to_update["cached_DEven"] = cache.last_devens
+        if cache.last_devens is None:
+            to_update["cached_DEven"] = int(first_possible_deven)
+        else:
+            to_update = selection.merge(
+                cache.last_devens.rename("cached_DEven"), how="left", on="InsCode"
+            )
             # symbol doesn't have data
-            sel_merged.cached_DEven = sel_merged.cached_DEven.fillna(
+            to_update.cached_DEven = to_update.cached_DEven.fillna(
                 first_possible_deven
             ).astype("int64")
-            # symbol has data but outdated
-            sel_merged["need_upd"] = sel_merged["cached_DEven"].map(
-                lambda deven: data_svs.should_update(str(deven), last_possible_deven)
-            )
-            to_update = sel_merged[sel_merged["need_upd"]][
-                ["InsCode", "cached_DEven", "YMarNSC"]
-            ].rename({"cached_DEven": "DEven"})
+
+        # symbol has data but outdated
+        to_update["need_upd"] = to_update["cached_DEven"].map(
+            lambda deven: data_svs.should_update(str(deven), last_possible_deven)
+        )
+        to_update = to_update[to_update["need_upd"]][
+            ["cached_DEven", "YMarNSC"]
+        ].rename({"cached_DEven": "DEven"})
         """
         prog_fin = progressbar.pn + progressbar.ptot
         """
@@ -121,16 +125,22 @@ class TSE:
             progressbar.prog_func(progressbar.prog_n)
         """
 
-        self.cache = TSECache(
-            merge_similar_symbols=self.settings["merge_similar_symbols"],
-            cache=self.settings["cache"],
-        )
+        # TODO: check the dict
+        cache_cfg = cfg.storage
+        cache_cfg.update(self.settings)
+        self.cache = TSECache(cache_cfg)
         await data_svs.update_instruments(self.cache)
+        if self.cache.instruments is None:
+            raise ValueError(f"No instruments loaded.")
         instruments = self.cache.instruments
         # TODO: does it return the full list before 8:30 a.m.?
+        tse_logger.info("Loaded %s instruments.", len(instruments))
         selected_syms = instruments[instruments["Symbol"].isin(symbols)]
+        tse_logger.info(
+            "%s Symbols loaded (including duplicated symbols).", len(selected_syms)
+        )
         if selected_syms.empty:
-            raise ValueError(f"No instruments found for symbol names: {symbols}.")
+            raise ValueError(f"No instruments found for any symbols.")
         not_founds = [
             sym for sym in symbols if sym not in selected_syms["Symbol"].values
         ]
@@ -149,22 +159,25 @@ class TSE:
         to_update = await self._get_expired_prices(selected_syms)
         price_manager = PricesUpdateManager(cache_manager=self.cache)
         update_result = await price_manager.start(
-            update_needed=to_update,
+            upd_needed=to_update,
             settings=self.settings,
             progressbar=self.progressbar,
         )
+        tse_logger.info("Data download ended.")
+        if not update_result["succs"]:
+            raise ValueError("No data downloaded.")
+        if update_result["fails"]:
+            tse_logger.warning(
+                "Failed to get some data. codes: %s", update_result["fails"]
+            )
         res = update_result
         if self.settings["merge_similar_symbols"]:
-            self.cache.refresh_prices_merged(selected_syms=selected_syms)
-            # TODO: is redundant
-            for inst in self.cache.merged_instruments[
-                self.cache.merged_instruments["SymbolOriginal"].isin(
-                    selected_syms["Symbol"].values
-                )
-            ].to_dict(orient="records"):
-                res[inst["Symbol"]] = self.cache.get_instrument_prices(
-                    inst, self.settings
-                )
+            df = self.cache.stored_prices_merged
+            res = {sym: df.xs(sym) for sym in df.index.levels[0]}
+
+            for sym, data in res.items():
+                filename = f"{sym}"
+                self.cache.write_prc_csv(f_name=filename, data=data)
 
         """
         progressbar.prog_n = update_result

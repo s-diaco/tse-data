@@ -46,10 +46,11 @@ class Storage:
             tse_dir = self._data_dir / settings["PRICES_DIR"]
         file_path = tse_dir / (key + ".csv")
         if not file_path.is_file():
-            with open(file_path, "w+", encoding="utf-8") as f:
-                return f.write("")
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
+            with open(file_path, "w+", encoding="utf-8") as file:
+                file.write("")
+                return ""
+        with open(file_path, "r", encoding="utf-8") as file:
+            return file.read()
 
     def set_item(self, key: str, value: str) -> None:
         """
