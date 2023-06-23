@@ -1,5 +1,5 @@
 """
-confuguration file for the package
+Confuguratios for the package
 """
 
 # data files
@@ -121,15 +121,15 @@ cols_fa = [
 ]
 
 renames = {
-    "InsCode": "code",  # int64
+    "InsCode": "companycode",  # int64
     "DEven": "date",  # int32
     "PClosing": "close",
     "PDrCotVal": "last",
-    "ZTotTran": "number",  # تعداد معاملات
+    "ZTotTran": "count",  # تعداد معاملات
     "QTotTran5J": "volume",  # حجم معاملات
     "QTotCap": "value",  # ارزش معاملات
     "PriceMin": "min",
     "PriceMax": "max",
-    "PriceYesterday": "yday",
+    "PriceYesterday": "yesterday",
     "PriceFirst": "first",
 }
