@@ -8,7 +8,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from dtse import config as cfg
 from dtse.setup_logger import logger as tse_logger
 
 
@@ -27,8 +26,8 @@ class TSECache:
         self.settings = settings
         self._instruments: pd.DataFrame | None = None
         self._splits: pd.DataFrame | None = None
-        self._stored_prices: pd.DataFrame | None = None
-        self._stored_prices_merged: pd.DataFrame | None = None
+        self._prices: pd.DataFrame | None = None
+        self._prices_merged: pd.DataFrame | None = None
         self.merged_instruments: pd.DataFrame | None = None
         # TODO: delete if not used
         self.last_devens: pd.Series | None = None
@@ -125,33 +124,33 @@ class TSECache:
                 self._save_last_inst_upd()
 
     @property
-    def stored_prices(self):
+    def prices(self):
         """Price data. Can be None or pd.DataFrame"""
-        if self._stored_prices is not None:
-            if not self._stored_prices.empty:
-                return self._stored_prices.sort_index()
+        if self._prices is not None:
+            if not self._prices.empty:
+                return self._prices.sort_index()
         return None
 
     @property
-    def stored_prices_merged(self):
+    def prices_merged(self):
         """Price data. Can be None or pd.DataFrame"""
-        if self._stored_prices_merged is not None:
-            return self._stored_prices_merged.sort_index()
+        if self._prices_merged is not None:
+            return self._prices_merged.sort_index()
         return None
 
-    def add_to_stored_prices(self, value: list[pd.DataFrame]):
+    def add_to_prices(self, value: list[pd.DataFrame]):
         """
-        Adds a list of dataframes to "stored_prices" property.
+        Adds a list of dataframes to "prices" property.
         """
 
         if value:
             value = [data for data in value if not data.empty]
-            if self._stored_prices is None:
-                self._stored_prices = pd.concat(value)
+            if self._prices is None:
+                self._prices = pd.concat(value)
             else:
-                tot_prices = [self._stored_prices]
+                tot_prices = [self._prices]
                 tot_prices.extend(value)
-                self._stored_prices = pd.concat(tot_prices)
+                self._prices = pd.concat(tot_prices)
 
     @property
     def last_instrument_update(self):
@@ -161,13 +160,13 @@ class TSECache:
     def read_prc_csv(self, selected_syms: pd.DataFrame):
         """
         updates a dicts of prices for ins_codes in
-        self.stored_prices and self.stored_prices_merged
+        self.prices and self.prices_merged
         """
 
         # TODO: do not load all price files at one. there may be hundreds of them.
         prices = self._parse_prc_csv(f_names=selected_syms.index.tolist())
         if not prices.empty:
-            self._stored_prices = prices
+            self._prices = prices
             if self.settings["merge_similar_symbols"]:
                 self.refresh_prices_merged(selected_syms)
 
@@ -199,24 +198,31 @@ class TSECache:
 
     def refresh_prices_merged(self, selected_syms):
         """
-        Updates stored_prices_merged property.
+        Updates prices_merged property.
         """
 
-        if self._stored_prices is not None:
-            merged_prcs = self._stored_prices[
-                self._stored_prices.index.isin(selected_syms.index, level=0)
+        # TODO: test it
+        if self._prices is not None:
+            merged_prcs = self._prices[
+                self._prices.index.isin(selected_syms.index, level=0)
             ]
-            merged_prcs = merged_prcs.join(selected_syms[["Symbol", "YMarNSC"]])
+            merged_prcs = merged_prcs.join(selected_syms[["Symbol", "CComVal"]])
+            merged_prcs["Prev_Symbol"] = merged_prcs["Symbol"]
+            merged_prcs["Curr_Symbol"] = merged_prcs["Symbol"]
             merged_prcs = merged_prcs.reset_index().set_index(["Symbol", "DEven"])
             merged_prcs = merged_prcs.sort_index()
-            merged_prcs["YMarNSCDiff"] = merged_prcs["YMarNSC"].map(cfg.markets_to_nums)
-            merged_prcs["SymbolDiff"] = merged_prcs["Symbol"].diff()
-            merged_prcs["upd"] = merged_prcs[
-                merged_prcs["YMarNSCDiff"] & merged_prcs["SymbolDiff"]
-            ]
-            merged_prcs["yday+1"] = merged_prcs["yday"].shift(+1)
-            merged_prcs[merged_prcs["upd"]]["close"] = merged_prcs["yday+1"]
-            self._stored_prices_merged = merged_prcs
+            merged_prcs["Prev_CComVal"] = merged_prcs["CComVal"].shift(1)
+            merged_prcs["Prev_Symbol"] = merged_prcs["Prev_Symbol"].shift(1)
+            merged_prcs["upd"] = (
+                merged_prcs["Prev_CComVal"] != merged_prcs["Prev_CComVal"]
+            ) & (merged_prcs["Prev_Symbol"] == merged_prcs["Curr_Symbol"])
+            if not merged_prcs[merged_prcs["upd"]].empty:
+                merged_prcs["yday+1"] = merged_prcs["PriceYesterday"].shift(+1)
+                merged_prcs[
+                    (merged_prcs["upd"])
+                    & (merged_prcs["PClosing"] == 0 | merged_prcs["PClosing"] == 1000)
+                ]["PClosing"] = merged_prcs["yday+1"]
+            self._prices_merged = merged_prcs
 
     def _read_instrums_csv(self):
         """
@@ -265,11 +271,11 @@ class TSECache:
         :return: pd.DataFrame, prices for instrument
         """
 
-        if self._stored_prices_merged is None or self._instruments is None:
+        if self._prices_merged is None or self._instruments is None:
             raise AttributeError("Some required data is missing in cache.")
         ins_code = instrument["InsCode"]
         merges = self._instruments[self._instruments["Duplicated"]]
-        stored_prices_merged = self._stored_prices_merged
+        prices_merged = self._prices_merged
 
         prices = pd.DataFrame()
         ins_codes = []
@@ -278,22 +284,22 @@ class TSECache:
             # Old and inactive instruments
             if settings["merge_similar_symbols"]:
                 return pd.DataFrame()
-            prices = self.stored_prices[ins_code]
+            prices = self.prices[ins_code]
             ins_codes = [ins_code]
         else:
             # Active instrument with similar inactive symbols
             is_head = instrument["InsCode"] in merges.InsCode.values
             if is_head and settings["merge_similar_symbols"]:
                 # TODO: why is this "if" needed?
-                if ins_code in stored_prices_merged:
-                    prices = stored_prices_merged[ins_code]
+                if ins_code in prices_merged:
+                    prices = prices_merged[ins_code]
                 ins_codes = merges[merges["Symbol"] == instrument["Symbol"]][
                     "InsCode"
                 ].values
             else:
                 # TODO: why is this "if" needed?
-                if ins_code in self._stored_prices:
-                    prices = self._stored_prices[ins_code]
+                if ins_code in self._prices:
+                    prices = self._prices[ins_code]
                     ins_codes = [ins_code]
 
         if prices.empty:

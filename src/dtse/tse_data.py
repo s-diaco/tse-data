@@ -35,10 +35,10 @@ class TSE:
         to_update = selection[["DEven", "YMarNSC"]]
         # TODO: Ensure it returns the last value not the first one.
         # is it good to store last_devens in a file?
-        if cache.stored_prices is not None:
+        if cache.prices is not None:
             # TODO: delete if inscode_lastdeven file is not used
             cache.last_devens = (
-                cache.stored_prices.reset_index().groupby("InsCode")["DEven"].max()
+                cache.prices.reset_index().groupby("InsCode")["DEven"].max()
             )
         first_possible_deven = self.settings["start_date"]
         last_possible_deven = await data_svs.get_last_possible_deven()
@@ -167,7 +167,7 @@ class TSE:
             )
         res = update_result
         if self.settings["merge_similar_symbols"]:
-            df = self.cache.stored_prices_merged
+            df = self.cache.prices_merged
             res = {sym: df.xs(sym) for sym in df.index.levels[0]}
 
             for sym, data in res.items():

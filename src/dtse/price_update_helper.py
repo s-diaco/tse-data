@@ -65,7 +65,7 @@ class PricesUpdateManager:
                 for resp in resp_list
                 if resp
             ]
-            self.cache.add_to_stored_prices(new_prc_df_list)
+            self.cache.add_to_prices(new_prc_df_list)
             self.succs.extend(ins_codes)
 
             # TODO: Delete?
@@ -76,9 +76,9 @@ class PricesUpdateManager:
             )"""
 
             if self.cache_to_csv:
-                for ins_code in self.cache.stored_prices.index.levels[0]:
+                for ins_code in self.cache.prices.index.levels[0]:
                     filename = f"{ins_code}"
-                    data = self.cache.stored_prices.xs(ins_code, drop_level=False)
+                    data = self.cache.prices.xs(ins_code, drop_level=False)
                     self.cache.write_prc_csv(f_name=filename, data=data)
             self.fails = [x for x in self.fails if x not in ins_codes]
 

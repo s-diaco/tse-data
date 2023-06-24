@@ -40,15 +40,12 @@ async def test_read_prc_csv():
     settings = cfg.storage
     settings.update(tse_cache_args)
     cache = TSECache(settings=settings)
-
-    # Creates some file and directories if needed
-    Storage()
-    if cache.instruments.empty:
+    if cache.instruments is None:
         await data_svs.update_instruments(cache)
     instruments = cache.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache.read_prc_csv(selected_syms)
-    assert len(cache.stored_prices) <= len(sample_data)
+    assert len(cache.prices) <= len(sample_data)
 
 
 def test_get_symbol_names():
