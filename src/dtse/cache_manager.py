@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from dtse import config as cfg
 from dtse.setup_logger import logger as tse_logger
 
 
@@ -32,8 +33,7 @@ class TSECache:
         # TODO: delete if not used
         self.last_devens: pd.Series | None = None
         self.cache_to_csv = self.settings["cache"] if "cache" in self.settings else True
-        if self.cache_to_csv:
-            self._init_cache_dir(settings)
+        self._init_cache_dir(settings)
         self._last_instrument_update = self._get_last_inst_upd()
         self._read_instrums_csv()
         self._read_splits_csv()
@@ -202,12 +202,20 @@ class TSECache:
         Updates stored_prices_merged property.
         """
 
-        if not self._stored_prices is None:
+        if self._stored_prices is not None:
             merged_prcs = self._stored_prices[
                 self._stored_prices.index.isin(selected_syms.index, level=0)
             ]
-            merged_prcs = merged_prcs.join(selected_syms["Symbol"])
+            merged_prcs = merged_prcs.join(selected_syms[["Symbol", "YMarNSC"]])
             merged_prcs = merged_prcs.reset_index().set_index(["Symbol", "DEven"])
+            merged_prcs = merged_prcs.sort_index()
+            merged_prcs["YMarNSCDiff"] = merged_prcs["YMarNSC"].map(cfg.markets_to_nums)
+            merged_prcs["SymbolDiff"] = merged_prcs["Symbol"].diff()
+            merged_prcs["upd"] = merged_prcs[
+                merged_prcs["YMarNSCDiff"] & merged_prcs["SymbolDiff"]
+            ]
+            merged_prcs["yday+1"] = merged_prcs["yday"].shift(+1)
+            merged_prcs[merged_prcs["upd"]]["close"] = merged_prcs["yday+1"]
             self._stored_prices_merged = merged_prcs
 
     def _read_instrums_csv(self):
@@ -254,28 +262,28 @@ class TSECache:
         :instrument: dict, instrument to get prices for
         :settings: dict, app config from the config file or user input
 
-        :return: DataFrame, prices for instrument
+        :return: pd.DataFrame, prices for instrument
         """
 
+        if self._stored_prices_merged is None or self._instruments is None:
+            raise AttributeError("Some required data is missing in cache.")
         ins_code = instrument["InsCode"]
-        # Old instruments with outdated InsCode
-        not_root = not instrument["IsRoot"]
-        # TODO: copy values by ref
-        merges = self.merged_instruments[self.merged_instruments["Duplicated"]]
+        merges = self._instruments[self._instruments["Duplicated"]]
         stored_prices_merged = self._stored_prices_merged
 
         prices = pd.DataFrame()
         ins_codes = []
 
-        if not_root:
+        if not instrument["IsRoot"]:
+            # Old and inactive instruments
             if settings["merge_similar_symbols"]:
                 return pd.DataFrame()
             prices = self.stored_prices[ins_code]
             ins_codes = [ins_code]
         else:
-            # New instrument with similar old symbols
+            # Active instrument with similar inactive symbols
             is_head = instrument["InsCode"] in merges.InsCode.values
-            if is_head & settings["merge_similar_symbols"]:
+            if is_head and settings["merge_similar_symbols"]:
                 # TODO: why is this "if" needed?
                 if ins_code in stored_prices_merged:
                     prices = stored_prices_merged[ins_code]
@@ -284,8 +292,8 @@ class TSECache:
                 ].values
             else:
                 # TODO: why is this "if" needed?
-                if ins_code in self.stored_prices:
-                    prices = self.stored_prices[ins_code]
+                if ins_code in self._stored_prices:
+                    prices = self._stored_prices[ins_code]
                     ins_codes = [ins_code]
 
         if prices.empty:
@@ -306,18 +314,25 @@ class TSECache:
         """
         retrives the symbol names
 
-        :param ins_code: list of strings, codes of the selected symbols
+        :ins_code: list[str], codes of the selected symbols
 
         :return: dict, {code: symbol}
+
+        :raise: AttributeError, if instruments proprty is None
         """
 
-        int_ins_codes = [int(ins_code) for ins_code in ins_codes]
-        ret_val_df = self._instruments[self._instruments["InsCode"].isin(int_ins_codes)]
-        ret_val = {
-            row["InsCode"]: row["Symbol"]
-            for row in ret_val_df.to_dict(orient="records")
-        }
-        return ret_val
+        ins_codes_int = [int(ins_code) for ins_code in ins_codes]
+        if self._instruments is not None:
+            ret_val_df = self._instruments[
+                self._instruments["InsCode"].isin(ins_codes_int)
+            ]
+            ret_val = {
+                row["InsCode"]: row["Symbol"]
+                for row in ret_val_df.to_dict(orient="records")
+            }
+            return ret_val
+        else:
+            raise AttributeError("Instruments not loaded.")
 
     def adjust(
         self,

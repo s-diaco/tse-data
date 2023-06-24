@@ -37,7 +37,9 @@ async def test_read_prc_csv():
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
     tse_cache_args = {"merge_similar_symbols": True, "cache": False}
-    cache = TSECache(**tse_cache_args)
+    settings = cfg.storage
+    settings.update(tse_cache_args)
+    cache = TSECache(settings=settings)
 
     # Creates some file and directories if needed
     Storage()

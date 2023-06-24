@@ -17,9 +17,6 @@ class TSE:
     Manage TSE Data
     """
 
-    cache: TSECache
-    progressbar: ProgressBar
-
     def __init__(self):
         self.settings = cfg.default_settings
         self.progressbar = ProgressBar()
@@ -30,8 +27,6 @@ class TSE:
         containing that symbols (InsCode, DEven, YMarNSC)
 
         :selection: list, instruments to check
-        :self.settings: dict, configs for the module
-        :percents: dict, progress bar data
 
         :return: pd.DataFrame, symbols to update
         """
@@ -40,7 +35,7 @@ class TSE:
         to_update = selection[["DEven", "YMarNSC"]]
         # TODO: Ensure it returns the last value not the first one.
         # is it good to store last_devens in a file?
-        if not cache.stored_prices is None:
+        if cache.stored_prices is not None:
             # TODO: delete if inscode_lastdeven file is not used
             cache.last_devens = (
                 cache.stored_prices.reset_index().groupby("InsCode")["DEven"].max()
@@ -165,7 +160,7 @@ class TSE:
         )
         tse_logger.info("Data download ended.")
         if not update_result["succs"]:
-            raise ValueError("No data downloaded.")
+            tse_logger.info("No data downloaded.")
         if update_result["fails"]:
             tse_logger.warning(
                 "Failed to get some data. codes: %s", update_result["fails"]
