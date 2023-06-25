@@ -174,7 +174,7 @@ class TSECache:
 
         :f_names: list[str], list of file names to read from.
 
-        :return: dict
+        :return: pd.DataFrame
         """
 
         csv_dir = self.cache_dir / self.settings["PRICES_DIR"]

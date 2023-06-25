@@ -56,9 +56,9 @@ async def test_read_prices(mocker, read_prices_data):
     """
 
     cache, selected_syms = read_prices_data
-    mock_read_csv = mocker.patch("dtse/cache_manager/pandas.read_csv")
+    mock_read_csv = mocker.patch("dtse.cache_manager:pd.read_csv")
     mock_read_csv.return_value = pd.DataFrame()
-    cache.read_prcices(selected_syms)
+    cache.read_prices(selected_syms)
     assert len(cache.prices) <= len(selected_syms)
 
 
