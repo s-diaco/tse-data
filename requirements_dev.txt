@@ -4,3 +4,4 @@ pytest
 pytest-asyncio
 pipreqs
 pytest-vcr
+pytest-mock

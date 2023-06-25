@@ -1,0 +1,8 @@
+InsCode,InstrumentID,LatinSymbol,LatinName,CompanyCode,Symbol,Name,CIsin,DEven,Flow,LSoc30,CGdSVal,CGrValCot,YMarNSC,CComVal,CSecVal,CSoSecVal,YVal,Duplicated,IsRoot
+778253364357513,IRO1BMLT0001,BMLT1,S*Mellat Bank,BMLT,وبملت,بانك ملت,IRO1BMLT0007,20230624,1,بانك ملت,A,N1,NO,1,57 ,5719,300,False,True
+9211775239375291,IRO3ZOBZ0001,ZOBZ1,S*Isfahan Steel,ZOBZ,ذوب,سهامي ذوب آهن  اصفهان,IRO3ZOBZ0009,20211211,2,سهامي ذوب آهن اصفهان,A,Z1,NO,3,27 ,2710,303,True,True
+26787658273107220,IRO3HMRZ0001,HMRZ1,Iran Mobile Tele,HMRZ,همراه,ارتباطات سيار ايران,IRO3HMRZ0005,20130427,2,شركت ارتباطات سيار ايران,A,Z1,NO,1,64 ,6420,303,True,True
+35796086458096255,IRO1SSIN0001,SSIN1,S*Iran Chem. Ind.,SSIN,شیران,س. صنايع‌شيميايي‌ايران,IRO1SSIN0003,20230624,1,س. صنايع‌شيميايي‌ايران,A,N1,NO,3,44 ,4411,300,False,True
+46348559193224090,IRO1FOLD0001,FOLD1,S*Mobarakeh Steel,FOLD,فولاد,فولاد مباركه اصفهان,IRO1FOLD0009,20230624,1,فولاد مباركه اصفهان,A,N1,NO,1,27 ,2710,300,False,True
+68635710163497089,IRO1HMRZ0001,HMRZ1,Iran Mobil Tele,HMRZ,همراه,شركت ارتباطات سيار ايران,IRO1HMRZ0007,20230624,1,شركت ارتباطات سيار ايران,A,N2,NO,5,64 ,6420,300,True,False
+71483646978964608,IRO1ZOBI0001,ZOBI1,Esfahan Steel Co.,ZOBI,ذوب,ذوب آهن اصفهان,IRO1ZOBI0002,20230624,1,ذوب آهن اصفهان,A,N2,NO,5,27 ,2710,300,True,False

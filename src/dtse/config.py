@@ -3,6 +3,9 @@ Confuguratios for the package
 """
 
 # data files
+from dataclasses import dataclass
+
+
 storage = dict(
     TSE_CACHE_DIR="tse-cache",
     PATH_FILE_NAME=".tse",
@@ -145,3 +148,48 @@ tse_markets = {
     "W": "کوچک و متوسط فرابورس",
     "V": "کوچک و متوسط فرابورس",
 }
+
+
+@dataclass
+class price_col_typical:
+    companycode: str = "companycode"
+    date: str = "date"
+    close: str = "close"
+    last: str = "last"
+    count: str = "count"
+    volume: str = "volume"
+    value: str = "value"
+    min: str = "min"
+    max: str = "max"
+    yesterday: str = "yesterday"
+    first: str = "first"
+
+
+@dataclass
+class price_col_orig:
+    companycode: str = "InsCode"
+    date: str = "DEven"
+    close: str = "PClosing"
+    last: str = "PDrCotVal"
+    count: str = "ZTotTran"
+    volume: str = "QTotTran5J"
+    value: str = "QTotCap"
+    min: str = "PriceMin"
+    max: str = "PriceMax"
+    yesterday: str = "PriceYesterday"
+    first: str = "PriceFirst"
+
+
+@dataclass
+class price_col_fa:
+    companycode: str = "کد شرکت"
+    date: str = "تاریخ میلادی"
+    close: str = "قیمت پایانی"
+    last: str = "آخرین قیمت"
+    count: str = "تعداد معاملات"
+    volume: str = "حجم معاملات"
+    value: str = "ارزش معاملات"
+    min: str = "کمترین قیمت"
+    max: str = "بیشترین قیمت"
+    yesterday: str = "قیمت پایانی دیروز"
+    first: str = "اولین قیمت"

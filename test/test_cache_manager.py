@@ -2,15 +2,16 @@
 test chache_manager
 """
 
-from pathlib import Path
 import time
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
+
+from dtse import config as cfg
 from dtse import data_services as data_svs
 from dtse.cache_manager import TSECache
-from dtse import config as cfg
-
 from dtse.storage import Storage
 
 
@@ -20,6 +21,7 @@ def fixture_resp_data():
     get instruments data
     """
 
+    # TODO: fixture never uesd
     expected_resp_file = "sample_data/instruments_100_merged.csv"
     inst_col_names = cfg.tse_instrument_info
     merged_inst_col_names = inst_col_names + ["SymbolOriginal"]
@@ -29,23 +31,35 @@ def fixture_resp_data():
     yield expected_resp
 
 
-@pytest.mark.vcr()
-async def test_read_prc_csv():
-    """
-    test read_prc_csv
-    """
-
-    sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
+@pytest.fixture(name="read_prices_data")
+def fixture_read_prices():
+    # sample symbols = ["همراه", "ذوب", "فولاد", "وبملت", "شیران"]
     tse_cache_args = {"merge_similar_symbols": True, "cache": False}
     settings = cfg.storage
     settings.update(tse_cache_args)
     cache = TSECache(settings=settings)
-    if cache.instruments is None:
-        await data_svs.update_instruments(cache)
-    instruments = cache.instruments
-    selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
-    cache.read_prc_csv(selected_syms)
-    assert len(cache.prices) <= len(sample_data)
+    instrums_file = "sample_data/instruments_all.csv"
+    cache.instruments = pd.read_csv(
+        instrums_file, encoding="utf-8", index_col="InsCode"
+    )
+    selected_syms_file = "sample_data/instruments_all.csv"
+    selected_syms = pd.read_csv(
+        selected_syms_file, encoding="utf-8", index_col="InsCode"
+    )
+    yield cache, selected_syms
+
+
+@pytest.mark.vcr()
+async def test_read_prices(mocker, read_prices_data):
+    """
+    test read_prcices
+    """
+
+    cache, selected_syms = read_prices_data
+    mock_read_csv = mocker.patch("dtse/cache_manager/pandas.read_csv")
+    mock_read_csv.return_value = pd.DataFrame()
+    cache.read_prcices(selected_syms)
+    assert len(cache.prices) <= len(selected_syms)
 
 
 def test_get_symbol_names():

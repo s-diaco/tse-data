@@ -34,8 +34,8 @@ class TSECache:
         self.cache_to_csv = self.settings["cache"] if "cache" in self.settings else True
         self._init_cache_dir(settings)
         self._last_instrument_update = self._get_last_inst_upd()
-        self._read_instrums_csv()
-        self._read_splits_csv()
+        self._read_instrums()
+        self._read_splits()
 
     def _get_last_inst_upd(self) -> str:
         """
@@ -104,7 +104,7 @@ class TSECache:
         if self._last_instrument_update != today:
             self._last_instrument_update = today
             key = "lastInstrumUpdate"
-            file_path = self.cache_dir / "{key}.csv"
+            file_path = self.cache_dir / f"{key}.csv"
             with open(file_path, "w+", encoding="utf-8") as file:
                 file.write(today)
 
@@ -157,20 +157,18 @@ class TSECache:
         """last date of updating list of instrument and splits"""
         return self._last_instrument_update
 
-    def read_prc_csv(self, selected_syms: pd.DataFrame):
+    def read_prices(self, selected_syms: pd.DataFrame):
         """
         updates a dicts of prices for ins_codes in
         self.prices and self.prices_merged
         """
 
         # TODO: do not load all price files at one. there may be hundreds of them.
-        prices = self._parse_prc_csv(f_names=selected_syms.index.tolist())
+        prices = self._read_prc_csv(f_names=selected_syms.index.tolist())
         if not prices.empty:
-            self._prices = prices
-            if self.settings["merge_similar_symbols"]:
-                self.refresh_prices_merged(selected_syms)
+            self._prices = prices.sort_index()
 
-    def _parse_prc_csv(self, f_names: list[str]) -> pd.DataFrame:
+    def _read_prc_csv(self, f_names: list[str]) -> pd.DataFrame:
         """
         Reads selected instruments files from the cache dir and returns a dict.
 
@@ -224,7 +222,7 @@ class TSECache:
                 ]["PClosing"] = merged_prcs["yday+1"]
             self._prices_merged = merged_prcs
 
-    def _read_instrums_csv(self):
+    def _read_instrums(self):
         """
         reads list of all cached instruments
         and updates "instruments" and "merged_instruments" properties
@@ -245,7 +243,7 @@ class TSECache:
             except pd.errors.EmptyDataError:
                 pass
 
-    def _read_splits_csv(self):
+    def _read_splits(self):
         """
         reads stock splits and their dates from cache file an updates splits property
         """

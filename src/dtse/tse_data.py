@@ -150,7 +150,7 @@ class TSE:
                 progressbar.prog_func(progressbar.prog_tot)
         """
 
-        self.cache.read_prc_csv(selected_syms=selected_syms)
+        self.cache.read_prices(selected_syms=selected_syms)
         to_update = await self._get_expired_prices(selected_syms)
         price_manager = PricesUpdateManager(cache_manager=self.cache)
         update_result = await price_manager.start(

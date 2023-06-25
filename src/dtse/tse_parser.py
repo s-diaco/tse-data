@@ -1,12 +1,13 @@
 """
 funtions to parse tse data
 """
+
 import pandas as pd
 
 from .storage import Storage
 
 
-def parse_instruments(strg: Storage, **kwargs) -> pd.DataFrame:
+def parse_instruments(strg: Storage) -> pd.DataFrame:
     """
     Parse instruments list and their data from cached files.
 
