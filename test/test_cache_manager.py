@@ -42,11 +42,38 @@ def fixture_read_prices():
     cache.instruments = pd.read_csv(
         instrums_file, encoding="utf-8", index_col="InsCode"
     )
-    selected_syms_file = "sample_data/instruments_all.csv"
+    selected_syms_file = "sample_data/sample_selected_syms.csv"
     selected_syms = pd.read_csv(
         selected_syms_file, encoding="utf-8", index_col="InsCode"
     )
     yield cache, selected_syms
+
+
+def mock_read_prc_csv(f_names: list[str]) -> pd.DataFrame:
+    """
+    mock _read_prc_csv for tests.
+
+    :f_names: list[str], list of file names to read from.
+
+    :return: pd.DataFrame
+    """
+
+    csv_dir = "sample_data/"
+    prices_list = [
+        pd.read_csv(
+            csv_dir + f"{name}.csv",
+            encoding="utf-8",
+            index_col=["InsCode", "DEven"],
+        )
+        for name in f_names
+        if Path(csv_dir + f"{name}.csv").is_file()
+    ]
+    prices_list = [prcs for prcs in prices_list if not prcs.empty]
+    if prices_list:
+        res = pd.concat(prices_list)
+    else:
+        res = pd.DataFrame()
+    return res
 
 
 @pytest.mark.vcr()
@@ -56,8 +83,11 @@ def test_read_prices(mocker, read_prices_data):
     """
 
     cache, selected_syms = read_prices_data
-    mock_read_csv = mocker.patch("dtse.cache_manager:TSECache._read_prc_csv")
-    mock_read_csv.return_value = pd.DataFrame()
+    mock_read_csv = mocker.patch(
+        "dtse.cache_manager:TSECache._read_prc_csv",
+        side_effect=mock_read_prc_csv,
+    )
+    mock_read_csv.side_effect = mock_read_prc_csv
     cache.read_prices(selected_syms)
     assert len(cache.prices) <= len(selected_syms)
 
