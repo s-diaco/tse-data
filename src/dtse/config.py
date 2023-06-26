@@ -149,10 +149,18 @@ tse_markets = {
     "V": "کوچک و متوسط فرابورس",
 }
 
+# ---------------------------------------------------------------------------------------
+# names for data columns of daily prices
+# ---------------------------------------------------------------------------------------
+
 
 @dataclass
-class price_col_typical:
-    companycode: str = "companycode"
+class PriceColTypical:
+    """
+    Typical column names for prices
+    """
+
+    code: str = "companycode"
     date: str = "date"
     close: str = "close"
     last: str = "last"
@@ -166,8 +174,13 @@ class price_col_typical:
 
 
 @dataclass
-class price_col_orig:
-    companycode: str = "InsCode"
+class PriceColOrig:
+    """
+    Column names for price files according to:
+    http://old.tsetmc.com/Site.aspx?ParTree=111411111Z
+    """
+
+    code: str = "InsCode"
     date: str = "DEven"
     close: str = "PClosing"
     last: str = "PDrCotVal"
@@ -181,8 +194,12 @@ class price_col_orig:
 
 
 @dataclass
-class price_col_fa:
-    companycode: str = "کد شرکت"
+class PriceColFa:
+    """
+    Column names for prices in persian
+    """
+
+    code: str = "کد شرکت"
     date: str = "تاریخ میلادی"
     close: str = "قیمت پایانی"
     last: str = "آخرین قیمت"
@@ -193,3 +210,6 @@ class price_col_fa:
     max: str = "بیشترین قیمت"
     yesterday: str = "قیمت پایانی دیروز"
     first: str = "اولین قیمت"
+
+
+PRICE_COL_NAMES = PriceColTypical

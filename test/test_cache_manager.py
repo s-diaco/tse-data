@@ -50,13 +50,13 @@ def fixture_read_prices():
 
 
 @pytest.mark.vcr()
-async def test_read_prices(mocker, read_prices_data):
+def test_read_prices(mocker, read_prices_data):
     """
     test read_prcices
     """
 
     cache, selected_syms = read_prices_data
-    mock_read_csv = mocker.patch("dtse.cache_manager:pd.read_csv")
+    mock_read_csv = mocker.patch("dtse.cache_manager:TSECache._read_prc_csv")
     mock_read_csv.return_value = pd.DataFrame()
     cache.read_prices(selected_syms)
     assert len(cache.prices) <= len(selected_syms)
