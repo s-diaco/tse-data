@@ -95,8 +95,8 @@ class TSECache:
             self._instruments = value
             if self.cache_to_csv:
                 f_name = "instruments"
-                file_path = self.cache_dir / (f_name + ".csv")
-                self._instruments.to_csv(file_path, encoding="utf-8")
+                file_path = self.cache_dir / (f_name + ".parquet")
+                self._instruments.to_parquet(file_path)
                 self._save_last_inst_upd()
 
     def _save_last_inst_upd(self):
@@ -119,8 +119,8 @@ class TSECache:
             self._splits = value
             if self.cache_to_csv:
                 f_name = "splits"
-                file_path = self.cache_dir / (f_name + ".csv")
-                self._splits.to_csv(file_path, encoding="utf-8")
+                file_path = self.cache_dir / (f_name + ".parquet")
+                self._splits.to_parquet(file_path)
                 self._save_last_inst_upd()
 
     @property
@@ -242,9 +242,7 @@ class TSECache:
         instrums_file = self.cache_dir / f"{f_name}.csv"
         if instrums_file.is_file():
             try:
-                instrums = pd.read_csv(
-                    instrums_file, encoding="utf-8", index_col="InsCode"
-                )
+                instrums = pd.read_parquet(instrums_file)
                 self._instruments = instrums
                 if self.settings["merge_similar_symbols"]:
                     instrums = self._instruments
@@ -262,9 +260,7 @@ class TSECache:
         splits_file = self.cache_dir / f"{file}.csv"
         if splits_file.is_file():
             try:
-                splits = pd.read_csv(
-                    splits_file, encoding="utf-8", index_col=["InsCode", "DEven"]
-                )
+                splits = pd.read_parquet(splits_file)
                 self._splits = splits
             except pd.errors.EmptyDataError:
                 pass
