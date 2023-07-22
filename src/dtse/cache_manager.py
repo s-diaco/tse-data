@@ -222,13 +222,16 @@ class TSECache:
             merged_prcs["Prev_CComVal"] = merged_prcs["CComVal"].shift(1)
             merged_prcs["Prev_Symbol"] = merged_prcs["Prev_Symbol"].shift(1)
             merged_prcs["upd"] = (
-                merged_prcs["Prev_CComVal"] != merged_prcs["Prev_CComVal"]
+                merged_prcs["Prev_CComVal"] != merged_prcs["CComVal"]
             ) & (merged_prcs["Prev_Symbol"] == merged_prcs["Curr_Symbol"])
             if not merged_prcs[merged_prcs["upd"]].empty:
                 merged_prcs["yday+1"] = merged_prcs["PriceYesterday"].shift(+1)
                 merged_prcs[
                     (merged_prcs["upd"])
-                    & (merged_prcs["PClosing"] == 0 | merged_prcs["PClosing"] == 1000)
+                    & (
+                        (merged_prcs["PClosing"] == 0)
+                        | (merged_prcs["PClosing"] == 1000)
+                    )
                 ]["PClosing"] = merged_prcs["yday+1"]
             self._prices_merged = merged_prcs
 

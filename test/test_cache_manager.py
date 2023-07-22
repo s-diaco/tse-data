@@ -150,4 +150,6 @@ def test_refresh_prices_merged(
     cache.add_to_prices([closing_prices])
     cache.splits = splits
     res = cache.refresh_prices_merged(selected_syms)
-    assert len(np.array(res)) == len(np.array(expected_res))
+    assert len(
+        np.array(cache.prices_merged[cache.prices_merged["InsCode"].isin(codes)])
+    ) == len(np.array(expected_res))
