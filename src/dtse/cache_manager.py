@@ -233,6 +233,17 @@ class TSECache:
                         | (merged_prcs["PClosing"] == 1000)
                     )
                 ]["PClosing"] = merged_prcs["yday+1"]
+            merged_prcs = merged_prcs.drop(
+                [
+                    "upd",
+                    "Prev_CComVal",
+                    "Prev_Symbol",
+                    "Curr_Symbol",
+                    "yday+1",
+                    "CComVal",
+                ],
+                axis=1,
+            )
             self._prices_merged = merged_prcs
 
     def _read_instrums(self):

@@ -55,6 +55,44 @@ def fixture_read_prices():
     )
     yield cache, sample_prices
 
+    assert len(np.array(res)) == len(np.array(expected_res))
+
+
+refresh_params = [
+    [35796086458096255],  # شیران
+    [68635710163497089, 26787658273107220],  # همراه
+    [9211775239375291, 71483646978964608],  # ذوب
+]
+
+
+@pytest.mark.parametrize("codes", refresh_params)
+def test_refresh_prices_merged(
+    codes: list[int],
+    read_prices_data: tuple[TSECache, pd.DataFrame],
+):
+    """
+    Test refresh_prices_merged function.
+    """
+
+    adjusted_closing_prices_path = "sample_data/sample_cache.prices.csv"
+    cache, closing_prices = read_prices_data
+    expected_res = pd.read_csv(
+        adjusted_closing_prices_path, index_col=["Symbol", "DEven"]
+    )
+
+    # parse sample data for stock splits
+    sample_all_shares_path = "sample_data/all_shares.csv"
+    splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
+    selected_syms_file = "sample_data/sample_selected_syms.csv"
+    selected_syms = pd.read_csv(
+        selected_syms_file, encoding="utf-8", index_col="InsCode"
+    )
+    assert cache.prices is None
+    cache.add_to_prices([closing_prices])
+    cache.splits = splits
+    cache.refresh_prices_merged(selected_syms)
+    pd.testing.assert_frame_equal(cache.prices_merged, expected_res)
+
 
 def test_read_prices(read_prices_data):
     """
@@ -114,42 +152,3 @@ def test_adjust(
     cache.add_to_prices([closing_prices])
     cache.splits = splits
     res = cache.adjust(cond, codes)
-    assert len(np.array(res)) == len(np.array(expected_res))
-
-
-refresh_params = [
-    [35796086458096255],  # شیران
-    [68635710163497089, 26787658273107220],  # همراه
-    [9211775239375291, 71483646978964608],  # ذوب
-]
-
-
-@pytest.mark.parametrize("codes", refresh_params)
-def test_refresh_prices_merged(
-    codes: list[int],
-    read_prices_data: tuple[TSECache, pd.DataFrame],
-):
-    """
-    Test refresh_prices_merged function.
-    """
-
-    adjusted_closing_prices_path = "sample_data/sample_cache.prices.csv"
-    cache, closing_prices = read_prices_data
-    expected_res = pd.read_csv(
-        adjusted_closing_prices_path, index_col=["InsCode", "DEven"]
-    )
-
-    # parse sample data for stock splits
-    sample_all_shares_path = "sample_data/all_shares.csv"
-    splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
-    selected_syms_file = "sample_data/sample_selected_syms.csv"
-    selected_syms = pd.read_csv(
-        selected_syms_file, encoding="utf-8", index_col="InsCode"
-    )
-    assert cache.prices is None
-    cache.add_to_prices([closing_prices])
-    cache.splits = splits
-    res = cache.refresh_prices_merged(selected_syms)
-    assert len(
-        np.array(cache.prices_merged[cache.prices_merged["InsCode"].isin(codes)])
-    ) == len(np.array(expected_res))
