@@ -209,7 +209,9 @@ class TSECache:
         Updates prices_merged property.
         """
 
-        # TODO: test it
+        # TODO: find something to do with rows like :
+        # 71483646978964608,20211225,1000.00,1000.00,0,0,0.00,0.00,0.00,1000.00,0.00
+
         if self._prices is not None:
             merged_prcs = self._prices[
                 self._prices.index.isin(selected_syms.index, level=0)
