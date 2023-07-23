@@ -147,7 +147,13 @@ class TSECache:
         :return: bool, True if value added to prices, else False.
         """
 
-        value = [data for data in value if not data.empty]
+        # remove empty data frames and first non trading days of each InsCode
+        value = [
+            data.loc[data[data["QTotTran5J"].gt(0)].index[0] :]
+            for data in value
+            if not data.empty
+        ]
+
         if value:
             if self._prices is None:
                 self._prices = pd.concat(value)
@@ -209,14 +215,13 @@ class TSECache:
         Updates prices_merged property.
         """
 
-        # TODO: find something to do with rows like :
-        # 71483646978964608,20211225,1000.00,1000.00,0,0,0.00,0.00,0.00,1000.00,0.00
-
         if self._prices is not None:
             merged_prcs = self._prices[
                 self._prices.index.isin(selected_syms.index, level=0)
             ]
             merged_prcs = merged_prcs.join(selected_syms[["Symbol", "CComVal"]])
+
+            # fix if InsCode has changed and closing price for the first day with new InsCode is set to 1000 or 0
             merged_prcs["Prev_Symbol"] = merged_prcs["Symbol"]
             merged_prcs["Curr_Symbol"] = merged_prcs["Symbol"]
             merged_prcs = merged_prcs.reset_index().set_index(["Symbol", "DEven"])
@@ -235,15 +240,23 @@ class TSECache:
                         | (merged_prcs["PClosing"] == 1000)
                     )
                 ]["PClosing"] = merged_prcs["yday+1"]
+
+            # drop temporary columns
+            candid_drop_cols = [
+                "upd",
+                "Prev_CComVal",
+                "Prev_Symbol",
+                "Curr_Symbol",
+                "yday+1",
+                "CComVal",
+            ]
+            drop_cols = [
+                drop_col
+                for drop_col in candid_drop_cols
+                if drop_col in merged_prcs.columns
+            ]
             merged_prcs = merged_prcs.drop(
-                [
-                    "upd",
-                    "Prev_CComVal",
-                    "Prev_Symbol",
-                    "Curr_Symbol",
-                    "yday+1",
-                    "CComVal",
-                ],
+                drop_cols,
                 axis=1,
             )
             self._prices_merged = merged_prcs

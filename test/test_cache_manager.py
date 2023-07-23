@@ -55,30 +55,32 @@ def fixture_read_prices():
     )
     yield cache, sample_prices
 
-    assert len(np.array(res)) == len(np.array(expected_res))
-
 
 refresh_params = [
-    [35796086458096255],  # شیران
-    [68635710163497089, 26787658273107220],  # همراه
-    [9211775239375291, 71483646978964608],  # ذوب
+    ([35796086458096255], "شیران"),
+    ([68635710163497089, 26787658273107220], "همراه"),
+    ([9211775239375291, 71483646978964608], "ذوب"),
 ]
 
 
-@pytest.mark.parametrize("codes", refresh_params)
+@pytest.mark.parametrize("codes, symbol", refresh_params)
 def test_refresh_prices_merged(
     codes: list[int],
+    symbol: str,
     read_prices_data: tuple[TSECache, pd.DataFrame],
 ):
     """
     Test refresh_prices_merged function.
     """
 
-    adjusted_closing_prices_path = "sample_data/sample_cache.prices.csv"
+    prices_files = [f"sample_data/prices/{prc_file}.csv" for prc_file in codes]
+    prcs_list = [
+        pd.read_csv(prc_file, index_col=["InsCode", "DEven"])
+        for prc_file in prices_files
+    ]
+    merged_prices_file = f"sample_data/prices_merged/{symbol}.csv"
     cache, closing_prices = read_prices_data
-    expected_res = pd.read_csv(
-        adjusted_closing_prices_path, index_col=["Symbol", "DEven"]
-    )
+    expected_res = pd.read_csv(merged_prices_file, index_col=["Symbol", "DEven"])
 
     # parse sample data for stock splits
     sample_all_shares_path = "sample_data/all_shares.csv"
@@ -88,10 +90,12 @@ def test_refresh_prices_merged(
         selected_syms_file, encoding="utf-8", index_col="InsCode"
     )
     assert cache.prices is None
-    cache.add_to_prices([closing_prices])
+    cache.add_to_prices(prcs_list)
     cache.splits = splits
     cache.refresh_prices_merged(selected_syms)
-    pd.testing.assert_frame_equal(cache.prices_merged, expected_res)
+    assert cache.prices_merged is not None
+    if cache.prices_merged is not None:
+        pd.testing.assert_frame_equal(cache.prices_merged, expected_res)
 
 
 def test_read_prices(read_prices_data):
