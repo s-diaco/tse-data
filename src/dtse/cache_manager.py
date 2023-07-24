@@ -4,6 +4,7 @@ manage cached data
 
 from datetime import datetime
 from pathlib import Path
+from sqlite3 import connect
 
 import numpy as np
 import pandas as pd
@@ -72,6 +73,7 @@ class TSECache:
 
             self._data_dir.mkdir(parents=True, exist_ok=True)
         tse_logger.info("data dir: %s", self._data_dir)
+        self._cnx = connect(self._data_dir / self.settings["DB_FILE_NAME"])
 
     @property
     def cache_dir(self):
@@ -95,8 +97,7 @@ class TSECache:
             self._instruments = value
             if self.cache_to_csv:
                 f_name = "instruments"
-                file_path = self.cache_dir / (f_name + ".parquet")
-                self._instruments.to_parquet(file_path)
+                self._instruments.to_sql(f_name, self._cnx, if_exists="replace")
                 self._save_last_inst_upd()
 
     def _save_last_inst_upd(self):
@@ -119,8 +120,9 @@ class TSECache:
             self._splits = value
             if self.cache_to_csv:
                 f_name = "splits"
-                file_path = self.cache_dir / (f_name + ".parquet")
-                self._splits.to_parquet(file_path)
+
+                # TODO: if_exists=replce or if_exists=append?
+                self._splits.to_sql(f_name, self._cnx, if_exists="replace")
                 self._save_last_inst_upd()
 
     @property
@@ -267,32 +269,46 @@ class TSECache:
         and updates "instruments" and "merged_instruments" properties
         """
 
-        f_name = "instruments"
-        instrums_file = self.cache_dir / f"{f_name}.csv"
-        if instrums_file.is_file():
-            try:
-                instrums = pd.read_parquet(instrums_file)
-                self._instruments = instrums
-                if self.settings["merge_similar_symbols"]:
-                    instrums = self._instruments
-                    instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
-                    instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
-            except pd.errors.EmptyDataError:
-                pass
+        table_name = "instruments"
+        instrums = self._read_table(table=table_name)
+        if instrums is not None and (not instrums.empty):
+            self._instruments = instrums
+            if self.settings["merge_similar_symbols"]:
+                instrums = self._instruments
+                instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
+                instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
 
     def _read_splits(self):
         """
         reads stock splits and their dates from cache file an updates splits property
         """
 
-        file = "splits"
-        splits_file = self.cache_dir / f"{file}.csv"
-        if splits_file.is_file():
-            try:
-                splits = pd.read_parquet(splits_file)
-                self._splits = splits
-            except pd.errors.EmptyDataError:
-                pass
+        table_name = "splits"
+        splits = self._read_table(table=table_name)
+        if splits is not None and (not splits.empty):
+            self._splits = splits
+
+    def _read_table(self, table: str) -> pd.DataFrame | None:
+        """
+        reads a table from database and returns its data
+
+        :table: str, name of the table
+
+        :return: pd.DataFrame, data read from the table.
+        returns 'None' if the table doesn't exist.
+        """
+
+        # check if table exists in db
+        check_query = (
+            f"SELECT name FROM sqlite_schema WHERE type='table' AND name='{table}';"
+        )
+        find_table = pd.read_sql(sql=check_query, con=self._cnx)
+        if not find_table.empty:
+            query = f"SELECT * FROM {table}"
+            data = pd.read_sql(sql=query, con=self._cnx)
+            return data
+        else:
+            return None
 
     def get_instrum_prcs(self, instrument: dict, settings: dict) -> pd.DataFrame:
         """

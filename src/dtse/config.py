@@ -11,6 +11,7 @@ storage = dict(
     PATH_FILE_NAME=".tse",
     PRICES_DIR="prices",
     INTRADAY_DIR="intraday",
+    DB_FILE_NAME="tse_data.sqlite3",
 )
 
 # data sructures
