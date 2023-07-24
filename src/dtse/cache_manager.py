@@ -140,28 +140,28 @@ class TSECache:
             return self._prices_merged.sort_index()
         return None
 
-    def add_to_prices(self, value: list[pd.DataFrame]) -> bool:
+    def add_to_prices(self, dframes: list[pd.DataFrame]) -> bool:
         """
         Adds a list of dataframes to "prices" property.
 
-        :value: list[pd.DataFrame], list of dataframes to add to prices property.
+        :dframes: list[pd.DataFrame], list of dataframes to add to prices property.
 
         :return: bool, True if value added to prices, else False.
         """
 
         # remove empty data frames and first non trading days of each InsCode
-        value = [
+        dframes = [
             data.loc[data[data["QTotTran5J"].gt(0)].index[0] :]
-            for data in value
+            for data in dframes
             if not data.empty
         ]
 
-        if value:
+        if dframes:
             if self._prices is None:
-                self._prices = pd.concat(value)
+                self._prices = pd.concat(dframes)
             else:
                 tot_prices = [self._prices]
-                tot_prices.extend(value)
+                tot_prices.extend(dframes)
                 self._prices = pd.concat(tot_prices)
             return True
         else:
@@ -179,11 +179,11 @@ class TSECache:
         """
 
         # TODO: do not load all price files at one. there may be hundreds of them.
-        prices = self._read_prc_csv(f_names=selected_syms.index.tolist())
+        prices = self._read_prc(f_names=selected_syms.index.tolist())
         if not prices.empty:
             self._prices = prices.sort_index()
 
-    def _read_prc_csv(self, f_names: list[str]) -> pd.DataFrame:
+    def _read_prc(self, f_names: list[str]) -> pd.DataFrame:
         """
         Reads selected instruments files from the cache dir and returns a dict.
 
@@ -192,25 +192,20 @@ class TSECache:
         :return: pd.DataFrame
         """
 
-        if "tse_dir" in self.settings:
-            csv_dir = self.settings["tse_dir"]
+        table = "daily_prices"
+        # check if table exists in db
+        check_query = (
+            f"SELECT name FROM sqlite_schema WHERE type='table' AND name='{table}';"
+        )
+        find_table = pd.read_sql(sql=check_query, con=self._cnx)
+        if find_table.empty:
+            return find_table
         else:
-            csv_dir = self.cache_dir / self.settings["PRICES_DIR"]
-        prices_list = [
-            pd.read_csv(
-                csv_dir / f"{name}.csv",
-                encoding="utf-8",
-                index_col=["InsCode", "DEven"],
-            )
-            for name in f_names
-            if (csv_dir / f"{name}.csv").is_file()
-        ]
-        prices_list = [prcs for prcs in prices_list if not prcs.empty]
-        if prices_list:
-            res = pd.concat(prices_list)
-        else:
-            res = pd.DataFrame()
-        return res
+            # TODO: is it a safe query?
+            codes = ", ".join(str(code) for code in f_names)
+            query = f"SELECT * FROM {table} WHERE InsCode In ({codes});"
+            data = pd.read_sql(sql=query, con=self._cnx)
+            return data
 
     def refresh_prices_merged(self, selected_syms):
         """
@@ -303,12 +298,12 @@ class TSECache:
             f"SELECT name FROM sqlite_schema WHERE type='table' AND name='{table}';"
         )
         find_table = pd.read_sql(sql=check_query, con=self._cnx)
-        if not find_table.empty:
+        if find_table.empty:
+            return None
+        else:
             query = f"SELECT * FROM {table}"
             data = pd.read_sql(sql=query, con=self._cnx)
             return data
-        else:
-            return None
 
     def get_instrum_prcs(self, instrument: dict, settings: dict) -> pd.DataFrame:
         """
@@ -382,68 +377,67 @@ class TSECache:
         """
 
         # TODO: use only new method after timing both
-        # TODO: should work when there is multple codes
         if self.prices is not None:
             closing_prices = self.prices[
                 self.prices.index.isin(ins_codes, level="InsCode")
-            ]
+            ].sort_index(level=1)
             new_method = True
             if new_method:
                 cl_pr = closing_prices
                 cl_pr_cols = list(cl_pr.columns)
                 cp_len = len(closing_prices)
-                if cond and cp_len > 1:
-                    for ins_code in ins_codes:
-                        filtered_shares = self._splits[
-                            self._splits.index.isin([ins_code], level="InsCode")
-                        ]
-                        if cond in [1, 3]:
-                            cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
-                            cl_pr["YDayDiff"] = cl_pr["PClosing"] / cl_pr["ShiftedYDay"]
-                        if cond in [2, 3]:
-                            cl_pr = cl_pr.join(filtered_shares[["StockSplits"]]).fillna(
-                                0
-                            )
-                            filtered_shares["StockSplits"] = (
-                                filtered_shares["NumberOfShareNew"]
-                                / filtered_shares["NumberOfShareOld"]
-                            )
-                        if cond == 1:
-                            cl_pr["YDayDiffFactor"] = (
-                                (1 / cl_pr.YDayDiff.iloc[::-1])
-                                .replace(np.inf, 1)
-                                .cumprod()
-                                .iloc[::-1]
-                            )
-                            cl_pr["AdjPClosing"] = cl_pr.YDayDiffFactor * cl_pr.PClosing
-                        elif cond == 2:
-                            cl_pr["SplitFactor"] = (
-                                (1 / cl_pr.StockSplits.iloc[::-1])
-                                .replace(np.inf, 1)
-                                .cumprod()
-                                .iloc[::-1]
-                            )
-                            cl_pr["AdjPClosing"] = cl_pr.SplitFactor * cl_pr.PClosing
-                        elif cond == 3:
-                            cl_pr["DividDiff"] = 1
-                            cl_pr.loc[
-                                ~cl_pr["YDayDiff"].isin([1])
-                                & cl_pr["StockSplits"].isin([0]),
-                                "DividDiff",
-                            ] = cl_pr[["YDayDiff"]]
-                            cl_pr["DividDiffFactor"] = (
-                                (1 / cl_pr.DividDiff.iloc[::-1])
-                                .replace(np.inf, 1)
-                                .cumprod()
-                                .iloc[::-1]
-                            )
-                            cl_pr["AdjPClosing"] = (
-                                cl_pr.DividDiffFactor * cl_pr.PClosing
-                            )
-                        cl_pr_cols.append("AdjPClosing")
+                if (
+                    cond
+                    and cp_len > 1
+                    and (self._splits is not None)
+                    and (not self._splits.empty)
+                ):
+                    filtered_splits = self._splits[
+                        self._splits.index.isin(ins_codes, level="InsCode")
+                    ]
+                    if cond in [1, 3]:
+                        cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
+                        cl_pr["YDayDiff"] = cl_pr["PClosing"] / cl_pr["ShiftedYDay"]
+                    if cond in [2, 3]:
+                        cl_pr = cl_pr.join(filtered_splits[["StockSplits"]]).fillna(0)
+                        filtered_splits["StockSplits"] = (
+                            filtered_splits["NumberOfShareNew"]
+                            / filtered_splits["NumberOfShareOld"]
+                        )
+                    if cond == 1:
+                        cl_pr["YDayDiffFactor"] = (
+                            (1 / cl_pr.YDayDiff.iloc[::-1])
+                            .replace(np.inf, 1)
+                            .cumprod()
+                            .iloc[::-1]
+                        )
+                        cl_pr["AdjPClosing"] = cl_pr.YDayDiffFactor * cl_pr.PClosing
+                    elif cond == 2:
+                        cl_pr["SplitFactor"] = (
+                            (1 / cl_pr.StockSplits.iloc[::-1])
+                            .replace(np.inf, 1)
+                            .cumprod()
+                            .iloc[::-1]
+                        )
+                        cl_pr["AdjPClosing"] = cl_pr.SplitFactor * cl_pr.PClosing
+                    elif cond == 3:
+                        cl_pr["DividDiff"] = 1
+                        cl_pr.loc[
+                            ~cl_pr["YDayDiff"].isin([1])
+                            & cl_pr["StockSplits"].isin([0]),
+                            "DividDiff",
+                        ] = cl_pr[["YDayDiff"]]
+                        cl_pr["DividDiffFactor"] = (
+                            (1 / cl_pr.DividDiff.iloc[::-1])
+                            .replace(np.inf, 1)
+                            .cumprod()
+                            .iloc[::-1]
+                        )
+                        cl_pr["AdjPClosing"] = cl_pr.DividDiffFactor * cl_pr.PClosing
+                    cl_pr_cols.append("AdjPClosing")
                 return cl_pr[cl_pr_cols]
 
-            filtered_shares = self._splits[
+            filtered_splits = self._splits[
                 self._splits.index.isin(ins_codes, level="InsCode")
             ]
             cl_pr = closing_prices
@@ -475,11 +469,11 @@ class TSECache:
                         elif (
                             cond == 2
                             and prcs_dont_match
-                            and filtered_shares.index.isin(
+                            and filtered_splits.index.isin(
                                 [next_prcs.DEven], level="DEven"
                             ).any()
                         ):
-                            target_share = filtered_shares.xs(
+                            target_share = filtered_splits.xs(
                                 next_prcs.DEven, level="DEven"
                             ).iloc[0]
                             old_shares = target_share["NumberOfShareOld"]

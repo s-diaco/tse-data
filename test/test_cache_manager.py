@@ -98,12 +98,14 @@ def test_refresh_prices_merged(
         pd.testing.assert_frame_equal(cache.prices_merged, expected_res)
 
 
-def test_read_prices(read_prices_data):
+def test_read_prices(mocker, read_prices_data):
     """
     test read_prcices
     """
 
     cache, expected_res = read_prices_data
+    mock_sql = mocker.patch("dtse.cache_manager.pd.read_sql")
+    mock_sql.return_value = expected_res
     selected_syms_file = "sample_data/sample_selected_syms.csv"
     selected_syms = pd.read_csv(
         selected_syms_file, encoding="utf-8", index_col="InsCode"
@@ -130,29 +132,37 @@ def test_adjust(
     Test adjust function.
     """
 
-    cache, closing_prices = read_prices_data
+    cache, _ = read_prices_data
+    adj_daily_prices_dir = "sample_data/"
     if cond == 0:
-        adjusted_closing_prices_path = "sample_data/sample_cache.prices.csv"
+        adj_daily_prices_dir += "prices/"
     if cond == 1:
-        adjusted_closing_prices_path = (
-            "sample_data/prices_adjusted_cond_1/" + str(codes[0]) + ".csv"
-        )
+        adj_daily_prices_dir += "prices_adjusted_cond_1/"
     if cond == 2:
-        adjusted_closing_prices_path = (
-            "sample_data/prices_adjusted_cond_2/" + str(codes[0]) + ".csv"
-        )
+        adj_daily_prices_dir += "prices_adjusted_cond_2/"
     if cond == 3:
-        adjusted_closing_prices_path = (
-            "sample_data/prices_adjusted_cond_1/" + str(codes[0]) + ".csv"
+        adj_daily_prices_dir += "prices_adjusted_cond_1/"
+    res_list = [
+        pd.read_csv(
+            f"{adj_daily_prices_dir}{str(code)}.csv", index_col=["InsCode", "DEven"]
         )
-    expected_res = pd.read_csv(
-        adjusted_closing_prices_path, index_col=["InsCode", "DEven"]
-    )
+        for code in codes
+    ]
+    not_adj_prices_list = [
+        pd.read_csv(
+            f"sample_data/prices/{str(code)}.csv", index_col=["InsCode", "DEven"]
+        )
+        for code in codes
+    ]
+    expected_res = pd.concat(res_list)
+    expected_res = expected_res.sort_index(level=1)
 
     # parse sample data for stock splits
     sample_all_shares_path = "sample_data/all_shares.csv"
     splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
     assert cache.prices is None
-    cache.add_to_prices([closing_prices])
+    cache.add_to_prices(not_adj_prices_list)
     cache.splits = splits
     res = cache.adjust(cond, codes)
+    if res is not None:
+        pd.testing.assert_frame_equal(res[["AdjPClosing"]], expected_res[["PClosing"]])
