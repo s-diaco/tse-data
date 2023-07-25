@@ -351,16 +351,17 @@ class TSECache:
 
         # if settings["adjust_prices"] in [1, 2, 3]
         if settings["adjust_prices"]:
-            prices = adjust(settings["adjust_prices"], prices, self.splits, ins_codes)
+            prices = self.adjust(settings["adjust_prices"], ins_codes)
 
         if not settings["days_without_trade"]:
             prices = prices[prices["ZTotTran"] > 0]
 
+        # TODO: should be higher in this method
         prices = prices[prices.index.levels[1] > int(settings["start_date"])]
 
         return prices
 
-    def adjust(self, cond: int, ins_codes: list[int]):
+    def adjust(self, cond: int, ins_codes: list[int]) -> pd.DataFrame:
         """
         Adjust closing prices according to the condition
         0: make no adjustments
@@ -369,11 +370,11 @@ class TSECache:
         3: adjust according to cash dividends
 
         :cond: int, price adjust type. can be 0 (no adjustment), 1 or 2
-        :closing_prices: pd.DataFrame, daily prices of a stock symbol
-        :splits: pd.DataFrame, stock splits and their dates
         :ins_codes: list, instrument codes
 
         :return: pd.DataFrame, adjusted closing prices
+
+        :raises: ValueError, if there is no price data in cache
         """
 
         # TODO: use only new method after timing both
@@ -386,7 +387,9 @@ class TSECache:
                 cl_pr = closing_prices
                 cl_pr_cols = list(cl_pr.columns)
                 cp_len = len(closing_prices)
-                if (
+                if not cond:
+                    return cl_pr
+                elif (
                     cond
                     and cp_len > 1
                     and (self._splits is not None)
@@ -397,45 +400,43 @@ class TSECache:
                     ]
                     if cond in [1, 3]:
                         cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
-                        cl_pr["YDayDiff"] = cl_pr["PClosing"] / cl_pr["ShiftedYDay"]
+                        cl_pr["YDayDiff"] = (
+                            cl_pr["ShiftedYDay"] / cl_pr["PClosing"]
+                        ).fillna(1)
                     if cond in [2, 3]:
-                        cl_pr = cl_pr.join(filtered_splits[["StockSplits"]]).fillna(0)
                         filtered_splits["StockSplits"] = (
-                            filtered_splits["NumberOfShareNew"]
-                            / filtered_splits["NumberOfShareOld"]
+                            filtered_splits["NumberOfShareOld"]
+                            / filtered_splits["NumberOfShareNew"]
                         )
+                        cl_pr = cl_pr.join(filtered_splits[["StockSplits"]]).fillna(1)
                     if cond == 1:
                         cl_pr["YDayDiffFactor"] = (
-                            (1 / cl_pr.YDayDiff.iloc[::-1])
-                            .replace(np.inf, 1)
-                            .cumprod()
-                            .iloc[::-1]
+                            cl_pr.YDayDiff.iloc[::-1].cumprod().iloc[::-1]
                         )
                         cl_pr["AdjPClosing"] = cl_pr.YDayDiffFactor * cl_pr.PClosing
                     elif cond == 2:
                         cl_pr["SplitFactor"] = (
-                            (1 / cl_pr.StockSplits.iloc[::-1])
-                            .replace(np.inf, 1)
+                            cl_pr.StockSplits.iloc[::-1]
                             .cumprod()
                             .iloc[::-1]
+                            .shift(-1, fill_value=1)
                         )
-                        cl_pr["AdjPClosing"] = cl_pr.SplitFactor * cl_pr.PClosing
+                        cl_pr["AdjPClosing"] = round(cl_pr.SplitFactor * cl_pr.PClosing)
                     elif cond == 3:
                         cl_pr["DividDiff"] = 1
                         cl_pr.loc[
                             ~cl_pr["YDayDiff"].isin([1])
-                            & cl_pr["StockSplits"].isin([0]),
+                            & cl_pr["StockSplits"].isin([1]),
                             "DividDiff",
                         ] = cl_pr[["YDayDiff"]]
                         cl_pr["DividDiffFactor"] = (
-                            (1 / cl_pr.DividDiff.iloc[::-1])
-                            .replace(np.inf, 1)
-                            .cumprod()
-                            .iloc[::-1]
+                            cl_pr.DividDiff.iloc[::-1].cumprod().iloc[::-1]
                         )
                         cl_pr["AdjPClosing"] = cl_pr.DividDiffFactor * cl_pr.PClosing
                     cl_pr_cols.append("AdjPClosing")
                 return cl_pr[cl_pr_cols]
+        else:
+            raise ValueError("No price data available.")
 
             filtered_splits = self._splits[
                 self._splits.index.isin(ins_codes, level="InsCode")

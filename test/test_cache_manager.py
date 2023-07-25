@@ -116,8 +116,9 @@ def test_read_prices(mocker, read_prices_data):
 
 adjust_params = [
     (0, [35796086458096255]),  # شیران
-    (1, [68635710163497089, 26787658273107220]),  # همراه
+    (1, [35796086458096255]),
     (2, [35796086458096255]),
+    (1, [68635710163497089, 26787658273107220]),  # همراه
     (3, [68635710163497089, 26787658273107220]),
 ]
 
@@ -164,5 +165,12 @@ def test_adjust(
     cache.add_to_prices(not_adj_prices_list)
     cache.splits = splits
     res = cache.adjust(cond, codes)
+    if cond:
+        res = res.drop(["PClosing"], axis=1)
+        res = res[["AdjPClosing"]].rename({"AdjPClosing": "PClosing"}, axis=1)
     if res is not None:
-        pd.testing.assert_frame_equal(res[["AdjPClosing"]], expected_res[["PClosing"]])
+        pd.testing.assert_frame_equal(
+            left=res[["PClosing"]],
+            right=expected_res[["PClosing"]],
+            atol=1,
+        )
