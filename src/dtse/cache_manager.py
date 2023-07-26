@@ -413,7 +413,9 @@ class TSECache:
                         cl_pr["YDayDiffFactor"] = (
                             cl_pr.YDayDiff.iloc[::-1].cumprod().iloc[::-1]
                         )
-                        cl_pr["AdjPClosing"] = cl_pr.YDayDiffFactor * cl_pr.PClosing
+                        cl_pr["AdjPClosing"] = round(
+                            cl_pr.YDayDiffFactor * cl_pr.PClosing
+                        )
                     elif cond == 2:
                         cl_pr["SplitFactor"] = (
                             cl_pr.StockSplits.iloc[::-1]
@@ -423,16 +425,17 @@ class TSECache:
                         )
                         cl_pr["AdjPClosing"] = round(cl_pr.SplitFactor * cl_pr.PClosing)
                     elif cond == 3:
-                        cl_pr["DividDiff"] = 1
+                        cl_pr["DividDiff"] = cl_pr["YDayDiff"]
                         cl_pr.loc[
-                            ~cl_pr["YDayDiff"].isin([1])
-                            & cl_pr["StockSplits"].isin([1]),
+                            ~cl_pr["StockSplits"].shift(-1).isin([1]),
                             "DividDiff",
-                        ] = cl_pr[["YDayDiff"]]
+                        ] = 1
                         cl_pr["DividDiffFactor"] = (
                             cl_pr.DividDiff.iloc[::-1].cumprod().iloc[::-1]
                         )
-                        cl_pr["AdjPClosing"] = cl_pr.DividDiffFactor * cl_pr.PClosing
+                        cl_pr["AdjPClosing"] = round(
+                            cl_pr.DividDiffFactor * cl_pr.PClosing
+                        )
                     cl_pr_cols.append("AdjPClosing")
                 return cl_pr[cl_pr_cols]
         else:
