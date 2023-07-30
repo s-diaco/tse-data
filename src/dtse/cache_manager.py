@@ -149,12 +149,8 @@ class TSECache:
         :return: bool, True if value added to prices, else False.
         """
 
-        # remove empty data frames and first non trading days of each InsCode
-        dframes = [
-            data.loc[data[data["QTotTran5J"].gt(0)].index[0] :]
-            for data in dframes
-            if not data.empty
-        ]
+        # TODO: fix empty data frames price at first non trading days of each InsCode
+        dframes = [data for data in dframes if not data.empty]
 
         if dframes:
             if self._prices is None:
