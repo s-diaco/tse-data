@@ -365,7 +365,7 @@ class TSECache:
         2: adjust according to splits
         3: adjust according to cash dividends
 
-        :cond: int, price adjust type. can be 0 (no adjustment), 1 or 2
+        :cond: int, price adjust type. can be 0 (no adjustment), 1, 2 or 3
         :ins_codes: list, instrument codes
 
         :return: pd.DataFrame, adjusted closing prices
@@ -373,135 +373,62 @@ class TSECache:
         :raises: ValueError, if there is no price data in cache
         """
 
-        # TODO: use only new method after timing both
         if self.prices is not None:
             closing_prices = self.prices[
                 self.prices.index.isin(ins_codes, level="InsCode")
             ].sort_index(level=1)
-            new_method = True
-            if new_method:
-                cl_pr = closing_prices
-                cl_pr_cols = list(cl_pr.columns)
-                cp_len = len(closing_prices)
-                if not cond:
-                    return cl_pr
-                elif (
-                    cond
-                    and cp_len > 1
-                    and (self._splits is not None)
-                    and (not self._splits.empty)
-                ):
-                    filtered_splits = self._splits[
-                        self._splits.index.isin(ins_codes, level="InsCode")
-                    ]
-                    if cond in [1, 3]:
-                        cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
-                        cl_pr["YDayDiff"] = (
-                            cl_pr["ShiftedYDay"] / cl_pr["PClosing"]
-                        ).fillna(1)
-                    if cond in [2, 3]:
-                        filtered_splits["StockSplits"] = (
-                            filtered_splits["NumberOfShareOld"]
-                            / filtered_splits["NumberOfShareNew"]
-                        )
-                        cl_pr = cl_pr.join(filtered_splits[["StockSplits"]]).fillna(1)
-                    if cond == 1:
-                        cl_pr["YDayDiffFactor"] = (
-                            cl_pr.YDayDiff.iloc[::-1].cumprod().iloc[::-1]
-                        )
-                        cl_pr["AdjPClosing"] = round(
-                            cl_pr.YDayDiffFactor * cl_pr.PClosing
-                        )
-                    elif cond == 2:
-                        cl_pr["SplitFactor"] = (
-                            cl_pr.StockSplits.iloc[::-1]
-                            .cumprod()
-                            .iloc[::-1]
-                            .shift(-1, fill_value=1)
-                        )
-                        cl_pr["AdjPClosing"] = round(cl_pr.SplitFactor * cl_pr.PClosing)
-                    elif cond == 3:
-                        cl_pr["DividDiff"] = cl_pr["YDayDiff"]
-                        cl_pr.loc[
-                            ~cl_pr["StockSplits"].shift(-1).isin([1]),
-                            "DividDiff",
-                        ] = 1
-                        cl_pr["DividDiffFactor"] = (
-                            cl_pr.DividDiff.iloc[::-1].cumprod().iloc[::-1]
-                        )
-                        cl_pr["AdjPClosing"] = round(
-                            cl_pr.DividDiffFactor * cl_pr.PClosing
-                        )
-                    cl_pr_cols.append("AdjPClosing")
-                return cl_pr[cl_pr_cols]
+            cl_pr = closing_prices
+            cl_pr_cols = list(cl_pr.columns)
+            cp_len = len(closing_prices)
+            if not cond:
+                return cl_pr
+            elif (
+                cond
+                and cp_len > 1
+                and (self._splits is not None)
+                and (not self._splits.empty)
+            ):
+                filtered_splits = self._splits[
+                    self._splits.index.isin(ins_codes, level="InsCode")
+                ]
+                if cond in [1, 3]:
+                    cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
+                    cl_pr["YDayDiff"] = (
+                        cl_pr["ShiftedYDay"] / cl_pr["PClosing"]
+                    ).fillna(1)
+                if cond in [2, 3]:
+                    filtered_splits["StockSplits"] = (
+                        filtered_splits["NumberOfShareOld"]
+                        / filtered_splits["NumberOfShareNew"]
+                    )
+                    cl_pr = cl_pr.join(filtered_splits[["StockSplits"]]).fillna(1)
+                if cond == 1:
+                    cl_pr["YDayDiffFactor"] = (
+                        cl_pr.YDayDiff.iloc[::-1].cumprod().iloc[::-1]
+                    )
+                    cl_pr["AdjPClosing"] = round(cl_pr.YDayDiffFactor * cl_pr.PClosing)
+                elif cond == 2:
+                    cl_pr["SplitFactor"] = (
+                        cl_pr.StockSplits.iloc[::-1]
+                        .cumprod()
+                        .iloc[::-1]
+                        .shift(-1, fill_value=1)
+                    )
+                    cl_pr["AdjPClosing"] = round(cl_pr.SplitFactor * cl_pr.PClosing)
+                elif cond == 3:
+                    cl_pr["DividDiff"] = cl_pr["YDayDiff"]
+                    cl_pr.loc[
+                        ~cl_pr["StockSplits"].shift(-1).isin([1]),
+                        "DividDiff",
+                    ] = 1
+                    cl_pr["DividDiffFactor"] = (
+                        cl_pr.DividDiff.iloc[::-1].cumprod().iloc[::-1]
+                    )
+                    cl_pr["AdjPClosing"] = round(cl_pr.DividDiffFactor * cl_pr.PClosing)
+                cl_pr_cols.append("AdjPClosing")
+            return cl_pr[cl_pr_cols]
         else:
             raise ValueError("No price data available.")
-
-            filtered_splits = self._splits[
-                self._splits.index.isin(ins_codes, level="InsCode")
-            ]
-            cl_pr = closing_prices
-            cp_len = len(closing_prices)
-            adjusted_cl_prices = []
-            res = cl_pr
-            if cond and cp_len > 1:
-                gaps = 0
-                num = 1
-                adjusted_cl_prices.append(cl_pr.iloc[-1].to_dict())
-                if cond == 1:
-                    for i in range(cp_len - 2, -1, -1):
-                        curr_prcs = cl_pr.iloc[i]
-                        next_prcs = cl_pr.iloc[i + 1]
-                        if (
-                            curr_prcs.PClosing != next_prcs.PriceYesterday
-                            and curr_prcs.InsCode == next_prcs.InsCode
-                        ):
-                            gaps += 1
-                if (cond == 1 and (gaps / cp_len < 0.08)) or cond == 2:
-                    for i in range(cp_len - 2, -1, -1):
-                        curr_prcs = cl_pr.iloc[i]
-                        next_prcs = cl_pr.iloc[i + 1]
-                        prcs_dont_match = (
-                            curr_prcs.PClosing != next_prcs.PriceYesterday
-                        ) and (curr_prcs.InsCode == next_prcs.InsCode)
-                        if cond == 1 and prcs_dont_match:
-                            num = num * next_prcs.PriceYesterday / curr_prcs.PClosing
-                        elif (
-                            cond == 2
-                            and prcs_dont_match
-                            and filtered_splits.index.isin(
-                                [next_prcs.DEven], level="DEven"
-                            ).any()
-                        ):
-                            target_share = filtered_splits.xs(
-                                next_prcs.DEven, level="DEven"
-                            ).iloc[0]
-                            old_shares = target_share["NumberOfShareOld"]
-                            new_shares = target_share["NumberOfShareNew"]
-                            num = num * old_shares / new_shares
-                        close = round(num * float(curr_prcs.PClosing), 2)
-                        last = round(num * float(curr_prcs.PDrCotVal), 2)
-                        low = round(num * float(curr_prcs.PriceMin), 2)
-                        high = round(num * float(curr_prcs.PriceMax), 2)
-                        yday = round(num * float(curr_prcs.PriceYesterday), 2)
-                        first = round(num * float(curr_prcs.PriceFirst), 2)
-
-                        adjusted_closing_price = {
-                            "InsCode": curr_prcs.InsCode,
-                            "DEven": curr_prcs.DEven,
-                            "PClosing": close,
-                            "PDrCotVal": last,
-                            "PriceMin": low,
-                            "PriceMax": high,
-                            "PriceYesterday": yday,
-                            "PriceFirst": first,
-                            "ZTotTran": curr_prcs.ZTotTran,
-                            "QTotTran5J": curr_prcs.QTotTran5J,
-                            "QTotCap": curr_prcs.QTotCap,
-                        }
-                        adjusted_cl_prices.append(adjusted_closing_price)
-                    res = pd.DataFrame(adjusted_cl_prices[::-1])
-            return res.astype(int)
 
     def write_prc_csv(self, f_name: str, data: pd.DataFrame) -> None:
         """
