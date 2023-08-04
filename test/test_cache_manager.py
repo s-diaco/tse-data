@@ -153,7 +153,7 @@ def test_adjust(
     ]
     not_adj_prices_list = [
         pd.read_csv(
-            f"sample_data/prices/{str(code)}.csv", index_col=["InsCode", "DEven"]
+            f"sample_data/rn3/cond0/{str(code)}.csv", index_col=["InsCode", "DEven"]
         )
         for code in codes
     ]
