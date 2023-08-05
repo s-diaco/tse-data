@@ -40,7 +40,7 @@ def fixture_read_prices():
     tse_cache_args = {
         "merge_similar_symbols": True,
         "cache": False,
-        "tse_dir": Path("sample_data/prices"),
+        "tse_dir": Path("sample_data/prices_not_adj"),
     }
     settings = cfg.storage
     settings.update(tse_cache_args)
@@ -138,7 +138,7 @@ def test_adjust(
     cache, _ = read_prices_data
     adj_daily_prices_dir = "sample_data/"
     if cond == 0:
-        adj_daily_prices_dir += "prices/"
+        adj_daily_prices_dir += "prices_not_adj/"
     if cond == 1:
         adj_daily_prices_dir += "prices_adjusted_cond_1/"
     if cond == 2:
@@ -153,7 +153,8 @@ def test_adjust(
     ]
     not_adj_prices_list = [
         pd.read_csv(
-            f"sample_data/rn3/cond0/{str(code)}.csv", index_col=["InsCode", "DEven"]
+            f"sample_data/prices_not_adj/{str(code)}.csv",
+            index_col=["InsCode", "DEven"],
         )
         for code in codes
     ]
