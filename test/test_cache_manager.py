@@ -141,7 +141,7 @@ def test_adjust(
         adj_daily_prices_dir += "prices_not_adj/"
     if cond == 1:
         adj_daily_prices_dir += "prices_adjusted_cond_1/"
-    if cond == 2:
+    if cond == 2:  # افزایش سرمایه با احتساب آورده
         adj_daily_prices_dir += "prices_adjusted_cond_2/"
     if cond == 3:
         adj_daily_prices_dir += "prices_adjusted_cond_1/"
