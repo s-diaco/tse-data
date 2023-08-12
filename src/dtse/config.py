@@ -213,4 +213,20 @@ class PriceColFa:
     first: str = "اولین قیمت"
 
 
+@dataclass
+class PriceColYahoo:
+    """
+    Yahoo column names for prices
+    Date,Open,High,Low,Close,Adj Close,Volume
+    """
+
+    date: str = "Date"
+    close: str = "Close"
+    volume: str = "Volume"
+    min: str = "Low"
+    max: str = "High"
+    first: str = "Open"
+    adj_close: str = "Adj Close"
+
+
 PRICE_COL_NAMES = PriceColTypical
