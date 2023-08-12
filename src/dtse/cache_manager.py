@@ -393,38 +393,44 @@ class TSECache:
                 ]
                 if cond in [1, 3]:
                     cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
-                    cl_pr["YDayDiff"] = (
+                    cl_pr["AdjMultiplr"] = (
                         cl_pr["ShiftedYDay"] / cl_pr["PClosing"]
                     ).fillna(1)
                 if cond in [2, 3]:
-                    filtered_splits["StockSplits"] = (
+                    filtered_splits["SplitMultiplr"] = (
                         filtered_splits["NumberOfShareOld"]
                         / filtered_splits["NumberOfShareNew"]
                     )
-                    cl_pr = cl_pr.join(filtered_splits[["StockSplits"]]).fillna(1)
+                    cl_pr = cl_pr.join(filtered_splits[["SplitMultiplr"]]).fillna(1)
                 if cond == 1:
-                    cl_pr["YDayDiffFactor"] = (
-                        cl_pr.YDayDiff.iloc[::-1].cumprod().iloc[::-1]
+                    cl_pr["AdjMultiplrCumProd"] = (
+                        cl_pr.AdjMultiplr.iloc[::-1].cumprod().iloc[::-1]
                     )
-                    cl_pr["AdjPClosing"] = round(cl_pr.YDayDiffFactor * cl_pr.PClosing)
+                    cl_pr["AdjPClosing"] = round(
+                        cl_pr.AdjMultiplrCumProd * cl_pr.PClosing
+                    ).astype(int)
                 elif cond == 2:
-                    cl_pr["SplitFactor"] = (
-                        cl_pr.StockSplits.iloc[::-1]
+                    cl_pr["SplitMultiplrCumProd"] = (
+                        cl_pr.SplitMultiplr.iloc[::-1]
                         .cumprod()
                         .iloc[::-1]
                         .shift(-1, fill_value=1)
                     )
-                    cl_pr["AdjPClosing"] = round(cl_pr.SplitFactor * cl_pr.PClosing)
+                    cl_pr["AdjPClosing"] = round(
+                        cl_pr.SplitMultiplrCumProd * cl_pr.PClosing
+                    ).astype(int)
                 elif cond == 3:
-                    cl_pr["DividDiff"] = cl_pr["YDayDiff"]
+                    cl_pr["DividMultiplr"] = cl_pr["AdjMultiplr"]
                     cl_pr.loc[
-                        ~cl_pr["StockSplits"].shift(-1).isin([1]),
-                        "DividDiff",
+                        ~cl_pr["SplitMultiplr"].shift(-1).isin([1]),
+                        "DividMultiplr",
                     ] = 1
-                    cl_pr["DividDiffFactor"] = (
-                        cl_pr.DividDiff.iloc[::-1].cumprod().iloc[::-1]
+                    cl_pr["DividMultiplrCumProd"] = (
+                        cl_pr.DividMultiplr.iloc[::-1].cumprod().iloc[::-1]
                     )
-                    cl_pr["AdjPClosing"] = round(cl_pr.DividDiffFactor * cl_pr.PClosing)
+                    cl_pr["AdjPClosing"] = round(
+                        cl_pr.DividMultiplrCumProd * cl_pr.PClosing
+                    ).astype(int)
                 cl_pr_cols.append("AdjPClosing")
             return cl_pr[cl_pr_cols]
         else:

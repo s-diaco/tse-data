@@ -79,7 +79,7 @@ def test_refresh_prices_merged(
         for prc_file in prices_files
     ]
     merged_prices_file = f"sample_data/prices_merged/{symbol}.csv"
-    cache, closing_prices = read_prices_data
+    cache, _ = read_prices_data
     expected_res = pd.read_csv(merged_prices_file, index_col=["Symbol", "DEven"])
 
     # parse sample data for stock splits
@@ -144,7 +144,7 @@ def test_adjust(
     if cond == 2:  # افزایش سرمایه با احتساب آورده
         adj_daily_prices_dir += "prices_adjusted_cond_2/"
     if cond == 3:
-        adj_daily_prices_dir += "prices_adjusted_cond_1/"
+        adj_daily_prices_dir += "prices_adjusted_cond_3/"
     res_list = [
         pd.read_csv(
             f"{adj_daily_prices_dir}{str(code)}.csv", index_col=["InsCode", "DEven"]
@@ -176,4 +176,5 @@ def test_adjust(
             left=res[["PClosing"]],
             right=expected_res[["PClosing"]],
             atol=1,
+            check_dtype=False,
         )
