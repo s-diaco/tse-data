@@ -361,7 +361,7 @@ class TSECache:
         """
         Adjust closing prices according to the condition
         0: make no adjustments
-        1: adjust according to dividends and splits (yday / close of yesterday)
+        1: adjust according to dividends and splits
         2: adjust according to splits
         3: adjust according to cash dividends
 
@@ -374,65 +374,88 @@ class TSECache:
         """
 
         if self.prices is not None:
-            closing_prices = self.prices[
+            prices = self.prices[
                 self.prices.index.isin(ins_codes, level="InsCode")
             ].sort_index(level=1)
-            cl_pr = closing_prices
-            cl_pr_cols = list(cl_pr.columns)
-            cp_len = len(closing_prices)
-            if not cond:
-                return cl_pr
-            elif (
-                cond
-                and cp_len > 1
-                and (self._splits is not None)
-                and (not self._splits.empty)
-            ):
-                filtered_splits = self._splits[
-                    self._splits.index.isin(ins_codes, level="InsCode")
-                ]
-                if cond in [1, 3]:
-                    cl_pr["ShiftedYDay"] = cl_pr["PriceYesterday"].shift(-1)
-                    cl_pr["AdjMultiplr"] = (
-                        cl_pr["ShiftedYDay"] / cl_pr["PClosing"]
-                    ).fillna(1)
-                if cond in [2, 3]:
+            cp_len = len(prices)
+            if cp_len < 2 or not cond:
+                return prices
+            price_cols = list(prices.columns)
+            prices["ShiftedClose"] = prices["PClosing"].shift(+1)
+            prices["dft_prc"] = (
+                (prices["PClosing"] == 0) | (prices["PClosing"] == 1000)
+            ) & (prices["ShiftedClose"] != prices["PriceYesterday"])
+            has_dft_prc = True
+            # TODO: test it
+            while has_dft_prc:
+                if prices[prices["dft_prc"]].empty:
+                    has_dft_prc = False
+                    continue
+                if prices[prices["dft_prc"]].index[0] == prices.index[0]:
+                    prices.loc[prices.index[0], ["dft_prc"]] = False
+                    continue
+                pr_chunk = prices.loc[prices[prices["dft_prc"]].index[0] :]
+                slice_len = len(
+                    pr_chunk.loc[
+                        pr_chunk.index[0] : pr_chunk[pr_chunk["QTotTran5J"] != 0].index[
+                            0
+                        ]
+                    ]
+                )
+                pr_slice = pr_chunk.iloc[0:slice_len]
+                pr_slice.loc[
+                    : pr_slice.index[len(pr_slice) - 2], "PClosing"
+                ] = pr_slice["ShiftedClose"].iloc[0]
+                pr_slice.loc[:, "PriceYesterday"] = pr_slice["ShiftedClose"].iloc[0]
+                pr_slice.loc[:, "dft_prc"] = False
+            if cond in [1, 3]:
+                prices["ShiftedYDay"] = prices["PriceYesterday"].shift(-1)
+                prices["AdjMultiplr"] = (
+                    prices["ShiftedYDay"] / prices["PClosing"]
+                ).fillna(1)
+            if cond in [2, 3]:
+                if (self._splits is not None) and (not self._splits.empty):
+                    filtered_splits = self._splits[
+                        self._splits.index.isin(ins_codes, level="InsCode")
+                    ]
                     filtered_splits["SplitMultiplr"] = (
                         filtered_splits["NumberOfShareOld"]
                         / filtered_splits["NumberOfShareNew"]
                     )
-                    cl_pr = cl_pr.join(filtered_splits[["SplitMultiplr"]]).fillna(1)
-                if cond == 1:
-                    cl_pr["AdjMultiplrCumProd"] = (
-                        cl_pr.AdjMultiplr.iloc[::-1].cumprod().iloc[::-1]
-                    )
-                    cl_pr["AdjPClosing"] = round(
-                        cl_pr.AdjMultiplrCumProd * cl_pr.PClosing
-                    ).astype(int)
-                elif cond == 2:
-                    cl_pr["SplitMultiplrCumProd"] = (
-                        cl_pr.SplitMultiplr.iloc[::-1]
-                        .cumprod()
-                        .iloc[::-1]
-                        .shift(-1, fill_value=1)
-                    )
-                    cl_pr["AdjPClosing"] = round(
-                        cl_pr.SplitMultiplrCumProd * cl_pr.PClosing
-                    ).astype(int)
-                elif cond == 3:
-                    cl_pr["DividMultiplr"] = cl_pr["AdjMultiplr"]
-                    cl_pr.loc[
-                        ~cl_pr["SplitMultiplr"].shift(-1).isin([1]),
-                        "DividMultiplr",
-                    ] = 1
-                    cl_pr["DividMultiplrCumProd"] = (
-                        cl_pr.DividMultiplr.iloc[::-1].cumprod().iloc[::-1]
-                    )
-                    cl_pr["AdjPClosing"] = round(
-                        cl_pr.DividMultiplrCumProd * cl_pr.PClosing
-                    ).astype(int)
-                cl_pr_cols.append("AdjPClosing")
-            return cl_pr[cl_pr_cols]
+                    prices = prices.join(filtered_splits[["SplitMultiplr"]]).fillna(1)
+                else:
+                    prices["SplitMultiplr"] = 1
+            if cond == 1:
+                prices["AdjMultiplrCumProd"] = (
+                    prices.AdjMultiplr.iloc[::-1].cumprod().iloc[::-1]
+                )
+                prices["AdjPClosing"] = round(
+                    prices.AdjMultiplrCumProd * prices.PClosing
+                ).astype(int)
+            elif cond == 2:
+                prices["SplitMultiplrCumProd"] = (
+                    prices.SplitMultiplr.iloc[::-1]
+                    .cumprod()
+                    .iloc[::-1]
+                    .shift(-1, fill_value=1)
+                )
+                prices["AdjPClosing"] = round(
+                    prices.SplitMultiplrCumProd * prices.PClosing
+                ).astype(int)
+            elif cond == 3:
+                prices["DividMultiplr"] = prices["AdjMultiplr"]
+                prices.loc[
+                    ~prices["SplitMultiplr"].shift(-1).isin([1]),
+                    "DividMultiplr",
+                ] = 1
+                prices["DividMultiplrCumProd"] = (
+                    prices.DividMultiplr.iloc[::-1].cumprod().iloc[::-1]
+                )
+                prices["AdjPClosing"] = round(
+                    prices.DividMultiplrCumProd * prices.PClosing
+                ).astype(int)
+            price_cols.append("AdjPClosing")
+            return prices[price_cols]
         else:
             raise ValueError("No price data available.")
 
