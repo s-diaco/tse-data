@@ -345,9 +345,7 @@ class TSECache:
         if prices.empty:
             return prices
 
-        # if settings["adjust_prices"] in [1, 2, 3]
-        if settings["adjust_prices"]:
-            prices = self.adjust(settings["adjust_prices"], ins_codes)
+        prices = self.adjust(settings["adjust_prices"], ins_codes)
 
         if not settings["days_without_trade"]:
             prices = prices[prices["ZTotTran"] > 0]
@@ -394,18 +392,13 @@ class TSECache:
                 if prices[prices["dft_prc"]].index[0] == prices.index[0]:
                     prices.loc[prices.index[0], ["dft_prc"]] = False
                     continue
-                pr_chunk = prices.loc[prices[prices["dft_prc"]].index[0] :]
-                slice_len = len(
-                    pr_chunk.loc[
-                        pr_chunk.index[0] : pr_chunk[pr_chunk["QTotTran5J"] != 0].index[
-                            0
-                        ]
-                    ]
+                chunk = prices.loc[prices[prices["dft_prc"]].index[0] :]
+                s_len = len(
+                    chunk.loc[chunk.index[0] : chunk[chunk["QTotTran5J"] != 0].index[0]]
                 )
-                pr_slice = pr_chunk.iloc[0:slice_len]
-                pr_slice.loc[
-                    : pr_slice.index[len(pr_slice) - 2], "PClosing"
-                ] = pr_slice["ShiftedClose"].iloc[0]
+                pr_slice = chunk.iloc[0:s_len]
+                lst_indx = pr_slice.index[len(pr_slice) - 2]
+                pr_slice.loc[:lst_indx, "PClosing"] = pr_slice["ShiftedClose"].iloc[0]
                 pr_slice.loc[:, "PriceYesterday"] = pr_slice["ShiftedClose"].iloc[0]
                 pr_slice.loc[:, "dft_prc"] = False
             if cond in [1, 3]:
