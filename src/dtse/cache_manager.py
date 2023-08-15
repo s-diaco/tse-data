@@ -379,28 +379,31 @@ class TSECache:
             if cp_len < 2 or not cond:
                 return prices
             price_cols = list(prices.columns)
-            prices["ShiftedClose"] = prices["PClosing"].shift(+1)
-            prices["dft_prc"] = (
-                (prices["PClosing"] == 0) | (prices["PClosing"] == 1000)
-            ) & (prices["ShiftedClose"] != prices["PriceYesterday"])
-            has_dft_prc = True
-            # TODO: test it
-            while has_dft_prc:
-                if prices[prices["dft_prc"]].empty:
-                    has_dft_prc = False
-                    continue
-                if prices[prices["dft_prc"]].index[0] == prices.index[0]:
-                    prices.loc[prices.index[0], ["dft_prc"]] = False
-                    continue
-                chunk = prices.loc[prices[prices["dft_prc"]].index[0] :]
-                s_len = len(
-                    chunk.loc[chunk.index[0] : chunk[chunk["QTotTran5J"] != 0].index[0]]
+            if len(ins_codes) > 1:
+                # find stock moves between markets
+                # and adjust for nominal price in the new market, if necessary
+                prices["ShiftedClose"] = prices["PClosing"].shift(1)
+                nom_idxs = prices.groupby("InsCode").head(1).index[1:]
+                default_prs = self.settings["NOMINAL_PRICES"]
+                prices["nom_pr"] = (
+                    prices["PClosing"].isin(default_prs)
+                    & prices.index.isin(nom_idxs)
+                    & (prices["ShiftedClose"] != prices["PriceYesterday"])
                 )
-                pr_slice = chunk.iloc[0:s_len]
-                lst_indx = pr_slice.index[len(pr_slice) - 2]
-                pr_slice.loc[:lst_indx, "PClosing"] = pr_slice["ShiftedClose"].iloc[0]
-                pr_slice.loc[:, "PriceYesterday"] = pr_slice["ShiftedClose"].iloc[0]
-                pr_slice.loc[:, "dft_prc"] = False
+                while not prices[prices["nom_pr"]].empty:
+                    # index of first and last row with nominal price
+                    first_idx = prices[prices["nom_pr"]].index[0]
+                    cond_1 = prices.index.isin([first_idx[0]], level="InsCode")
+                    cond_2 = prices["QTotTran5J"] != 0
+                    last_idx = prices.loc[cond_1 & cond_2].index[0]
+
+                    # the price to replace nominal price
+                    rep_pr = prices.loc[first_idx, "ShiftedClose"]
+
+                    prices.loc[first_idx:last_idx, "PClosing"].iloc[:-1] = rep_pr
+                    prices.loc[first_idx:last_idx, "PriceYesterday"] = rep_pr
+                    prices.loc[first_idx:last_idx, "nom_pr"].iloc[0] = False
+
             if cond in [1, 3]:
                 prices["ShiftedYDay"] = prices["PriceYesterday"].shift(-1)
                 prices["AdjMultiplr"] = (

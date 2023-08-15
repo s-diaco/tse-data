@@ -12,6 +12,7 @@ storage = dict(
     PRICES_DIR="prices",
     INTRADAY_DIR="intraday",
     DB_FILE_NAME="tse_data.sqlite3",
+    NOMINAL_PRICES=[1000, 0],
 )
 
 # data sructures
