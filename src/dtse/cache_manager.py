@@ -375,8 +375,13 @@ class TSECache:
             prices = self.prices[
                 self.prices.index.isin(ins_codes, level="InsCode")
             ].sort_index(level=1)
+            # remove every price data before DEF_START.
+            # before this date, server has no reliable data.
+            prices = prices[
+                prices.index.get_level_values("DEven") > self.settings["DEF_START"]
+            ]
             cp_len = len(prices)
-            if cp_len < 2 or not cond:
+            if cp_len < 2:
                 return prices
             price_cols = list(prices.columns)
             if len(ins_codes) > 1:
@@ -403,7 +408,8 @@ class TSECache:
                     prices.loc[first_idx:last_idx, "PClosing"].iloc[:-1] = rep_pr
                     prices.loc[first_idx:last_idx, "PriceYesterday"] = rep_pr
                     prices.loc[first_idx:last_idx, "nom_pr"].iloc[0] = False
-
+            if not cond:
+                return prices
             if cond in [1, 3]:
                 prices["ShiftedYDay"] = prices["PriceYesterday"].shift(-1)
                 prices["AdjMultiplr"] = (

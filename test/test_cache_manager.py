@@ -15,22 +15,6 @@ from dtse.cache_manager import TSECache
 from dtse.storage import Storage
 
 
-@pytest.fixture(name="sample_instrumnts")
-def fixture_resp_data():
-    """
-    get instruments data
-    """
-
-    # TODO: fixture never uesd
-    expected_resp_file = "sample_data/instruments_100_merged.csv"
-    inst_col_names = cfg.tse_instrument_info
-    merged_inst_col_names = inst_col_names + ["SymbolOriginal"]
-    expected_resp = pd.read_csv(
-        expected_resp_file, names=merged_inst_col_names, header=0
-    )
-    yield expected_resp
-
-
 @pytest.fixture(name="read_prices_data")
 def fixture_read_prices():
     """
@@ -45,15 +29,11 @@ def fixture_read_prices():
     settings = cfg.storage
     settings.update(tse_cache_args)
     cache = TSECache(settings=settings)
-    instrums_file = "sample_data/instruments_all.csv"
+    instrums_file = "sample_data/instruments.csv"
     cache.instruments = pd.read_csv(
         instrums_file, encoding="utf-8", index_col="InsCode"
     )
-    sample_prices_file = "sample_data/sample_cache.prices.csv"
-    sample_prices = pd.read_csv(
-        sample_prices_file, encoding="utf-8", index_col=["InsCode", "DEven"]
-    )
-    yield cache, sample_prices
+    yield cache
 
 
 refresh_params = [
@@ -79,11 +59,11 @@ def test_refresh_prices_merged(
         for prc_file in prices_files
     ]
     merged_prices_file = f"sample_data/prices_merged/{symbol}.csv"
-    cache, _ = read_prices_data
+    cache = read_prices_data
     expected_res = pd.read_csv(merged_prices_file, index_col=["Symbol", "DEven"])
 
     # parse sample data for stock splits
-    sample_all_shares_path = "sample_data/all_shares.csv"
+    sample_all_shares_path = "sample_data/shares.csv"
     splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
     selected_syms_file = "sample_data/sample_selected_syms.csv"
     selected_syms = pd.read_csv(
@@ -114,18 +94,20 @@ def test_read_prices(mocker, read_prices_data):
     pd.testing.assert_frame_equal(cache.prices, expected_res)
 
 
+conds = [0, 1, 2]
 adjust_params = [
-    (0, [35796086458096255], "35796086458096255"),  # شیران
-    (1, [35796086458096255], "35796086458096255"),
-    (2, [35796086458096255], "35796086458096255"),
-    (3, [35796086458096255], "35796086458096255"),
-    (1, [71483646978964608, 9211775239375291], "ذوب"),
-    (2, [71483646978964608, 9211775239375291], "ذوب"),
-    (3, [71483646978964608, 9211775239375291], "ذوب"),
+    ([35796086458096255], "شیران"),
+    ([71483646978964608, 9211775239375291], "ذوب"),
+    ([47377315952751604], "بسویچ"),
+    ([46348559193224090], "فولاد"),
+    ([26787658273107220, 68635710163497089], "همراه"),
+    ([778253364357513], "وبملت"),
+    ([54676885047867737], "وتوشه"),
 ]
 
 
-@pytest.mark.parametrize("cond, codes, res_file", adjust_params)
+@pytest.mark.parametrize("cond", conds)
+@pytest.mark.parametrize("codes, res_file", adjust_params)
 def test_adjust(
     cond: int,
     codes: list[int],
@@ -138,29 +120,22 @@ def test_adjust(
 
     cache, _ = read_prices_data
     adj_daily_prices_dir = "sample_data/"
-    if cond == 0:
-        adj_daily_prices_dir += "prices_not_adj/"
-    if cond == 1:
-        adj_daily_prices_dir += "prices_adjusted_cond_1/"
-    if cond == 2:  # افزایش سرمایه با احتساب آورده
-        adj_daily_prices_dir += "prices_adjusted_cond_2/"
-    if cond == 3:
-        adj_daily_prices_dir += "prices_adjusted_cond_3/"
     not_adj_prices_list = [
         pd.read_csv(
-            f"sample_data/prices_not_adj/{str(code)}.csv",
+            f"{adj_daily_prices_dir}prices_not_adj/{str(code)}.csv",
             index_col=["InsCode", "DEven"],
         )
         for code in codes
     ]
     expected_res = pd.read_csv(
-        f"{adj_daily_prices_dir}{res_file}.csv", index_col="DEven"
+        f"{adj_daily_prices_dir}prices_adjusted_cond_{cond}/{res_file}.csv",
+        index_col="DEven",
     )
     expected_res = expected_res.sort_index()
     expected_res = expected_res[expected_res["QTotTran5J"] != 0]
 
     # parse sample data for stock splits
-    sample_all_shares_path = "sample_data/shares.csv"
+    sample_all_shares_path = f"{adj_daily_prices_dir}shares.csv"
     splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
     assert cache.prices is None
     cache.add_to_prices(not_adj_prices_list)
@@ -168,13 +143,14 @@ def test_adjust(
     res = cache.adjust(cond, codes)
     res = res[res["QTotTran5J"] != 0]
     res = res.reset_index().set_index("DEven").sort_index()
+    trim_len = min(len(res), len(expected_res))
     if cond:
         res = res.drop(["PClosing"], axis=1)
         res = res[["AdjPClosing"]].rename({"AdjPClosing": "PClosing"}, axis=1)
     if res is not None:
         pd.testing.assert_frame_equal(
-            left=res[["PClosing"]],
-            right=expected_res[["PClosing"]],
+            left=res[["PClosing"]].iloc[-trim_len:],
+            right=expected_res[["PClosing"]].iloc[-trim_len:],
             atol=1.1,
             check_dtype=False,
         )

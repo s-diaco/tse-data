@@ -13,6 +13,7 @@ storage = dict(
     INTRADAY_DIR="intraday",
     DB_FILE_NAME="tse_data.sqlite3",
     NOMINAL_PRICES=[1000, 0],
+    DEF_START=20110101,  # maybe 20081206
 )
 
 # data sructures
