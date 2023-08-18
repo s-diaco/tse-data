@@ -118,7 +118,7 @@ def test_adjust(
     Test adjust function.
     """
 
-    cache, _ = read_prices_data
+    cache = read_prices_data
     adj_daily_prices_dir = "sample_data/"
     not_adj_prices_list = [
         pd.read_csv(
