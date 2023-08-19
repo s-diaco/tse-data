@@ -426,9 +426,9 @@ class TSECache:
                 prices["AdjMultiplrCumProd"] = (
                     prices.AdjMultiplr.iloc[::-1].cumprod().iloc[::-1]
                 )
-                prices["AdjPClosing"] = round(
+                prices["AdjPClosing"] = (
                     prices.AdjMultiplrCumProd * prices.PClosing
-                ).astype(int)
+                ).map(round)
             elif cond == 2:
                 prices["SplitMultiplrCumProd"] = (
                     prices.SplitMultiplr.iloc[::-1]
@@ -436,9 +436,9 @@ class TSECache:
                     .iloc[::-1]
                     .shift(-1, fill_value=1)
                 )
-                prices["AdjPClosing"] = round(
+                prices["AdjPClosing"] = (
                     prices.SplitMultiplrCumProd * prices.PClosing
-                ).astype(int)
+                ).map(round)
             elif cond == 3:
                 prices["DividMultiplr"] = prices["AdjMultiplr"]
                 prices.loc[
@@ -448,9 +448,9 @@ class TSECache:
                 prices["DividMultiplrCumProd"] = (
                     prices.DividMultiplr.iloc[::-1].cumprod().iloc[::-1]
                 )
-                prices["AdjPClosing"] = round(
+                prices["AdjPClosing"] = (
                     prices.DividMultiplrCumProd * prices.PClosing
-                ).astype(int)
+                ).map(round)
             price_cols.append("AdjPClosing")
             return prices[price_cols]
         else:
