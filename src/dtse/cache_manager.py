@@ -375,11 +375,6 @@ class TSECache:
             prices = self.prices[
                 self.prices.index.isin(ins_codes, level="InsCode")
             ].sort_index(level=1)
-            # remove every price data before DEF_START.
-            # before this date, server has no reliable data.
-            prices = prices[
-                prices.index.get_level_values("DEven") > self.settings["DEF_START"]
-            ]
             cp_len = len(prices)
             if cp_len < 2:
                 return prices
