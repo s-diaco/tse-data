@@ -33,48 +33,6 @@ def fixture_read_prices() -> Generator[TSECache, None, None]:
     yield cache
 
 
-refresh_params = [
-    ([35796086458096255], "شیران"),
-    ([68635710163497089, 26787658273107220], "همراه"),
-    ([9211775239375291, 71483646978964608], "ذوب"),
-]
-
-
-@pytest.mark.parametrize("codes, symbol", refresh_params)
-def test_refresh_prices_merged(
-    codes: list[int],
-    symbol: str,
-    test_catch: TSECache,
-):
-    """
-    Test refresh_prices_merged function.
-    """
-
-    prices_files = [f"sample_data/prices/{prc_file}.csv" for prc_file in codes]
-    prcs_list = [
-        pd.read_csv(prc_file, index_col=["InsCode", "DEven"])
-        for prc_file in prices_files
-    ]
-    merged_prices_file = f"sample_data/prices_merged/{symbol}.csv"
-    cache = test_catch
-    expected_res = pd.read_csv(merged_prices_file, index_col=["Symbol", "DEven"])
-
-    # parse sample data for stock splits
-    sample_all_shares_path = "sample_data/shares.csv"
-    splits = pd.read_csv(sample_all_shares_path, index_col=["InsCode", "DEven"])
-    selected_syms_file = "sample_data/sample_selected_syms.csv"
-    selected_syms = pd.read_csv(
-        selected_syms_file, encoding="utf-8", index_col="InsCode"
-    )
-    assert cache.prices is None
-    cache.add_to_prices(prcs_list)
-    cache.splits = splits
-    cache.refresh_prices_merged(selected_syms)
-    assert cache.prices_merged is not None
-    if cache.prices_merged is not None:
-        pd.testing.assert_frame_equal(cache.prices_merged, expected_res)
-
-
 read_prices_params = [
     [
         35796086458096255,

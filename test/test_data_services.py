@@ -3,14 +3,37 @@ tests for the data_services module
 """
 
 import re
+from collections.abc import Generator
+from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 
+from dtse import config as cfg
+from dtse import data_services
 from dtse.cache_manager import TSECache
 
-from dtse import data_services
+
+@pytest.fixture(name="test_catch")
+def fixture_read_prices() -> Generator[TSECache, None, None]:
+    """
+    providing data for "test_read_prices"
+    """
+
+    tse_cache_args = {
+        "merge_similar_symbols": True,
+        "cache": False,
+        "tse_dir": Path("sample_data/prices_not_adj"),
+    }
+    settings = cfg.storage
+    settings.update(tse_cache_args)
+    cache = TSECache(settings=settings)
+    instrums_file = "sample_data/instruments.csv"
+    cache.instruments = pd.read_csv(
+        instrums_file, encoding="utf-8", index_col="InsCode"
+    )
+    yield cache
+
 
 test_data = [
     ("20220103", "20220302", True),
@@ -39,11 +62,11 @@ async def test_get_last_possible_deven():
 
 
 @pytest.mark.vcr()
-async def test_update_instruments():
+async def test_update_instruments(test_catch):
     """
     Test the update_instruments function.
     """
 
-    cache = TSECache()
+    cache = test_catch
     await data_services.update_instruments(cache=cache)
     assert True

@@ -10,12 +10,11 @@ import pandas as pd
 
 from dtse.cache_manager import TSECache
 
-from . import config as cfg
-from . import tse_utils
-from .setup_logger import logger
-from .storage import Storage
-from .tse_parser import parse_instruments, parse_splits
-from .tse_request import TSERequest
+from dtse import config as cfg
+from dtse import tse_utils
+from dtse.setup_logger import logger
+from dtse.storage import Storage
+from dtse.tse_request import TSERequest
 
 
 def get_cell(column_name, instrument, closing_price) -> str:

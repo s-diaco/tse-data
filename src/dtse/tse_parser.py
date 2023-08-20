@@ -4,7 +4,7 @@ funtions to parse tse data
 
 import pandas as pd
 
-from .storage import Storage
+from dtse.storage import Storage
 
 
 def parse_instruments(strg: Storage) -> pd.DataFrame:

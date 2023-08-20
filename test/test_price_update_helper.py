@@ -2,14 +2,38 @@
 test price_update_helper
 """
 import json
-from pandas import DataFrame
+from collections.abc import Generator
+from pathlib import Path
 
+import pandas as pd
 import pytest
+
+from dtse import config as cfg
 from dtse.cache_manager import TSECache
 from dtse.data_services import update_instruments
-
 from dtse.price_update_helper import PricesUpdateManager
 from dtse.progress_bar import ProgressBar
+
+
+@pytest.fixture(name="test_catch")
+def fixture_read_prices() -> Generator[TSECache, None, None]:
+    """
+    providing data for "test_read_prices"
+    """
+
+    tse_cache_args = {
+        "merge_similar_symbols": True,
+        "cache": False,
+        "tse_dir": Path("sample_data/prices_not_adj"),
+    }
+    settings = cfg.storage
+    settings.update(tse_cache_args)
+    cache = TSECache(settings=settings)
+    instrums_file = "sample_data/instruments.csv"
+    cache.instruments = pd.read_csv(
+        instrums_file, encoding="utf-8", index_col="InsCode"
+    )
+    yield cache
 
 
 @pytest.fixture(name="resp_data")
@@ -25,13 +49,13 @@ def fixture_resp_data():
 
 
 @pytest.mark.vcr()
-async def test_start(resp_data):
+async def test_start(resp_data, test_catch):
     """
     test start
     """
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
-    cache = TSECache(merge_similar_symbols=True, cache=False)
+    cache = test_catch
     cache._read_instrums()
     if cache.instruments.empty:
         await update_instruments(cache=cache)
@@ -40,14 +64,11 @@ async def test_start(resp_data):
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache.read_prices(selected_syms)
     pu_helper = PricesUpdateManager(cache)
-    update_needed = DataFrame(resp_data, columns=["InsCode", "DEven", "NotInNoMarket"])
+    update_needed = pd.DataFrame(
+        resp_data, columns=["InsCode", "DEven", "NotInNoMarket"]
+    )
     await pu_helper.start(
         upd_needed=update_needed,
         settings={"cache": False, "merge_similar_symbols": True},
         progressbar=ProgressBar(),
     )
-
-    # TODO: delete
-    """
-    ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
-    """

@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 from sqlite3 import connect
 
-import numpy as np
 import pandas as pd
 
 from dtse.setup_logger import logger as tse_logger
@@ -202,57 +201,6 @@ class TSECache:
             query = f"SELECT * FROM {table} WHERE InsCode In ({codes});"
             data = pd.read_sql(sql=query, con=self._cnx)
             return data
-
-    def refresh_prices_merged(self, selected_syms):
-        """
-        Updates prices_merged property.
-        """
-
-        if self._prices is not None:
-            merged_prcs = self._prices[
-                self._prices.index.isin(selected_syms.index, level=0)
-            ]
-            merged_prcs = merged_prcs.join(selected_syms[["Symbol", "CComVal"]])
-
-            # fix if InsCode has changed and closing price for the first day with new InsCode is set to 1000 or 0
-            merged_prcs["Prev_Symbol"] = merged_prcs["Symbol"]
-            merged_prcs["Curr_Symbol"] = merged_prcs["Symbol"]
-            merged_prcs = merged_prcs.reset_index().set_index(["Symbol", "DEven"])
-            merged_prcs = merged_prcs.sort_index()
-            merged_prcs["Prev_CComVal"] = merged_prcs["CComVal"].shift(1)
-            merged_prcs["Prev_Symbol"] = merged_prcs["Prev_Symbol"].shift(1)
-            merged_prcs["upd"] = (
-                merged_prcs["Prev_CComVal"] != merged_prcs["CComVal"]
-            ) & (merged_prcs["Prev_Symbol"] == merged_prcs["Curr_Symbol"])
-            if not merged_prcs[merged_prcs["upd"]].empty:
-                merged_prcs["yday+1"] = merged_prcs["PriceYesterday"].shift(+1)
-                merged_prcs[
-                    (merged_prcs["upd"])
-                    & (
-                        (merged_prcs["PClosing"] == 0)
-                        | (merged_prcs["PClosing"] == 1000)
-                    )
-                ]["PClosing"] = merged_prcs["yday+1"]
-
-            # drop temporary columns
-            candid_drop_cols = [
-                "upd",
-                "Prev_CComVal",
-                "Prev_Symbol",
-                "Curr_Symbol",
-                "yday+1",
-                "CComVal",
-            ]
-            drop_cols = [
-                drop_col
-                for drop_col in candid_drop_cols
-                if drop_col in merged_prcs.columns
-            ]
-            merged_prcs = merged_prcs.drop(
-                drop_cols,
-                axis=1,
-            )
-            self._prices_merged = merged_prcs
 
     def _read_instrums(self):
         """
