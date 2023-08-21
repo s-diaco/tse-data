@@ -65,6 +65,8 @@ tse_closing_prices_info = [
     "PriceFirst",
 ]
 
+server_line_terminator = ";"
+
 # data services
 UPDATE_INTERVAL = 1
 PRICES_UPDATE_CHUNK = 50

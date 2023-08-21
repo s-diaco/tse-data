@@ -141,7 +141,7 @@ async def update_instruments(cache: TSECache) -> None:
     last_split_id = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
-    line_terminator = ";"
+    line_terminator = cfg.server_line_terminator
     if last_update:
         cached_instruments = cache.instruments
         cached_splits = cache.splits

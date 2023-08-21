@@ -14,7 +14,7 @@ from dtse import data_services
 from dtse.cache_manager import TSECache
 
 
-@pytest.fixture(name="test_catch")
+@pytest.fixture(name="test_cache")
 def fixture_read_prices() -> Generator[TSECache, None, None]:
     """
     providing data for "test_read_prices"
@@ -28,10 +28,6 @@ def fixture_read_prices() -> Generator[TSECache, None, None]:
     settings = cfg.storage
     settings.update(tse_cache_args)
     cache = TSECache(settings=settings)
-    instrums_file = "sample_data/instruments.csv"
-    cache.instruments = pd.read_csv(
-        instrums_file, encoding="utf-8", index_col="InsCode"
-    )
     yield cache
 
 
@@ -61,12 +57,14 @@ async def test_get_last_possible_deven():
     assert pattern.search(res)
 
 
-@pytest.mark.vcr()
-async def test_update_instruments(test_catch):
+@pytest.mark.vcr(record_mode="new_episodes")
+async def test_update_instruments(test_cache):
     """
     Test the update_instruments function.
     """
 
-    cache = test_catch
+    cache = test_cache
+    assert cache.instruments is None
     await data_services.update_instruments(cache=cache)
-    assert True
+    exp_res = pd.read_csv("sample_data/instruments.csv")
+    assert pd.testing.assert_frame_equal(cache.instruments, exp_res)
