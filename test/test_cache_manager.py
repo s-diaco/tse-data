@@ -12,7 +12,7 @@ from dtse import config as cfg
 from dtse.cache_manager import TSECache
 
 
-@pytest.fixture(name="test_catch")
+@pytest.fixture(name="test_cache")
 def fixture_read_prices() -> Generator[TSECache, None, None]:
     """
     providing data for "test_read_prices"
@@ -47,7 +47,7 @@ read_prices_params = [
 
 
 @pytest.mark.parametrize("codes", read_prices_params)
-def test_read_prices(mocker, codes, test_catch):
+def test_read_prices(mocker, codes, test_cache):
     """
     test read_prcices
     """
@@ -61,7 +61,7 @@ def test_read_prices(mocker, codes, test_catch):
         for code in codes
     ]
     expected_res = pd.concat(daily_prices_list).sort_index()
-    cache = test_catch
+    cache = test_cache
     mock_sql = mocker.patch("dtse.cache_manager.pd.read_sql")
     mock_sql.return_value = expected_res
     selected_syms_file = "sample_data/sample_selected_syms.csv"
@@ -90,13 +90,13 @@ def test_adjust(
     cond: int,
     codes: list[int],
     res_file: str,
-    test_catch: TSECache,
+    test_cache: TSECache,
 ):
     """
     Test adjust function.
     """
 
-    cache = test_catch
+    cache = test_cache
     adj_daily_prices_dir = "sample_data/"
     not_adj_prices_list = [
         pd.read_csv(
