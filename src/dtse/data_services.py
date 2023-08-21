@@ -53,17 +53,17 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
     return shd_upd
 
 
-async def get_last_possible_deven() -> str:
+async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
     """
     Get last possible update date
 
     :return: str, last possible update date
     """
 
-    strg = Storage()
-    last_possible_deven = strg.get_item("tse.lastPossibleDeven")
-    should_upd = should_update(datetime.today().strftime("%Y%m%d"), last_possible_deven)
-    if (not last_possible_deven) or should_upd:
+    should_upd = should_update(
+        datetime.today().strftime("%Y%m%d"), cached_last_possible_deven
+    )
+    if (not cached_last_possible_deven) or should_upd:
         try:
             req = TSERequest()
             res = await req.last_possible_deven()
@@ -74,7 +74,6 @@ async def get_last_possible_deven() -> str:
         if not pattern.search(res):
             raise Exception("Invalid response from server: LastPossibleDeven")
         last_possible_deven = res.split(";")[0] or res.split(";")[1]
-        strg.set_item("tse.lastPossibleDeven", last_possible_deven)
     return last_possible_deven
 
 
@@ -96,11 +95,11 @@ async def update_instruments(cache: TSECache) -> None:
         last_cached_instrum_date = str(max(cache.instruments["DEven"]))
         if len(cache.splits) > 0:
             last_cached_split_id = max(cache.splits["Idn"])
-    last_possible_deven = await get_last_possible_deven()
-    if should_update(last_cached_instrum_date, last_possible_deven):
+    cache.last_possible_deven = await get_last_possible_deven()
+    if should_update(last_cached_instrum_date, cache.last_possible_deven):
         req = TSERequest()
         today = datetime.now().strftime("%Y%m%d")
-        orig_sym_dict = await req.instruments_and_splits(today, last_cached_split_id)
+        orig_sym_dict = await req.instruments_and_share(today, last_cached_split_id)
         shares = orig_sym_dict.split("@")[1]
         instruments = await req.instrument(last_cached_instrum_date)
         if instruments == "*":

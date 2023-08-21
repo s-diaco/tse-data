@@ -24,7 +24,7 @@ class TSERequest:
         params = {"t": "Instrument", "a": last_date}
         return await self._make_request(params)
 
-    async def instruments_and_splits(self, last_date: str, last_id: int = 0):
+    async def instruments_and_share(self, last_date: str, last_id: int = 0):
         """
         Request instrument and their share data from tsetmc API
 

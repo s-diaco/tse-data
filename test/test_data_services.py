@@ -16,7 +16,7 @@ from dtse.cache_manager import TSECache
 
 
 @pytest.fixture(name="test_cache")
-def fixture_read_prices() -> Generator[TSECache, None, None]:
+def init_cache_inst() -> Generator[TSECache, None, None]:
     """
     providing data for "test_read_prices"
     """
@@ -49,11 +49,11 @@ def test_should_update(last_update, last_possible_update, expected):
 
 
 @pytest.mark.vcr()
-async def test_get_last_possible_deven():
+async def test_get_last_possible_deven(test_cache):
     """
     Test the get_last_possible_deven function.
     """
-    res = await data_services.get_last_possible_deven()
+    res = await data_services.get_last_possible_deven(test_cache.last_possible_deven)
     pattern = re.compile(r"^\d{8}$")
     assert pattern.search(res)
 
@@ -74,7 +74,9 @@ async def test_update_instruments(test_cache, mocker, last_p_d):
     mock_last_p_date = mocker.patch("dtse.data_services.get_last_possible_deven")
     mock_last_p_date.return_value = last_p_d
     mock_date = mocker.patch("dtse.data_services.datetime")
-    mock_date.now.return_value = datetime.datetime(2023, 8, 20)
+    mock_date.now.return_value = datetime.datetime(2023, 8, 21)
     await data_services.update_instruments(cache=cache)
-    exp_res = pd.read_csv("sample_data/instruments.csv")
-    assert pd.testing.assert_frame_equal(cache.instruments, exp_res)
+    exp_res_ins = pd.read_csv("sample_data/instruments.csv", index_col="InsCode")
+    pd.testing.assert_frame_equal(cache.instruments, exp_res_ins)
+    exp_res_spl = pd.read_csv("sample_data/shares.csv", index_col=["InsCode", "DEven"])
+    pd.testing.assert_frame_equal(cache.splits, exp_res_spl)

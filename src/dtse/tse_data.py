@@ -41,7 +41,8 @@ class TSE:
                 cache.prices.reset_index().groupby("InsCode")["DEven"].max()
             )
         first_possible_deven = self.settings["start_date"]
-        last_possible_deven = await data_svs.get_last_possible_deven()
+        # TODO: method called twice (in "data_services.update_instruments()"). why?
+        cache.last_possible_deven = await data_svs.get_last_possible_deven()
         # merge selection with last_devens (from cached data)
         # to find out witch syms need an update
         to_update["cached_DEven"] = cache.last_devens
@@ -58,7 +59,7 @@ class TSE:
 
         # symbol has data but outdated
         to_update["need_upd"] = to_update["cached_DEven"].map(
-            lambda deven: data_svs.should_update(str(deven), last_possible_deven)
+            lambda deven: data_svs.should_update(str(deven), cache.last_possible_deven)
         )
         to_update = to_update[to_update["need_upd"]][
             ["cached_DEven", "YMarNSC"]

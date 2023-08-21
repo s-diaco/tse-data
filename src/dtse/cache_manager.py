@@ -4,7 +4,7 @@ manage cached data
 
 from datetime import datetime
 from pathlib import Path
-from sqlite3 import connect
+from sqlite3 import connect, Connection
 
 import pandas as pd
 
@@ -29,50 +29,55 @@ class TSECache:
         self._prices: pd.DataFrame | None = None
         self._prices_merged: pd.DataFrame | None = None
         self.merged_instruments: pd.DataFrame | None = None
+        self._cnx: Connection | None = None
+        self._last_possible_deven: str = ""
+        self._last_instrument_update: str = "0"
         # TODO: delete if not used
         self.last_devens: pd.Series | None = None
-        self.cache_to_csv = self.settings["cache"] if "cache" in self.settings else True
+        self.cache_to_db = self.settings["cache"] if "cache" in self.settings else True
         self._init_cache_dir()
-        self._last_instrument_update = self._read_last_inst_upd()
+        self._read_metadata()
         self._read_instrums()
         self._read_splits()
 
-    def _read_last_inst_upd(self) -> str:
+    def _read_metadata(self):
         """
-        Reads lastInstrumUpdate.txt file from cache dir and returns a string.
+        Reads lastInstrumUpdate.txt file from cache dir
+        and reads read_last_possible_deven from database if available.
+        """
 
-        :return: str, the date that instrumnts list is last updated.
-        returns an empty string if file not found
-        """
-        key = "lastInstrumUpdate"
-        tse_dir = self.cache_dir
-        file_path = tse_dir / f"{key}.txt"
-        if not file_path.is_file():
-            return ""
-        with open(file_path, "r", encoding="utf-8") as file:
-            return file.read()
+        if self._cnx:
+            table_name = "metadata"
+            metadata = self._read_table(table=table_name)
+            if metadata is not None and (not metadata.empty):
+                self._last_possible_deven = metadata["last_possible_deven"][0]
+        # TODO: use metadata table for storing "lastInstrumUpdate"
+        try:
+            key = "lastInstrumUpdate"
+            tse_dir = self.cache_dir
+            file_path = tse_dir / f"{key}.txt"
+            if not file_path.is_file():
+                self._last_instrument_update = ""
+            with open(file_path, "r", encoding="utf-8") as file:
+                self._last_instrument_update = file.read()
+        except:
+            pass
 
     def _init_cache_dir(self) -> None:
         if "tse_dir" in self.settings:
             self._data_dir = Path(self.settings["tse_dir"])
         else:
             data_dir = Path(self.settings["TSE_CACHE_DIR"])
-            path_file = Path(self.settings["PATH_FILE_NAME"])
             home = Path.home()
             self._data_dir = home / data_dir
-            path_file = home / path_file
-            if path_file.is_file():
-                with open(path_file, "r", encoding="utf-8") as file:
-                    data_path = Path(file.readline())
-                    if data_path.is_dir():
-                        self._data_dir = data_path
-            else:
-                with open(path_file, "w+", encoding="utf-8") as file:
-                    file.write(str(self._data_dir))
-
+        if self.cache_to_db:
             self._data_dir.mkdir(parents=True, exist_ok=True)
-        tse_logger.info("data dir: %s", self._data_dir)
-        self._cnx = connect(self._data_dir / self.settings["DB_FILE_NAME"])
+            tse_logger.info("data dir: %s", self._data_dir)
+        if (
+            self.cache_to_db
+            or (self._data_dir / self.settings["DB_FILE_NAME"]).is_file()
+        ):
+            self._cnx = connect(self._data_dir / self.settings["DB_FILE_NAME"])
 
     @property
     def cache_dir(self):
@@ -94,9 +99,9 @@ class TSECache:
     def instruments(self, value: pd.DataFrame):
         if not value.empty:
             self._instruments = value
-            if self.cache_to_csv:
-                f_name = "instruments"
-                self._instruments.to_sql(f_name, self._cnx, if_exists="replace")
+            if self.cache_to_db:
+                t_name = "instruments"
+                self._instruments.to_sql(t_name, self._cnx, if_exists="replace")
                 self._save_last_inst_upd()
 
     def _save_last_inst_upd(self):
@@ -117,7 +122,7 @@ class TSECache:
     def splits(self, value: pd.DataFrame):
         if not value.empty:
             self._splits = value
-            if self.cache_to_csv:
+            if self.cache_to_db:
                 f_name = "splits"
 
                 # TODO: if_exists=replce or if_exists=append?
@@ -174,9 +179,10 @@ class TSECache:
         """
 
         # TODO: do not load all price files at one. there may be hundreds of them.
-        prices = self._read_prc(f_names=selected_syms.index.tolist())
-        if not prices.empty:
-            self._prices = prices.sort_index()
+        if self._cnx:
+            prices = self._read_prc(f_names=selected_syms.index.tolist())
+            if not prices.empty:
+                self._prices = prices.sort_index()
 
     def _read_prc(self, f_names: list[str]) -> pd.DataFrame:
         """
@@ -208,24 +214,44 @@ class TSECache:
         and updates "instruments" and "merged_instruments" properties
         """
 
-        table_name = "instruments"
-        instrums = self._read_table(table=table_name)
-        if instrums is not None and (not instrums.empty):
-            self._instruments = instrums
-            if self.settings["merge_similar_symbols"]:
-                instrums = self._instruments
-                instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
-                instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
+        if self._cnx:
+            table_name = "instruments"
+            instrums = self._read_table(table=table_name)
+            if instrums is not None and (not instrums.empty):
+                self._instruments = instrums
+                if self.settings["merge_similar_symbols"]:
+                    instrums = self._instruments
+                    instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
+                    instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
 
     def _read_splits(self):
         """
         reads stock splits and their dates from cache file an updates splits property
         """
 
-        table_name = "splits"
-        splits = self._read_table(table=table_name)
-        if splits is not None and (not splits.empty):
-            self._splits = splits
+        if self._cnx:
+            table_name = "splits"
+            splits = self._read_table(table=table_name)
+            if splits is not None and (not splits.empty):
+                self._splits = splits
+
+    @property
+    def last_possible_deven(self):
+        """
+        last update date
+        """
+        return self._last_possible_deven
+
+    @last_possible_deven.setter
+    def last_possible_deven(self, value: str):
+        if value:
+            self._last_possible_deven = value
+            if self.cache_to_db:
+                t_name = "metadata"
+                metadata = pd.DataFrame(
+                    {"last_possible_deven": self._last_possible_deven}
+                )
+                metadata.to_sql(t_name, self._cnx, if_exists="replace")
 
     def _read_table(self, table: str) -> pd.DataFrame | None:
         """

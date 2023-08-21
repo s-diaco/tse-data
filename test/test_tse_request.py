@@ -43,5 +43,5 @@ async def test_instrument_and_share():
     test instrument_and_share
     """
     instance = TSERequest()
-    resp = await instance.instruments_and_splits("20230502", 2732)
+    resp = await instance.instruments_and_share("20230502", 2732)
     assert isinstance(resp, str)
