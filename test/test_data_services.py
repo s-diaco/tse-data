@@ -2,6 +2,7 @@
 tests for the data_services module
 """
 
+import datetime
 import re
 from collections.abc import Generator
 from pathlib import Path
@@ -23,7 +24,7 @@ def fixture_read_prices() -> Generator[TSECache, None, None]:
     tse_cache_args = {
         "merge_similar_symbols": True,
         "cache": False,
-        "tse_dir": Path("sample_data/prices_not_adj"),
+        "tse_dir": Path("sample_data"),
     }
     settings = cfg.storage
     settings.update(tse_cache_args)
@@ -57,14 +58,23 @@ async def test_get_last_possible_deven():
     assert pattern.search(res)
 
 
+last_poss_date = ["20220809"]
+
+
+@pytest.mark.parametrize("last_p_d", last_poss_date)
 @pytest.mark.vcr(record_mode="new_episodes")
-async def test_update_instruments(test_cache):
+async def test_update_instruments(test_cache, mocker, last_p_d):
     """
     Test the update_instruments function.
     """
 
     cache = test_cache
     assert cache.instruments is None
+
+    mock_last_p_date = mocker.patch("dtse.data_services.get_last_possible_deven")
+    mock_last_p_date.return_value = last_p_d
+    mock_date = mocker.patch("dtse.data_services.datetime")
+    mock_date.now.return_value = datetime.datetime(2023, 8, 20)
     await data_services.update_instruments(cache=cache)
     exp_res = pd.read_csv("sample_data/instruments.csv")
     assert pd.testing.assert_frame_equal(cache.instruments, exp_res)

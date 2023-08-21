@@ -17,54 +17,6 @@ from dtse.storage import Storage
 from dtse.tse_request import TSERequest
 
 
-def get_cell(column_name, instrument, closing_price) -> str:
-    """
-    Get cell value according to the column name
-
-    :param column_name: column name
-    :param instrument: instrument
-    :param closing_price: closing price
-    :return: cell value (str)
-    """
-
-    cell_str = ""
-    if column_name == "date":
-        cell_str = closing_price.DEven
-    elif column_name == "dateshamsi":
-        cell_str = str(
-            jdatetime.date.fromgregorian(
-                date=datetime.strptime(closing_price.DEven, "%Y%m%d")
-            )
-        )
-    elif column_name == "open":
-        cell_str = closing_price.PriceFirst
-    elif column_name == "high":
-        cell_str = closing_price.PriceMax
-    elif column_name == "low":
-        cell_str = closing_price.PriceMin
-    elif column_name == "last":
-        cell_str = closing_price.PDrCotVal
-    elif column_name == "close":
-        cell_str = closing_price.PClosing
-    elif column_name == "vol":
-        cell_str = closing_price.QTotTran5J
-    elif column_name == "count":
-        cell_str = closing_price.ZTotTran
-    elif column_name == "value":
-        cell_str = closing_price.QTotCap
-    elif column_name == "yesterday":
-        cell_str = closing_price.PriceYesterday
-    elif column_name == "symbol":
-        cell_str = instrument.Symbol
-    elif column_name == "name":
-        cell_str = instrument.Name
-    elif column_name == "namelatin":
-        cell_str = instrument.NameLatin
-    elif cell_str == "companycode":
-        cell_str = instrument.CompanyCode
-    return cell_str
-
-
 def should_update(deven: str, last_possible_deven: str) -> bool:
     """
     Check if the database should be updated
@@ -126,7 +78,7 @@ async def get_last_possible_deven() -> str:
     return last_possible_deven
 
 
-# todo: incomplte
+# TODO: complte
 
 
 async def update_instruments(cache: TSECache) -> None:
@@ -135,24 +87,20 @@ async def update_instruments(cache: TSECache) -> None:
     """
 
     last_update = cache.last_instrument_update
-    cached_instruments = pd.DataFrame()
-    cached_splits = pd.DataFrame()
     last_cached_instrum_date: str = "0"
-    last_split_id = 0
+    last_cached_split_id = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     line_terminator = cfg.server_line_terminator
     if last_update:
-        cached_instruments = cache.instruments
-        cached_splits = cache.splits
-        last_cached_instrum_date = str(max(cached_instruments["DEven"]))
-        if len(cached_splits) > 0:
-            last_split_id = max(cached_splits["Idn"])
+        last_cached_instrum_date = str(max(cache.instruments["DEven"]))
+        if len(cache.splits) > 0:
+            last_cached_split_id = max(cache.splits["Idn"])
     last_possible_deven = await get_last_possible_deven()
     if should_update(last_cached_instrum_date, last_possible_deven):
         req = TSERequest()
         today = datetime.now().strftime("%Y%m%d")
-        orig_sym_dict = await req.instruments_and_splits(today, last_split_id)
+        orig_sym_dict = await req.instruments_and_splits(today, last_cached_split_id)
         shares = orig_sym_dict.split("@")[1]
         instruments = await req.instrument(last_cached_instrum_date)
         if instruments == "*":
