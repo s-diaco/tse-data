@@ -13,7 +13,6 @@ from dtse.cache_manager import TSECache
 from dtse import config as cfg
 from dtse import tse_utils
 from dtse.setup_logger import logger
-from dtse.storage import Storage
 from dtse.tse_request import TSERequest
 
 
@@ -60,6 +59,7 @@ async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
     :return: str, last possible update date
     """
 
+    last_possible_deven = cached_last_possible_deven
     should_upd = should_update(
         datetime.today().strftime("%Y%m%d"), cached_last_possible_deven
     )
@@ -95,7 +95,7 @@ async def update_instruments(cache: TSECache) -> None:
         last_cached_instrum_date = str(max(cache.instruments["DEven"]))
         if len(cache.splits) > 0:
             last_cached_split_id = max(cache.splits["Idn"])
-    cache.last_possible_deven = await get_last_possible_deven()
+    cache.last_possible_deven = await get_last_possible_deven(cache.last_possible_deven)
     if should_update(last_cached_instrum_date, cache.last_possible_deven):
         req = TSERequest()
         today = datetime.now().strftime("%Y%m%d")

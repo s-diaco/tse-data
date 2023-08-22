@@ -153,8 +153,6 @@ class PricesUpdateManager:
         tse_logger.info("Getting ready to download prices.")
         if "cache" in settings:
             self.cache_to_csv = settings["cache"]
-        if "merge_similar_symbols" in settings:
-            self.merge_similar_syms = settings["merge_similar_symbols"]
         self.progressbar = progressbar
         # each successful request
         """

@@ -31,7 +31,7 @@ class TSECache:
         self.merged_instruments: pd.DataFrame | None = None
         self._cnx: Connection | None = None
         self._last_possible_deven: str = ""
-        self._last_instrument_update: str = "0"
+        self._last_instrument_update: str = ""
         # TODO: delete if not used
         self.last_devens: pd.Series | None = None
         self.cache_to_db = self.settings["cache"] if "cache" in self.settings else True
@@ -42,7 +42,7 @@ class TSECache:
 
     def _read_metadata(self):
         """
-        Reads lastInstrumUpdate.txt file from cache dir
+        Reads last_instrument_update from cache dir
         and reads read_last_possible_deven from database if available.
         """
 
@@ -50,18 +50,15 @@ class TSECache:
             table_name = "metadata"
             metadata = self._read_table(table=table_name)
             if metadata is not None and (not metadata.empty):
-                self._last_possible_deven = metadata["last_possible_deven"][0]
-        # TODO: use metadata table for storing "lastInstrumUpdate"
-        try:
-            key = "lastInstrumUpdate"
-            tse_dir = self.cache_dir
-            file_path = tse_dir / f"{key}.txt"
-            if not file_path.is_file():
-                self._last_instrument_update = ""
-            with open(file_path, "r", encoding="utf-8") as file:
-                self._last_instrument_update = file.read()
-        except:
-            pass
+                if "last_possible_deven" in metadata.columns:
+                    self._last_possible_deven = metadata.loc[
+                        :, "last_possible_deven"
+                    ].iloc[-1]
+                # TODO: 'last_instrum_upd' is never updated (always "0")
+                if "last_instrum_upd" in metadata.columns:
+                    self._last_instrument_update = metadata.loc[
+                        :, "last_instrum_upd"
+                    ].iloc[-1]
 
     def _init_cache_dir(self) -> None:
         if "tse_dir" in self.settings:
@@ -107,11 +104,7 @@ class TSECache:
     def _save_last_inst_upd(self):
         today = datetime.now().strftime("%Y%m%d")
         if self._last_instrument_update != today:
-            self._last_instrument_update = today
-            key = "lastInstrumUpdate"
-            file_path = self.cache_dir / f"{key}.txt"
-            with open(file_path, "w+", encoding="utf-8") as file:
-                file.write(today)
+            self.last_instrument_update = today
 
     @property
     def splits(self):
@@ -248,8 +241,25 @@ class TSECache:
             self._last_possible_deven = value
             if self.cache_to_db:
                 t_name = "metadata"
-                metadata = pd.DataFrame(
-                    {"last_possible_deven": self._last_possible_deven}
+                metadata = pd.DataFrame.from_dict(
+                    {
+                        "last_possible_deven": [self._last_possible_deven],
+                        "last_inst_upd": [self._last_instrument_update],
+                    }
+                )
+                metadata.to_sql(t_name, self._cnx, if_exists="replace")
+
+    @last_instrument_update.setter
+    def last_instrument_update(self, value: str):
+        if value:
+            self._last_instrument_update = value
+            if self.cache_to_db:
+                t_name = "metadata"
+                metadata = pd.DataFrame.from_dict(
+                    {
+                        "last_possible_deven": [self._last_possible_deven],
+                        "last_inst_upd": [self._last_instrument_update],
+                    }
                 )
                 metadata.to_sql(t_name, self._cnx, if_exists="replace")
 
@@ -275,6 +285,7 @@ class TSECache:
             data = pd.read_sql(sql=query, con=self._cnx)
             return data
 
+    # TODO: this is not called anywhere
     def get_instrum_prcs(self, instrument: dict, settings: dict) -> pd.DataFrame:
         """
         get cached instrument prices

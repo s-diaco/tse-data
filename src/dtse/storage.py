@@ -52,41 +52,6 @@ class Storage:
         with open(file_path, "r", encoding="utf-8") as file:
             return file.read()
 
-    def set_item(self, key: str, value: str) -> None:
-        """
-        Writes a file to the cache dir
-
-        :param key: file name
-        :param value: text to write
-        """
-
-        key = key.replace("tse.", "")
-        tse_dir = self._data_dir
-        if key.startswith("prices."):
-            tse_dir = self._data_dir / settings["PRICES_DIR"]
-        if not tse_dir.is_dir():
-            tse_dir.mkdir(parents=True, exist_ok=True)
-        file_path = tse_dir / (key + ".csv")
-        with open(file_path, "w+", encoding="utf-8") as f:
-            f.write(value)
-
-    def read_prc_csv(self, f_names: list[str]) -> pd.DataFrame:
-        """
-        Reads selected instruments files from the cache dir and returns a dict.
-
-        :f_names: list[str], list of file names to read from.
-
-        :return: dict
-        """
-
-        prices_list = [self.read_tse_csv_blc(f"prices.{name}") for name in f_names]
-        prices_list = [prcs for prcs in prices_list if not prcs.empty]
-        if prices_list:
-            res = pd.concat(prices_list).set_index(["InsCode", "DEven"]).sort_index()
-        else:
-            res = pd.DataFrame()
-        return res
-
     @property
     def cache_dir(self):
         """

@@ -7,9 +7,8 @@ from dataclasses import dataclass
 
 
 storage = dict(
-    TSE_CACHE_DIR="tse-cache",
+    TSE_CACHE_DIR="tse_data",
     PRICES_DIR="prices",
-    INTRADAY_DIR="intraday",
     DB_FILE_NAME="tse_data.sqlite3",
     NOMINAL_PRICES=[1000, 0],
     DEF_START=20110101,  # maybe 20081206
