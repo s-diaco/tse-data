@@ -89,7 +89,9 @@ class TSECache:
 
     @property
     def instruments(self):
-        """All instruments and their details."""
+        """
+        All instruments and their details.
+        """
         return self._instruments
 
     @instruments.setter

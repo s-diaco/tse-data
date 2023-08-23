@@ -21,12 +21,12 @@ class TSE:
         self.settings = cfg.default_settings
         self.progressbar = ProgressBar()
 
-    async def _get_expired_prices(self, selection) -> pd.DataFrame:
+    async def _get_expired_prices(self, codes) -> pd.DataFrame:
         """
         check if there is no updated cached data for symbol and return a dataframe
         containing that symbols (InsCode, DEven, YMarNSC)
 
-        :selection: list, instruments to check
+        :selection: list, instrument codes to check
 
         :return: pd.DataFrame, symbols to update
         """
@@ -41,27 +41,27 @@ class TSE:
         first_possible_deven = self.settings["start_date"]
         # merge selection with last_devens (from cached data) to find out
         # witch syms need an update.
-        selection["cached_DEven"] = self.cache.last_devens
-        if self.cache.last_devens is None:
-            selection["cached_DEven"] = int(first_possible_deven)
+        if self.cache.last_devens is not None and not self.cache.last_devens.empty:
+            # TODO: test
+            self.cache.instruments = (
+                self.cache.instruments.merge(
+                    self.cache.last_devens.rename("cached_DEven"),
+                    how="left",
+                    on="InsCode",
+                )
+                .fillna(first_possible_deven)
+                .astype("int64")
+            )
         else:
-            selection = selection.merge(
-                self.cache.last_devens.rename("cached_DEven"), how="left", on="InsCode"
-            )
-            # symbol doesn't have data
-            selection.cached_DEven = selection.cached_DEven.fillna(
-                first_possible_deven
-            ).astype("int64")
+            self.cache.instruments["cached_DEven"] = first_possible_deven
 
-        # symbol has data but outdated
-        selection["need_upd"] = selection["cached_DEven"].map(
+        self.cache.instruments["outdated"] = self.cache.instruments["cached_DEven"].map(
             lambda deven: data_svs.should_update(
-                str(deven), self.cache.last_possible_deven
+                str(deven),
+                self.cache.last_possible_deven,
             )
         )
-        to_upd = selection[selection["need_upd"]][["cached_DEven", "YMarNSC"]].rename(
-            {"cached_DEven": "DEven"}, axis=1
-        )
+
         """
         prog_fin = progressbar.pn + progressbar.ptot
         """
@@ -85,11 +85,13 @@ class TSE:
             progressbar.progressbar.prog_func(prog_fin)
         result.pn = prog_fin"""
 
-        selection["NotInNoMarket"] = (selection.YMarNSC != "NO").astype(int)
-        to_upd = selection[selection["need_upd"]][
-            ["cached_DEven", "NotInNoMarket"]
+        self.cache.instruments["NotInNoMarket"] = (
+            self.cache.instruments.YMarNSC != "NO"
+        ).astype(int)
+        outdated_insts = self.cache.instruments.loc[
+            codes, ["cached_DEven", "NotInNoMarket"]
         ].rename({"cached_DEven": "DEven"}, axis=1)
-        return to_upd
+        return outdated_insts
 
     async def get_prices(self, symbols: list[str], **kwconf) -> dict:
         """
@@ -155,7 +157,7 @@ class TSE:
         """
 
         self.cache.read_prices(selected_syms=selected_syms)
-        to_update = await self._get_expired_prices(selected_syms)
+        to_update = await self._get_expired_prices(selected_syms.index)
         price_manager = PricesUpdateManager(cache_manager=self.cache)
         update_result = await price_manager.start(
             upd_needed=to_update,

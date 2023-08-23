@@ -5,7 +5,7 @@ Set some settings for logger.
 import logging
 import sys
 
-# TODO: some cleaning neede here. don't always use DEBUG level logging.
+# TODO: some cleaning neede here.
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
     level=logging.DEBUG,
