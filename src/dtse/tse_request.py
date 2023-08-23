@@ -66,12 +66,8 @@ class TSERequest:
 
         :raise: aiohttp.ClientResponseError, if request failed
         """
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(settings.API_URL, params=params) as response:
-                    if response.status != 200:
-                        response.raise_for_status()
-                    return await response.text()
-        except aiohttp.ClientResponseError as ex:
-            tse_logger.error(ex)
-            raise
+        async with aiohttp.ClientSession() as session:
+            async with session.get(settings.API_URL, params=params) as response:
+                if response.status != 200:
+                    response.raise_for_status()
+                return await response.text()

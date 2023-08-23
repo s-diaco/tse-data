@@ -13,7 +13,7 @@ from dtse.setup_logger import logger as tse_logger
 
 class TSECache:
     """
-    Manage TSE data cached in memory and/or csv files
+    Manage TSE data cached in memory and/or files
     """
 
     def __init__(self, settings) -> None:
@@ -397,12 +397,8 @@ class TSECache:
                 ).fillna(1)
             if cond in [2, 3]:
                 if (self._splits is not None) and (not self._splits.empty):
-                    filtered_splits = self._splits[
-                        self._splits.index.isin(ins_codes, level="InsCode")
-                    ]
-                    filtered_splits["SplitMultiplr"] = (
-                        filtered_splits["NumberOfShareOld"]
-                        / filtered_splits["NumberOfShareNew"]
+                    filtered_splits = self._splits.loc[ins_codes].eval(
+                        expr="SplitMultiplr = NumberOfShareOld / NumberOfShareNew"
                     )
                     prices = prices.join(filtered_splits[["SplitMultiplr"]]).fillna(1)
                 else:
@@ -441,19 +437,27 @@ class TSECache:
         else:
             raise ValueError("No price data available.")
 
-    def write_prc_csv(self, f_name: str, data: pd.DataFrame) -> None:
+    def write_prc_csv(
+        self,
+        codes: int | list[int],
+    ) -> None:
         """
-        Write price data to csv file.
+        Write price data to a csv file or a list of csv files.
 
-        :f_name: str, File name
-        :data: pd.DataFrame, Stock price data
+        :f_name: str or list of str, File name or file names
+        :data: pd.DataFrame or list of pd.DataFrame, Stock price data
         """
 
-        self.write_tse_csv(
-            f_name=f_name,
-            data=data,
-            subdir=self.settings["PRICES_DIR"],
-        )
+        if isinstance(codes, int):
+            codes = [codes]
+        if self.prices is not None:
+            for code in codes:
+                prc_data = self.prices.xs(code, level=0, axis=0)
+                self.write_tse_csv(
+                    f_name=str(code),
+                    data=prc_data,
+                    subdir=self.settings["PRICES_DIR"],
+                )
 
     def write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
         """
@@ -462,6 +466,8 @@ class TSECache:
         :f_name: str, File name
         :data: pd.DataFrame, Stock price data
         """
+
+        # TODO: file names should change to symbol
 
         if "subdir" in kwargs:
             tse_dir = self._data_dir / str(kwargs.get("subdir"))

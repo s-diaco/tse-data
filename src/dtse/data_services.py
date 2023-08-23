@@ -90,7 +90,7 @@ async def update_instruments(cache: TSECache) -> None:
     last_cached_split_id = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
-    line_terminator = cfg.server_line_terminator
+    line_terminator = cfg.SERVER_LN_TERMINATOR
     if last_update:
         last_cached_instrum_date = str(max(cache.instruments["DEven"]))
         if len(cache.splits) > 0:

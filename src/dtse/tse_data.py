@@ -169,13 +169,12 @@ class TSE:
             tse_logger.warning(
                 "Failed to get some data. codes: %s", update_result["fails"]
             )
-        prc_df = self.cache.prices
-        res = {sym: prc_df.xs(sym) for sym in prc_df.index.levels[0]}
+        res = {
+            sym: self.cache.prices.xs(sym) for sym in self.cache.prices.index.levels[0]
+        }
 
-        # TODO: if "settings[to_csv]"
-        for sym, data in res.items():
-            filename = f"{sym}"
-            self.cache.write_prc_csv(f_name=filename, data=data)
+        if self.settings["write_csv"]:
+            self.cache.write_prc_csv(codes=self.cache.prices.index.levels[0])
 
         """
         progressbar.prog_n = update_result

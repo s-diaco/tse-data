@@ -48,7 +48,7 @@ def fixture_resp_data():
         yield update_needed
 
 
-@pytest.mark.vcr()
+@pytest.mark.vcr(record_mode="new_episodes")
 async def test_start(resp_data, test_catch):
     """
     test start

@@ -63,7 +63,7 @@ tse_closing_prices_info = [
     "PriceFirst",
 ]
 
-server_line_terminator = ";"
+SERVER_LN_TERMINATOR = ";"
 
 # data services
 UPDATE_INTERVAL = 1
@@ -80,7 +80,7 @@ default_settings = {
     "start_date": "20120321",
     "merge_similar_symbols": True,
     "cache": True,
-    "csv": False,
+    "write_csv": False,
     "csv_headers": True,
     "csv_delimiter": ",",
     "on_progress": None,

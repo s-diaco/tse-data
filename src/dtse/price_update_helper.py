@@ -7,12 +7,12 @@ import re
 from io import StringIO
 
 import pandas as pd
+from aiohttp import ClientResponseError
 
 from dtse import config as cfg
 from dtse.cache_manager import TSECache
 from dtse.progress_bar import ProgressBar
 from dtse.setup_logger import logger as tse_logger
-from dtse.storage import Storage
 from dtse.tse_request import TSERequest
 
 
@@ -29,7 +29,6 @@ class PricesUpdateManager:
         self.succs = []
         self.fails = []
         self.retries: int = 0
-        self.retry_chunks = []
         self.timeouts = {}
         self.sym_names: dict = {}
         self.resolve = None
@@ -54,7 +53,7 @@ class PricesUpdateManager:
                     f"requested {len(ins_codes)} codes, got {len(resp_list)}"
                 )
             col_names = cfg.tse_closing_prices_info
-            line_terminator = ";"
+            line_terminator = cfg.SERVER_LN_TERMINATOR
             new_prc_df_list = [
                 pd.read_csv(
                     StringIO(resp),
@@ -67,20 +66,6 @@ class PricesUpdateManager:
             ]
             self.cache.add_to_prices(new_prc_df_list)
             self.succs.extend(ins_codes)
-
-            # TODO: Delete?
-            """
-            self.writing.append(
-                self.should_cache
-                and self.strg.write_tse_csv_blc(f_name=filename, data=data)
-            )"""
-
-            if self.cache_to_csv:
-                for ins_code in self.cache.prices.index.levels[0]:
-                    filename = f"{ins_code}"
-                    data = self.cache.prices.xs(ins_code, drop_level=False)
-                    self.cache.write_prc_csv(f_name=filename, data=data)
-            self.fails = [x for x in self.fails if x not in ins_codes]
 
             """
             if self.progressbar.prog_func:
@@ -95,11 +80,9 @@ class PricesUpdateManager:
                 self.progressbar.prog_func(self.progressbar.prog_n = (
                     self.progressbar.prog_n + self.progressbar.prog_succ_req - filled)
             """
+            self.timeouts.pop(on_result_id)
         else:
-            self.fails.append(ins_codes)
-            # TODO: wo req_id?
-            self.retry_chunks.append(chunk)
-        self.timeouts.pop(on_result_id)
+            self.fails.extend(ins_codes)
 
     async def _request(self, chunk, req_id) -> None:
         """
@@ -111,20 +94,27 @@ class PricesUpdateManager:
         request_param_str = ",".join(
             chunk.to_string(header=False, index_names=False).replace("\n", ";").split()
         )
-        for _ in range(retries):
+        while retries:
             # TODO: is this line needed?
             self.timeouts[req_id] = chunk
 
             try:
                 tse_req = TSERequest()
                 res = await tse_req.closing_prices(request_param_str)
-            except Exception as ex:
+                retries = 0
+            except ClientResponseError as ex:
                 retries -= 1
-                await asyncio.sleep(back_off)
-                # Double the waiting time after each retry
-                back_off = back_off * 2
-                break
-            await self._on_result(res, chunk, req_id)
+                if retries:
+                    await asyncio.sleep(back_off)
+
+                    # TODO: write a better error msg
+                    tse_logger.warning(ex)
+
+                    # Double the waiting time after each retry
+                    back_off = back_off * 2
+                else:
+                    res = "error"
+        await self._on_result(res, chunk, req_id)
 
     async def _batch(self, chunks: list):
         """
