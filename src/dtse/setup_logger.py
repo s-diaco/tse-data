@@ -12,7 +12,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     stream=sys.stderr,
 )
-logger = logging.getLogger("tse")
+logger = logging.getLogger("dtse")
 logging.getLogger("chardet.charsetprober").disabled = True
 
-# logger.info("Testing logger for num %d and string %s", 4, "HelloWorld")
+logger.info("Testing logger for num %d and string %s", 4, "HelloWorld")

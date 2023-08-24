@@ -32,9 +32,10 @@ class TSECache:
         self._cnx: Connection | None = None
         self._last_possible_deven: str = ""
         self._last_instrument_update: str = ""
-        # TODO: delete if not used
         self.last_devens: pd.Series | None = None
-        self.cache_to_db = self.settings["cache"] if "cache" in self.settings else True
+        self.cache_to_db = (
+            self.settings["cache_to_db"] if "cache_to_db" in self.settings else True
+        )
         self._init_cache_dir()
         self._read_metadata()
         self._read_instrums()
@@ -98,6 +99,8 @@ class TSECache:
     def instruments(self, value: pd.DataFrame):
         if not value.empty:
             self._instruments = value
+            # TODO: does this called every time a new column is added to instruments db?
+            # ie in tse_data:_get_expired_prices
             if self.cache_to_db:
                 t_name = "instruments"
                 self._instruments.to_sql(t_name, self._cnx, if_exists="replace")
@@ -167,23 +170,28 @@ class TSECache:
         """last date of updating list of instrument and splits"""
         return self._last_instrument_update
 
+    @last_instrument_update.setter
+    def last_instrument_update(self, value: str):
+        if value:
+            self._last_instrument_update = value
+            self._upd_metadata()
+
     def read_prices(self, selected_syms: pd.DataFrame):
         """
         updates a dicts of prices for ins_codes in
         self.prices and self.prices_merged
         """
 
-        # TODO: do not load all price files at one. there may be hundreds of them.
         if self._cnx:
-            prices = self._read_prc(f_names=selected_syms.index.tolist())
+            prices = self._read_prc(codes=selected_syms.index.tolist())
             if not prices.empty:
                 self._prices = prices.sort_index()
 
-    def _read_prc(self, f_names: list[str]) -> pd.DataFrame:
+    def _read_prc(self, codes: list[str]) -> pd.DataFrame:
         """
         Reads selected instruments files from the cache dir and returns a dict.
 
-        :f_names: list[str], list of file names to read from.
+        :codes: list[str], list of codes to read from.
 
         :return: pd.DataFrame
         """
@@ -198,7 +206,7 @@ class TSECache:
             return find_table
         else:
             # TODO: is it a safe query?
-            codes = ", ".join(str(code) for code in f_names)
+            codes = ", ".join(str(code) for code in codes)
             query = f"SELECT * FROM {table} WHERE InsCode In ({codes});"
             data = pd.read_sql(sql=query, con=self._cnx)
             return data
@@ -221,7 +229,7 @@ class TSECache:
 
     def _read_splits(self):
         """
-        reads stock splits and their dates from cache file an updates splits property
+        reads stock splits from database and updates splits property
         """
 
         if self._cnx:
@@ -241,29 +249,18 @@ class TSECache:
     def last_possible_deven(self, value: str):
         if value:
             self._last_possible_deven = value
-            if self.cache_to_db:
-                t_name = "metadata"
-                metadata = pd.DataFrame.from_dict(
-                    {
-                        "last_possible_deven": [self._last_possible_deven],
-                        "last_inst_upd": [self._last_instrument_update],
-                    }
-                )
-                metadata.to_sql(t_name, self._cnx, if_exists="replace")
+            self._upd_metadata()
 
-    @last_instrument_update.setter
-    def last_instrument_update(self, value: str):
-        if value:
-            self._last_instrument_update = value
-            if self.cache_to_db:
-                t_name = "metadata"
-                metadata = pd.DataFrame.from_dict(
-                    {
-                        "last_possible_deven": [self._last_possible_deven],
-                        "last_inst_upd": [self._last_instrument_update],
-                    }
-                )
-                metadata.to_sql(t_name, self._cnx, if_exists="replace")
+    def _upd_metadata(self):
+        if self.cache_to_db:
+            t_name = "metadata"
+            metadata = pd.DataFrame.from_dict(
+                {
+                    "last_possible_deven": [self._last_possible_deven],
+                    "last_inst_upd": [self._last_instrument_update],
+                }
+            )
+            metadata.to_sql(t_name, self._cnx, if_exists="replace")
 
     def _read_table(self, table: str) -> pd.DataFrame | None:
         """

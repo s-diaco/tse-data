@@ -141,8 +141,8 @@ class PricesUpdateManager:
         """
 
         tse_logger.info("Getting ready to download prices.")
-        if "cache" in settings:
-            self.cache_to_csv = settings["cache"]
+        if "cache_to_db" in settings:
+            self.cache_to_csv = settings["cache_to_db"]
         self.progressbar = progressbar
         # each successful request
         """

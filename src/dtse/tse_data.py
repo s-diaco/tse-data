@@ -21,7 +21,7 @@ class TSE:
         self.settings = cfg.default_settings
         self.progressbar = ProgressBar()
 
-    async def _get_expired_prices(self, codes) -> pd.DataFrame:
+    async def _get_expired_prices(self, sel_insts) -> pd.DataFrame:
         """
         check if there is no updated cached data for symbol and return a dataframe
         containing that symbols (InsCode, DEven, YMarNSC)
@@ -31,10 +31,7 @@ class TSE:
         :return: pd.DataFrame, symbols to update
         """
 
-        # TODO: Ensure it returns the last value not the first one.
-        # is it good to store last_devens in a file?
         if self.cache.prices is not None:
-            # TODO: delete if inscode_lastdeven file is not used
             self.cache.last_devens = (
                 self.cache.prices.reset_index().groupby("InsCode")["DEven"].max()
             )
@@ -89,7 +86,7 @@ class TSE:
             self.cache.instruments.YMarNSC != "NO"
         ).astype(int)
         outdated_insts = self.cache.instruments.loc[
-            codes, ["cached_DEven", "NotInNoMarket"]
+            sel_insts.index, ["cached_DEven", "NotInNoMarket"]
         ].rename({"cached_DEven": "DEven"}, axis=1)
         return outdated_insts
 
@@ -146,7 +143,7 @@ class TSE:
             sym for sym in symbols if sym not in selected_syms["Symbol"].values
         ]
         if not_founds:
-            tse_logger.warning("symbols not found: %s", not_founds)
+            tse_logger.warning("symbols not found: %s", ",".join(not_founds))
 
         """
         if callable(progressbar.prog_func):
@@ -157,7 +154,7 @@ class TSE:
         """
 
         self.cache.read_prices(selected_syms=selected_syms)
-        to_update = await self._get_expired_prices(selected_syms.index)
+        to_update = await self._get_expired_prices(selected_syms)
         price_manager = PricesUpdateManager(cache_manager=self.cache)
         update_result = await price_manager.start(
             upd_needed=to_update,

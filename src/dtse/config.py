@@ -79,7 +79,7 @@ default_settings = {
     "days_without_trade": False,
     "start_date": "20120321",
     "merge_similar_symbols": True,
-    "cache": True,
+    "cache_to_db": True,
     "write_csv": False,
     "csv_headers": True,
     "csv_delimiter": ",",

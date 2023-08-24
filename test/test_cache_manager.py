@@ -20,7 +20,7 @@ def fixture_read_prices() -> Generator[TSECache, None, None]:
 
     tse_cache_args = {
         "merge_similar_symbols": True,
-        "cache": False,
+        "cache_to_db": False,
         "tse_dir": Path("sample_data/prices_not_adj"),
     }
     settings = cfg.storage
