@@ -142,7 +142,7 @@ class TSECache:
             return self._prices_merged.sort_index()
         return None
 
-    def add_to_prices(self, dframes: list[pd.DataFrame]) -> bool:
+    def add_to_prices(self, dfs: list[pd.DataFrame]) -> bool:
         """
         Adds a list of dataframes to "prices" property.
 
@@ -152,14 +152,14 @@ class TSECache:
         """
 
         # TODO: fix empty data frames price at first non trading days of each InsCode
-        dframes = [data for data in dframes if not data.empty]
+        dfs = [data for data in dfs if not data.empty]
 
-        if dframes:
+        if dfs:
             if self._prices is None:
-                self._prices = pd.concat(dframes)
+                self._prices = pd.concat(dfs)
             else:
                 tot_prices = [self._prices]
-                tot_prices.extend(dframes)
+                tot_prices.extend(dfs)
                 self._prices = pd.concat(tot_prices)
             return True
         else:
@@ -478,3 +478,10 @@ class TSECache:
             return
         file_path = tse_dir / f"{f_name}.csv"
         data.to_csv(file_path, encoding="utf-8")
+
+    def update_db(self):
+        """
+        write cached data to database file
+        """
+        # TODO: implement
+        pass

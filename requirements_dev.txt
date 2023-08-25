@@ -1,7 +1,5 @@
-pylint
 pytest
 pytest-asyncio
-pipreqs
 pytest-vcr
 pytest-mock
-black
+setuptools

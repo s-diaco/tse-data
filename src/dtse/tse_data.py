@@ -161,12 +161,17 @@ class TSE:
             settings=self.settings,
             progressbar=self.progressbar,
         )
-        tse_logger.info("Data download ended.")
+        tse_logger.info(
+            "Data download completed for codes: %s",
+            ", ".join([str(x) for x in update_result["succs"]]),
+        )
+        if self.settings["cache_to_db"]:
+            self.cache.update_db()
         if not update_result["succs"]:
             tse_logger.info("No data downloaded.")
         if update_result["fails"]:
             tse_logger.warning(
-                "Failed to get some data. codes: %s", update_result["fails"]
+                "Failed to get some data. codes: %s", ",".join(update_result["fails"])
             )
         res = {
             sym: self.cache.prices.xs(sym) for sym in self.cache.prices.index.levels[0]

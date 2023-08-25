@@ -1,5 +1,4 @@
 aiohttp
 jdatetime
-numpy
 pandas
-setuptools
+tqdm
