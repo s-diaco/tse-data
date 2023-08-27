@@ -165,7 +165,6 @@ class TSECache:
     def last_instrument_update(self, value: str):
         if value:
             self._last_instrument_update = value
-            self._upd_metadata()
 
     def read_prices(self, selected_syms: pd.DataFrame):
         """
@@ -240,7 +239,6 @@ class TSECache:
     def last_possible_deven(self, value: str):
         if value:
             self._last_possible_deven = value
-            self._upd_metadata()
 
     def _upd_metadata(self):
         if self.cache_to_db:
@@ -490,11 +488,10 @@ class TSECache:
         write cached instruments and splits data to database file
         """
 
-        updated = 0
         # TODO: should "if_exists" be "replace"?
         if self._instruments is not None and not self._instruments.empty:
             t_name = "instruments"
-            updated = self._instruments.to_sql(
+            self._instruments.to_sql(
                 name=t_name,
                 con=self._cnx,
                 if_exists="replace",
@@ -503,12 +500,11 @@ class TSECache:
             )
         if self._splits is not None and not self._splits.empty:
             t_name = "splits"
-            updated = self._splits.to_sql(
+            self._splits.to_sql(
                 name=t_name,
                 con=self._cnx,
                 if_exists="replace",
                 index=True,
                 method="multi",
             )
-        if updated:
-            self._save_last_inst_upd()
+        self._upd_metadata()

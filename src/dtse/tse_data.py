@@ -8,7 +8,6 @@ from dtse import config as cfg
 from dtse import data_services as data_svs
 from dtse.cache_manager import TSECache
 from dtse.price_update_helper import PricesUpdateManager
-from dtse.progress_bar import ProgressBar
 from dtse.setup_logger import logger as tse_logger
 
 
@@ -19,7 +18,6 @@ class TSE:
 
     def __init__(self):
         self.settings = cfg.default_settings
-        self.progressbar = ProgressBar()
 
     async def _get_expired_prices(self, sel_insts) -> pd.DataFrame:
         """
@@ -36,7 +34,7 @@ class TSE:
                 self.cache.prices.reset_index().groupby("InsCode")["DEven"].max()
             )
         first_possible_deven = self.settings["start_date"]
-        # merge selection with last_devens (from cached data) to find out
+        # TODO: merge selection with last_devens (from cached data) to find out
         # witch syms need an update.
         if self.cache.last_devens is not None and not self.cache.last_devens.empty:
             # TODO: test
@@ -59,29 +57,8 @@ class TSE:
             )
         )
 
-        """
-        prog_fin = progressbar.pn + progressbar.ptot
-        """
-        """
-        if callable(progressbar.progress_func):
-            progressbar.progressbar.prog_func(progressbar.pn + progressbar.ptot * (0.01))
-        """
-        """
-        progress_tuple = (
-            progressbar.progress_func,
-            progressbar.pn,
-            progressbar.ptot - progressbar.ptot * (0.02),
-        )"""
-        """
-        progressbar.pn = progressbar.prog_n
-        """
         # TODO: price update helper Should update inscode_lastdeven file
         # with new cached instruments in _on_result or do not read it from this file
-        """
-        if callable(progressbar.progress_func) and progressbar.pn != prog_fin:
-            progressbar.progressbar.prog_func(prog_fin)
-        result.pn = prog_fin"""
-
         self.cache.instruments["NotInNoMarket"] = (
             self.cache.instruments.YMarNSC != "NO"
         ).astype(int)
@@ -105,20 +82,6 @@ class TSE:
         self.settings = cfg.default_settings
         if kwconf:
             self.settings.update(kwconf)
-        """
-        progressbar.prog_func = self.settings.get("on_progress")
-        if not callable(progressbar.prog_func):
-            progressbar.prog_func = None
-        progressbar.prog_tot = self.settings.get("progress_tot")
-        if not isinstance(progressbar.prog_tot, numbers.Number):
-            progressbar.prog_tot = cfg.default_settings["progress_tot"]
-        progressbar.prog_n = 0
-        """
-        """
-        if callable(progressbar.prog_func):
-            progressbar.prog_n = progressbar.prog_n + (progressbar.prog_tot * 0.01)
-            progressbar.prog_func(progressbar.prog_n)
-        """
 
         # Initialize cache
         # TODO: check the dict
@@ -145,21 +108,12 @@ class TSE:
         if not_founds:
             tse_logger.warning("symbols not found: %s", ",".join(not_founds))
 
-        """
-        if callable(progressbar.prog_func):
-            progressbar.prog_n = progressbar.prog_n + (progressbar.prog_tot * 0.01)
-            progressbar.prog_func(progressbar.prog_n)
-            if callable(progressbar.prog_func):
-                progressbar.prog_func(progressbar.prog_tot)
-        """
-
         self.cache.read_prices(selected_syms=selected_syms)
         to_update = await self._get_expired_prices(selected_syms)
         price_manager = PricesUpdateManager(cache_manager=self.cache)
         update_result = await price_manager.start(
             upd_needed=to_update,
             settings=self.settings,
-            progressbar=self.progressbar,
         )
         tse_logger.info(
             "Data download completed for codes: %s",
@@ -179,10 +133,5 @@ class TSE:
 
         if self.settings["write_csv"]:
             self.cache.write_prc_csv(codes=self.cache.prices.index.levels[0])
-
-        """
-        progressbar.prog_n = update_result
-        pi = progressbar.prog_tot * 0.20 / selected_syms_df.length
-        """
 
         return res

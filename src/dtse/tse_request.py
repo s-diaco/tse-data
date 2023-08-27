@@ -21,6 +21,7 @@ class TSERequest:
 
         :return: str, instrument data
         """
+        tse_logger.info("Getting list of instruments.")
         params = {"t": "Instrument", "a": last_date}
         return await self._make_request(params)
 
@@ -33,6 +34,7 @@ class TSERequest:
 
         :return: str, instrument and their share data
         """
+        tse_logger.info("Checking for new instruments...")
         params = {"t": "InstrumentAndShare", "a": last_date, "a2": str(last_id)}
         return await self._make_request(params)
 
@@ -42,6 +44,7 @@ class TSERequest:
 
         :return: str, date for the last possible update
         """
+        tse_logger.info("Checking if server has new data...")
         params = {"t": "LastPossibleDeven"}
         return await self._make_request(params)
 
@@ -53,6 +56,7 @@ class TSERequest:
 
         :return: str, closing prices
         """
+        tse_logger.info("Getting prices...")
         params = {"t": "ClosingPrices", "a": str(ins_codes)}
         return await self._make_request(params)
 
@@ -66,6 +70,7 @@ class TSERequest:
 
         :raise: aiohttp.ClientResponseError, if request failed
         """
+
         async with aiohttp.ClientSession() as session:
             async with session.get(settings.API_URL, params=params) as response:
                 if response.status != 200:

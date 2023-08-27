@@ -11,7 +11,6 @@ from aiohttp import ClientResponseError
 
 from dtse import config as cfg
 from dtse.cache_manager import TSECache
-from dtse.progress_bar import ProgressBar
 from dtse.setup_logger import logger as tse_logger
 from dtse.tse_request import TSERequest
 
@@ -66,20 +65,6 @@ class PricesUpdateManager:
             ]
             self.cache.add_to_prices(new_prc_df_list)
             self.succs.extend(ins_codes)
-
-            """
-            if self.progressbar.prog_func:
-                filled = (
-                    self.progressbar.prog_succ_req
-                    / (cfg.PRICES_UPDATE_RETRY_COUNT + 2)
-                    * (self.retries + 1)
-                )
-                self.progressbar.prog_n = int(
-                    self.progressbar.prog_n + self.progressbar.prog_succ_req - filled
-                )
-                self.progressbar.prog_func(self.progressbar.prog_n = (
-                    self.progressbar.prog_n + self.progressbar.prog_succ_req - filled)
-            """
             self.timeouts.pop(on_result_id)
         else:
             self.fails.extend(ins_codes)
@@ -130,7 +115,6 @@ class PricesUpdateManager:
         self,
         upd_needed: pd.DataFrame,
         settings: dict,
-        progressbar: ProgressBar,
     ) -> dict:
         """
         start updating daily prices
@@ -143,18 +127,6 @@ class PricesUpdateManager:
         tse_logger.info("Getting ready to download prices.")
         if "cache_to_db" in settings:
             self.cache_to_csv = settings["cache_to_db"]
-        self.progressbar = progressbar
-        # each successful request
-        """
-        self.total = len(update_needed)
-        self.progressbar.prog_succ_req = self.progressbar.prog_tot / math.ceil(
-            self.total / cfg.PRICES_UPDATE_CHUNK
-        )
-        # each request
-        self.progressbar.prog_req = self.progressbar.prog_succ_req / (
-            cfg.PRICES_UPDATE_RETRY_COUNT + 2
-        )
-        """
         # Yield successive evenly sized chunks from 'upd_needed'.
         n_rows = cfg.PRICES_UPDATE_CHUNK
         chunks = [upd_needed[i : i + n_rows] for i in range(0, len(upd_needed), n_rows)]
