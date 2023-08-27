@@ -99,12 +99,8 @@ class TSECache:
     def instruments(self, value: pd.DataFrame):
         if not value.empty:
             self._instruments = value
-            # TODO: does this called every time a new column is added to instruments db?
-            # ie in tse_data:_get_expired_prices
-            if self.cache_to_db:
-                t_name = "instruments"
-                self._instruments.to_sql(t_name, self._cnx, if_exists="replace")
-                self._save_last_inst_upd()
+            # TODO: is "_save_last_inst_upd" called too many times?
+            self._save_last_inst_upd()
 
     def _save_last_inst_upd(self):
         today = datetime.now().strftime("%Y%m%d")
@@ -120,12 +116,7 @@ class TSECache:
     def splits(self, value: pd.DataFrame):
         if not value.empty:
             self._splits = value
-            if self.cache_to_db:
-                f_name = "splits"
-
-                # TODO: if_exists=replce or if_exists=append?
-                self._splits.to_sql(f_name, self._cnx, if_exists="replace")
-                self._save_last_inst_upd()
+            self._save_last_inst_upd()
 
     @property
     def prices(self):
@@ -479,9 +470,45 @@ class TSECache:
         file_path = tse_dir / f"{f_name}.csv"
         data.to_csv(file_path, encoding="utf-8")
 
-    def update_db(self):
+    def update_price_db(self):
         """
-        write cached data to database file
+        write cached price data to database file
         """
-        # TODO: implement
-        pass
+
+        if self._prices is not None and not self._prices.empty:
+            t_name = "daily_prices"
+            self.prices.to_sql(
+                name=t_name,
+                con=self._cnx,
+                if_exists="append",
+                index=True,
+                method="multi",
+            )
+
+    def update_instrments_db(self):
+        """
+        write cached instruments and splits data to database file
+        """
+
+        updated = 0
+        # TODO: should "if_exists" be "replace"?
+        if self._instruments is not None and not self._instruments.empty:
+            t_name = "instruments"
+            updated = self._instruments.to_sql(
+                name=t_name,
+                con=self._cnx,
+                if_exists="replace",
+                index=True,
+                method="multi",
+            )
+        if self._splits is not None and not self._splits.empty:
+            t_name = "splits"
+            updated = self._splits.to_sql(
+                name=t_name,
+                con=self._cnx,
+                if_exists="replace",
+                index=True,
+                method="multi",
+            )
+        if updated:
+            self._save_last_inst_upd()

@@ -126,3 +126,5 @@ async def update_instruments(cache: TSECache) -> None:
                 index_col=["InsCode", "DEven"],
             )
             cache.splits = shares_df
+        if cache.cache_to_db:
+            cache.update_instrments_db()
