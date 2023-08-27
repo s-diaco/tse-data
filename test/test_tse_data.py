@@ -46,3 +46,12 @@ async def test_get_prices(symbols, settings, exp_res, caplog):
     assert prices != "OK"
     if exp_res:
         assert exp_res in [x.message for x in caplog.records if x.name in ["dtse"]]
+
+
+async def test_get_prices_integ():
+    """
+    integrity test
+    """
+    get_prices = TSE().get_prices(symbols=["همراه"])
+    prices = await get_prices
+    assert prices != "OK"

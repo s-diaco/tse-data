@@ -7,7 +7,7 @@ import pandas as pd
 from dtse import config as cfg
 from dtse import data_services as data_svs
 from dtse.cache_manager import TSECache
-from dtse.price_update_helper import PricesUpdateManager
+from dtse.price_updater import PriceUpdater
 from dtse.setup_logger import logger as tse_logger
 
 
@@ -35,18 +35,14 @@ class TSE:
             )
         first_possible_deven = self.settings["start_date"]
         # TODO: merge selection with last_devens (from cached data) to find out
-        # witch syms need an update.
+        # witch syms need an update. dont use ["DEven"].max()
         if self.cache.last_devens is not None and not self.cache.last_devens.empty:
             # TODO: test
-            self.cache.instruments = (
-                self.cache.instruments.merge(
-                    self.cache.last_devens.rename("cached_DEven"),
-                    how="left",
-                    on="InsCode",
-                )
-                .fillna(first_possible_deven)
-                .astype("int64")
-            )
+            self.cache.instruments = self.cache.instruments.merge(
+                self.cache.last_devens.rename("cached_DEven").astype("Int64"),
+                how="left",
+                on="InsCode",
+            ).fillna(int(first_possible_deven))
         else:
             self.cache.instruments["cached_DEven"] = first_possible_deven
 
@@ -110,7 +106,7 @@ class TSE:
 
         self.cache.read_prices(selected_syms=selected_syms)
         to_update = await self._get_expired_prices(selected_syms)
-        price_manager = PricesUpdateManager(cache_manager=self.cache)
+        price_manager = PriceUpdater(cache_manager=self.cache)
         update_result = await price_manager.start(
             upd_needed=to_update,
             settings=self.settings,
@@ -120,7 +116,7 @@ class TSE:
             ", ".join([str(x) for x in update_result["succs"]]),
         )
         if self.settings["cache_to_db"]:
-            self.cache.update_db()
+            self.cache.update_price_db()
         if not update_result["succs"]:
             tse_logger.info("No data downloaded.")
         if update_result["fails"]:

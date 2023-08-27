@@ -11,8 +11,7 @@ import pytest
 from dtse import config as cfg
 from dtse.cache_manager import TSECache
 from dtse.data_services import update_instruments
-from dtse.price_update_helper import PricesUpdateManager
-from dtse.progress_bar import ProgressBar
+from dtse.price_updater import PriceUpdater
 
 
 @pytest.fixture(name="test_catch")
@@ -51,24 +50,21 @@ def fixture_resp_data():
 @pytest.mark.vcr(record_mode="new_episodes")
 async def test_start(resp_data, test_catch):
     """
-    test start
+    test start()
     """
 
     sample_data = ["همراه", "ذوب", "فولاد", "وبملت", "شیران", "نماد غلط"]
     cache = test_catch
-    cache._read_instrums()
     if cache.instruments.empty:
         await update_instruments(cache=cache)
-    cache._read_instrums()
     instruments = cache.instruments
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache.read_prices(selected_syms)
-    pu_helper = PricesUpdateManager(cache)
+    pu_helper = PriceUpdater(cache)
     update_needed = pd.DataFrame(
         resp_data, columns=["InsCode", "DEven", "NotInNoMarket"]
     )
     await pu_helper.start(
         upd_needed=update_needed,
         settings={"cache_to_db": False, "merge_similar_symbols": True},
-        progressbar=ProgressBar(),
     )
