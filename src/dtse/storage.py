@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 from dtse.config import storage as settings
-from dtse.setup_logger import logger
+from dtse.setup_logger import logger as tse_logger
 
 
 class Storage:
@@ -31,7 +31,7 @@ class Storage:
         self._data_dir.mkdir(parents=True, exist_ok=True)
         if "tse_dir" in kwargs:
             self._data_dir = Path(kwargs["tse_dir"])
-        logger.info("data dir: %s", self._data_dir)
+        tse_logger.info("data dir: %s", self._data_dir)
 
     def get_item(self, key: str) -> str:
         """

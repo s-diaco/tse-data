@@ -483,7 +483,7 @@ class TSECache:
                 method="multi",
             )
 
-    def update_instrments_db(self):
+    def instruments_to_db(self):
         """
         write cached instruments and splits data to database file
         """

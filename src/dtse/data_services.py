@@ -12,7 +12,7 @@ from dtse.cache_manager import TSECache
 
 from dtse import config as cfg
 from dtse import tse_utils
-from dtse.setup_logger import logger
+from dtse.setup_logger import logger as tse_logger
 from dtse.tse_request import TSERequest
 
 
@@ -25,7 +25,6 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
 
     :return: bool, True if the database should be updated, False otherwise
     """
-
     if (not deven) or (not last_possible_deven) or deven == "0":
         return True  # first time. never updated
     today = datetime.now()
@@ -68,7 +67,7 @@ async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
             req = TSERequest()
             res = await req.last_possible_deven()
         except Exception as err:
-            logger.error(err)
+            tse_logger.error(err)
             raise
         pattern = re.compile(r"^\d{8};\d{8}$")
         if not pattern.search(res):
@@ -103,9 +102,9 @@ async def update_instruments(cache: TSECache) -> None:
         shares = orig_sym_dict.split("@")[1]
         instruments = await req.instrument(last_cached_instrum_date)
         if instruments == "*":
-            logger.warning("No update during trading hours.")
+            tse_logger.warning("No update during trading hours.")
         elif instruments == "":
-            logger.warning("Already updated: Instruments")
+            tse_logger.warning("Already updated: Instruments")
         else:
             converters = {5: tse_utils.clean_fa}
             instrums_df = pd.read_csv(
@@ -117,7 +116,7 @@ async def update_instruments(cache: TSECache) -> None:
             )
             cache.instruments = instrums_df
         if shares == "":
-            logger.warning("Already updated: Shares")
+            tse_logger.warning("Already updated: Shares")
         else:
             shares_df = pd.read_csv(
                 StringIO(shares),
@@ -127,4 +126,4 @@ async def update_instruments(cache: TSECache) -> None:
             )
             cache.splits = shares_df
         if cache.cache_to_db:
-            cache.update_instrments_db()
+            cache.instruments_to_db()

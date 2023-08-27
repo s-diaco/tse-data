@@ -15,7 +15,7 @@ from dtse.setup_logger import logger as tse_logger
 from dtse.tse_request import TSERequest
 
 
-class PricesUpdateManager:
+class PriceUpdater:
     """
     update prices for selected symbols
     """
