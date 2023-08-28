@@ -18,8 +18,9 @@ class TSE:
 
     def __init__(self):
         self.settings = cfg.default_settings
+        self.codes: list[int] = []
 
-    async def _get_expired_prices(self, sel_insts) -> pd.DataFrame:
+    async def _get_expired_prices(self) -> pd.DataFrame:
         """
         check if there is no updated cached data for symbol and return a dataframe
         containing that symbols (InsCode, DEven, YMarNSC)
@@ -30,23 +31,24 @@ class TSE:
         """
 
         if self.cache.prices is not None:
+            # TODO: merge selection with last_devens (from cached data) to find out
+            # witch syms need an update. dont use ["DEven"].max()
             self.cache.last_devens = (
                 self.cache.prices.reset_index().groupby("InsCode")["DEven"].max()
             )
         first_possible_deven = self.settings["start_date"]
-        # TODO: merge selection with last_devens (from cached data) to find out
-        # witch syms need an update. dont use ["DEven"].max()
+        sel_insts = self.cache.instruments.loc[self.codes]
         if self.cache.last_devens is not None and not self.cache.last_devens.empty:
             # TODO: test
-            self.cache.instruments = self.cache.instruments.merge(
+            sel_insts = sel_insts.merge(
                 self.cache.last_devens.rename("cached_DEven").astype("Int64"),
                 how="left",
                 on="InsCode",
             ).fillna(int(first_possible_deven))
         else:
-            self.cache.instruments["cached_DEven"] = first_possible_deven
+            sel_insts["cached_DEven"] = first_possible_deven
 
-        self.cache.instruments["outdated"] = self.cache.instruments["cached_DEven"].map(
+        sel_insts["outdated"] = sel_insts["cached_DEven"].map(
             lambda deven: data_svs.should_update(
                 str(deven),
                 self.cache.last_possible_deven,
@@ -55,11 +57,9 @@ class TSE:
 
         # TODO: price update helper Should update inscode_lastdeven file
         # with new cached instruments in _on_result or do not read it from this file
-        self.cache.instruments["NotInNoMarket"] = (
-            self.cache.instruments.YMarNSC != "NO"
-        ).astype(int)
-        outdated_insts = self.cache.instruments.loc[
-            sel_insts.index, ["cached_DEven", "NotInNoMarket"]
+        sel_insts["NotInNoMarket"] = (sel_insts.YMarNSC != "NO").astype(int)
+        outdated_insts = sel_insts.loc[
+            sel_insts["outdated"], ["cached_DEven", "NotInNoMarket"]
         ].rename({"cached_DEven": "DEven"}, axis=1)
         return outdated_insts
 
@@ -95,6 +95,8 @@ class TSE:
         selected_syms = self.cache.instruments.loc[
             self.cache.instruments["Symbol"].isin(symbols)
         ]
+        # TODO: use codes instead of selected_syms.
+        self.codes = list(selected_syms.index)
         tse_logger.info("%s inst. codes loaded.", len(selected_syms))
         if selected_syms.empty:
             raise ValueError("No instruments found for any symbols.")
@@ -105,7 +107,7 @@ class TSE:
             tse_logger.warning("symbols not found: %s", ",".join(not_founds))
 
         self.cache.read_prices(selected_syms=selected_syms)
-        to_update = await self._get_expired_prices(selected_syms)
+        to_update = await self._get_expired_prices()
         price_manager = PriceUpdater(cache_manager=self.cache)
         update_result = await price_manager.start(
             upd_needed=to_update,
@@ -116,7 +118,7 @@ class TSE:
             ", ".join([str(x) for x in update_result["succs"]]),
         )
         if self.settings["cache_to_db"]:
-            self.cache.update_price_db()
+            self.cache.prices_to_db()
         if not update_result["succs"]:
             tse_logger.info("No data downloaded.")
         if update_result["fails"]:

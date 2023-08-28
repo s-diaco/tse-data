@@ -43,6 +43,7 @@ async def test_get_prices(symbols, settings, exp_res, caplog):
         prices = await tse.get_prices(
             symbols=symbols, adjust_prices=0, cache_to_db=False
         )
+    # TODO: review test and fix asserts like "assert prices != 'OK'".
     assert prices != "OK"
     if exp_res:
         assert exp_res in [x.message for x in caplog.records if x.name in ["dtse"]]

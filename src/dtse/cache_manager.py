@@ -49,16 +49,16 @@ class TSECache:
 
         if self._cnx:
             table_name = "metadata"
-            metadata = self._read_table(table=table_name)
+            metadata = self._read_table(table=table_name, index_col=["index"])
             if metadata is not None and (not metadata.empty):
                 if "last_possible_deven" in metadata.columns:
                     self._last_possible_deven = metadata.loc[
                         :, "last_possible_deven"
                     ].iloc[-1]
-                # TODO: 'last_instrum_upd' is never updated (always "0")
-                if "last_instrum_upd" in metadata.columns:
+                # TODO: 'last_inst_upd' is never updated (always "0")
+                if "last_inst_upd" in metadata.columns:
                     self._last_instrument_update = metadata.loc[
-                        :, "last_instrum_upd"
+                        :, "last_inst_upd"
                     ].iloc[-1]
 
     def _init_cache_dir(self) -> None:
@@ -198,7 +198,7 @@ class TSECache:
             # TODO: is it a safe query?
             codes = ", ".join(str(code) for code in codes)
             query = f"SELECT * FROM {table} WHERE InsCode In ({codes});"
-            data = pd.read_sql(sql=query, con=self._cnx)
+            data = pd.read_sql(sql=query, con=self._cnx, index_col=["InsCode", "DEven"])
             return data
 
     def _read_instrums(self):
@@ -209,13 +209,16 @@ class TSECache:
 
         if self._cnx:
             table_name = "instruments"
-            instrums = self._read_table(table=table_name)
-            if instrums is not None and (not instrums.empty):
+            instrums = self._read_table(table=table_name, index_col=["InsCode"])
+            if (instrums is not None) and (not instrums.empty):
                 self._instruments = instrums
-                if self.settings["merge_similar_symbols"]:
-                    instrums = self._instruments
-                    instrums["Duplicated"] = instrums["Symbol"].duplicated(keep=False)
-                    instrums["IsRoot"] = ~instrums["Symbol"].duplicated(keep="first")
+                # TODO: are these columns needed?
+                self._instruments["Duplicated"] = self._instruments[
+                    "Symbol"
+                ].duplicated(keep=False)
+                self._instruments["IsRoot"] = ~self._instruments["Symbol"].duplicated(
+                    keep="first"
+                )
 
     def _read_splits(self):
         """
@@ -224,7 +227,7 @@ class TSECache:
 
         if self._cnx:
             table_name = "splits"
-            splits = self._read_table(table=table_name)
+            splits = self._read_table(table=table_name, index_col=["InsCode", "DEven"])
             if splits is not None and (not splits.empty):
                 self._splits = splits
 
@@ -251,7 +254,7 @@ class TSECache:
             )
             metadata.to_sql(t_name, self._cnx, if_exists="replace")
 
-    def _read_table(self, table: str) -> pd.DataFrame | None:
+    def _read_table(self, table: str, index_col: list[str]) -> pd.DataFrame | None:
         """
         reads a table from database and returns its data
 
@@ -270,7 +273,7 @@ class TSECache:
             return None
         else:
             query = f"SELECT * FROM {table}"
-            data = pd.read_sql(sql=query, con=self._cnx)
+            data = pd.read_sql(sql=query, con=self._cnx, index_col=index_col)
             return data
 
     # TODO: this is not called anywhere
@@ -468,7 +471,7 @@ class TSECache:
         file_path = tse_dir / f"{f_name}.csv"
         data.to_csv(file_path, encoding="utf-8")
 
-    def update_price_db(self):
+    def prices_to_db(self):
         """
         write cached price data to database file
         """
@@ -481,6 +484,7 @@ class TSECache:
                 if_exists="append",
                 index=True,
                 method="multi",
+                index_label=["InsCode", "DEven"],
             )
 
     def instruments_to_db(self):
@@ -497,6 +501,7 @@ class TSECache:
                 if_exists="replace",
                 index=True,
                 method="multi",
+                index_label="InsCode",
             )
         if self._splits is not None and not self._splits.empty:
             t_name = "splits"
@@ -506,5 +511,6 @@ class TSECache:
                 if_exists="replace",
                 index=True,
                 method="multi",
+                index_label=["InsCode", "DEven"],
             )
         self._upd_metadata()

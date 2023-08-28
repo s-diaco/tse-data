@@ -27,6 +27,12 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
     """
     if (not deven) or (not last_possible_deven) or deven == "0":
         return True  # first time. never updated
+    if deven > last_possible_deven:
+        tse_logger.warning(
+            "Date of cached Instrument list is: %s. List not updated.",
+            datetime.strptime(deven, "%Y%m%d").strftime("%m/%d/%y"),  # TODO: use jalali
+        )
+        return False
     today = datetime.now()
     today_str = today.strftime("%Y%m%d")
     days_passed = abs(
