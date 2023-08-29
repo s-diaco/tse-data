@@ -30,20 +30,12 @@ class TSE:
         :return: pd.DataFrame, symbols to update
         """
 
-        if self.cache.prices is not None:
-            # TODO: merge selection with last_devens (from cached data) to find out
-            # witch syms need an update. dont use ["DEven"].max()
-            self.cache.last_devens = (
-                self.cache.prices.reset_index().groupby("InsCode")["DEven"].max()
-            )
         first_possible_deven = self.settings["start_date"]
         sel_insts = self.cache.instruments.loc[self.codes]
         if self.cache.last_devens is not None and not self.cache.last_devens.empty:
             # TODO: test
-            sel_insts = sel_insts.merge(
-                self.cache.last_devens.rename("cached_DEven").astype("Int64"),
-                how="left",
-                on="InsCode",
+            sel_insts = sel_insts.join(
+                self.cache.last_devens["LastDeven"].rename("cached_DEven")
             ).fillna(int(first_possible_deven))
         else:
             sel_insts["cached_DEven"] = first_possible_deven
@@ -125,11 +117,9 @@ class TSE:
             tse_logger.warning(
                 "Failed to get some data. codes: %s", ",".join(update_result["fails"])
             )
-        res = {
-            sym: self.cache.prices.xs(sym) for sym in self.cache.prices.index.levels[0]
-        }
+        res = self.cache.get_instrum_prcs(symbols=symbols, settings=self.settings)
 
         if self.settings["write_csv"]:
-            self.cache.write_prc_csv(codes=self.cache.prices.index.levels[0])
+            self.cache.write_prc_csv(res)
 
         return res

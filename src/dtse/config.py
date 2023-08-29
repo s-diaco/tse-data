@@ -63,7 +63,7 @@ tse_closing_prices_info = [
     "PriceFirst",
 ]
 
-SERVER_LN_TERMINATOR = ";"
+RESP_LN_TERMINATOR = ";"
 
 # data services
 UPDATE_INTERVAL = 1

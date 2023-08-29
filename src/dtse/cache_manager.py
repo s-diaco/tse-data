@@ -28,11 +28,11 @@ class TSECache:
         self._splits: pd.DataFrame | None = None
         self._prices: pd.DataFrame | None = None
         self._prices_merged: pd.DataFrame | None = None
+        self._last_devens: pd.DataFrame | None = None
         self.merged_instruments: pd.DataFrame | None = None
         self._cnx: Connection | None = None
         self._last_possible_deven: str = ""
         self._last_instrument_update: str = ""
-        self.last_devens: pd.Series | None = None
         self.cache_to_db = (
             self.settings["cache_to_db"] if "cache_to_db" in self.settings else True
         )
@@ -126,6 +126,7 @@ class TSECache:
                 return self._prices.sort_index()
         return None
 
+    # TODO: delete?
     @property
     def prices_merged(self):
         """Price data. Can be None or pd.DataFrame"""
@@ -208,8 +209,8 @@ class TSECache:
         """
 
         if self._cnx:
-            table_name = "instruments"
-            instrums = self._read_table(table=table_name, index_col=["InsCode"])
+            inst_table_name = "instruments"
+            instrums = self._read_table(table=inst_table_name, index_col=["InsCode"])
             if (instrums is not None) and (not instrums.empty):
                 self._instruments = instrums
                 # TODO: are these columns needed?
@@ -219,6 +220,10 @@ class TSECache:
                 self._instruments["IsRoot"] = ~self._instruments["Symbol"].duplicated(
                     keep="first"
                 )
+            ld_table_name = "last_devens"
+            last_devens = self._read_table(table=ld_table_name, index_col=["InsCode"])
+            if (last_devens is not None) and (not last_devens.empty):
+                self._last_devens = last_devens
 
     def _read_splits(self):
         """
@@ -277,19 +282,26 @@ class TSECache:
             return data
 
     # TODO: this is not called anywhere
-    def get_instrum_prcs(self, instrument: dict, settings: dict) -> pd.DataFrame:
+    def get_instrum_prcs(self, symbols: list[str], settings: dict) -> dict:
         """
         get cached instrument prices
 
-        :instrument: dict, instrument to get prices for
+        :symbols: list[str], symbols to get prices for
         :settings: dict, app config from the config file or user input
 
-        :return: pd.DataFrame, prices for instrument
+        :return: dict, prices for symbols
         """
 
-        if self._prices_merged is None or self._instruments is None:
+        if self._prices is None or self._instruments is None:
             raise AttributeError("Some required data is missing in cache.")
-        ins_code = instrument["InsCode"]
+        symbol_dict = {
+            symbol: self.instruments[self.instruments["Symbol"].isin([symbol])]
+            for symbol in symbols
+            if symbol in self.instruments["Symbol"].unique()
+        }
+
+        # TODO: delete
+        """
         merges = self._instruments[self._instruments["Duplicated"]]
         prices_merged = self._prices_merged
 
@@ -317,17 +329,24 @@ class TSECache:
                 if ins_code in self._prices:
                     prices = self._prices[ins_code]
                     ins_codes = [ins_code]
+        """
 
-        if prices.empty:
+        prices = {
+            sym: self.adjust(settings["adjust_prices"], list(sym_codes.index))
+            for sym, sym_codes in symbol_dict.items()
+        }
+        if not prices:
             return prices
 
-        prices = self.adjust(settings["adjust_prices"], ins_codes)
+        # TODO: delete
+        # prices = self.adjust(settings["adjust_prices"], ins_codes)
 
-        if not settings["days_without_trade"]:
-            prices = prices[prices["ZTotTran"] > 0]
-
-        # TODO: should be higher in this method
-        prices = prices[prices.index.levels[1] > int(settings["start_date"])]
+        for sym in prices:
+            prices[sym] = prices[sym][
+                prices[sym].index.levels[1] > int(settings["start_date"])
+            ]
+            if not settings["days_without_trade"]:
+                prices[sym] = prices[sym][prices[sym]["ZTotTran"] > 0]
 
         return prices
 
@@ -430,22 +449,20 @@ class TSECache:
 
     def write_prc_csv(
         self,
-        codes: int | list[int],
+        prices: dict,
     ) -> None:
         """
         Write price data to a csv file or a list of csv files.
 
-        :f_name: str or list of str, File name or file names
-        :data: pd.DataFrame or list of pd.DataFrame, Stock price data
+        :prices: dict, dict of price data for symbols
         """
 
-        if isinstance(codes, int):
-            codes = [codes]
         if self.prices is not None:
-            for code in codes:
-                prc_data = self.prices.xs(code, level=0, axis=0)
+            for sym, sym_prcs in prices.items:
+                prc_data = sym_prcs
+                f_name = sym
                 self.write_tse_csv(
-                    f_name=str(code),
+                    f_name=f_name,
                     data=prc_data,
                     subdir=self.settings["PRICES_DIR"],
                 )
@@ -487,6 +504,17 @@ class TSECache:
                 index_label=["InsCode", "DEven"],
             )
 
+        if self._last_devens is not None:
+            t_name = "last_devens"
+            self.last_devens.to_sql(
+                name=t_name,
+                con=self._cnx,
+                if_exists="append",
+                index=True,
+                method="multi",
+                index_label=["InsCode"],
+            )
+
     def instruments_to_db(self):
         """
         write cached instruments and splits data to database file
@@ -514,3 +542,23 @@ class TSECache:
                 index_label=["InsCode", "DEven"],
             )
         self._upd_metadata()
+
+    @property
+    def last_devens(self):
+        """
+        get last cheched date for each price data.
+        """
+        return self._last_devens
+
+    def update_last_devens(self, codes: list[int]):
+        """
+        update last_devens table
+        """
+        if codes:
+            today_str = datetime.today().strftime("%Y%m%d")
+            if self._last_devens is None:
+                self._last_devens = pd.DataFrame(
+                    today_str, index=codes, columns=["LastDeven"]
+                )
+            else:
+                self._last_devens.loc[codes, "LastDeven"] = today_str

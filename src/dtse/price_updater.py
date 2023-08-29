@@ -52,7 +52,7 @@ class PriceUpdater:
                     f"requested {len(ins_codes)} codes, got {len(resp_list)}"
                 )
             col_names = cfg.tse_closing_prices_info
-            line_terminator = cfg.SERVER_LN_TERMINATOR
+            line_terminator = cfg.RESP_LN_TERMINATOR
             new_prc_df_list = [
                 pd.read_csv(
                     StringIO(resp),
@@ -131,4 +131,5 @@ class PriceUpdater:
         n_rows = cfg.PRICES_UPDATE_CHUNK
         chunks = [upd_needed[i : i + n_rows] for i in range(0, len(upd_needed), n_rows)]
         await self._batch(chunks)
+        self.cache.update_last_devens(self.succs)
         return {"succs": self.succs, "fails": self.fails}
