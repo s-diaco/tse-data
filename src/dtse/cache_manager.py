@@ -4,9 +4,10 @@ manage cached data
 
 from datetime import datetime
 from pathlib import Path
-from sqlite3 import connect, Connection
+from sqlite3 import Connection, connect
 
 import pandas as pd
+from sqlalchemy import BIGINT, INTEGER, Column, Integer, UniqueConstraint
 
 from dtse.setup_logger import logger as tse_logger
 
@@ -493,6 +494,25 @@ class TSECache:
         write cached price data to database file
         """
 
+        from sqlalchemy import create_engine
+        from sqlalchemy.dialects.sqlite import insert
+        from sqlalchemy.orm import declarative_base
+
+        def sqlite_upsert(table, conn, keys, data_iter):
+            """
+            update columns on primary key conflict
+            """
+            data = [dict(zip(keys, row)) for row in data_iter]
+            insert_stmt = insert(table.table).values(data)
+            # create update statement for excluded fields on conflict
+            # update_stmt = {exc_k.key: exc_k for exc_k in insert_stmt.excluded}
+            upsert_stmt = insert_stmt.on_conflict_do_update(
+                index_elements=["InsCode"],
+                set_=dict(LastDEven=insert_stmt.excluded["LastDEven"]),
+            )
+            result = conn.execute(upsert_stmt)
+            return result.rowcount
+
         if self._prices is not None and not self._prices.empty:
             t_name = "daily_prices"
             self.prices.to_sql(
@@ -501,18 +521,36 @@ class TSECache:
                 if_exists="append",
                 index=True,
                 method="multi",
+                chunksize=5000,
                 index_label=["InsCode", "DEven"],
             )
 
+        engine = create_engine(
+            "sqlite:///" + str(self._data_dir / self.settings["DB_FILE_NAME"])
+        )
+        Base = declarative_base()
+
+        class Model(Base):
+            __tablename__ = "model"
+
+            InsCode = Column(BIGINT, primary_key=True, unique=True)
+            # will create "model_num_key" UNIQUE CONSTRAINT, btree (num)
+            # num = Column(Integer, unique=True)
+            # same with UniqueConstraint:
+            LastDEven = Column(INTEGER)
+            __table_args__ = (UniqueConstraint("InsCode", name="model_InsCode_key"),)
+            # for multiple columns:
+            # __table_args__ = (UniqueConstraint("num", "LastDEven", name="two_columns"),)
+
+        Model.metadata.reflect(engine)
         if self._last_devens is not None:
             t_name = "last_devens"
-            self.last_devens.to_sql(
+            self.last_devens.reset_index().to_sql(
                 name=t_name,
-                con=self._cnx,
+                con=engine,
                 if_exists="append",
-                index=True,
-                method="multi",
-                index_label=["InsCode"],
+                method=sqlite_upsert,
+                index=False,
             )
 
     def instruments_to_db(self):
@@ -558,7 +596,7 @@ class TSECache:
             today_str = datetime.today().strftime("%Y%m%d")
             if self._last_devens is None:
                 self._last_devens = pd.DataFrame(
-                    today_str, index=codes, columns=["LastDeven"]
+                    today_str, index=codes, columns=["LastDEven"]
                 )
             else:
-                self._last_devens.loc[codes, "LastDeven"] = today_str
+                self._last_devens.loc[codes, "LastDEven"] = today_str

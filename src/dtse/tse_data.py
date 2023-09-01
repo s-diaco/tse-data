@@ -35,7 +35,7 @@ class TSE:
         if self.cache.last_devens is not None and not self.cache.last_devens.empty:
             # TODO: test
             sel_insts = sel_insts.join(
-                self.cache.last_devens["LastDeven"].rename("cached_DEven")
+                self.cache.last_devens["LastDEven"].rename("cached_DEven")
             ).fillna(int(first_possible_deven))
         else:
             sel_insts["cached_DEven"] = first_possible_deven
