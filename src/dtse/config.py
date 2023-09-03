@@ -80,7 +80,7 @@ default_settings = {
     "start_date": "20120321",
     "merge_similar_symbols": True,
     "cache_to_db": True,
-    "write_csv": False,
+    "write_csv": True,
     "csv_headers": True,
     "csv_delimiter": ",",
     "on_progress": None,

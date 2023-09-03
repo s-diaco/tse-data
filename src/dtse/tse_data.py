@@ -89,12 +89,13 @@ class TSE:
         ]
         # TODO: use codes instead of selected_syms.
         self.codes = list(selected_syms.index)
-        tse_logger.info("%s inst. codes loaded.", len(selected_syms))
+        tse_logger.info("%s codes loaded.", len(selected_syms))
         if selected_syms.empty:
             raise ValueError("No instruments found for any symbols.")
         not_founds = [
             sym for sym in symbols if sym not in selected_syms["Symbol"].values
         ]
+        # TODO: does آ اس پ create any problems?
         if not_founds:
             tse_logger.warning("symbols not found: %s", ",".join(not_founds))
 

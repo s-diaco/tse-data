@@ -4,10 +4,19 @@ manage cached data
 
 from datetime import datetime
 from pathlib import Path
-from sqlite3 import Connection, connect
 
 import pandas as pd
-from sqlalchemy import BIGINT, INTEGER, Column, Integer, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    Engine,
+    Integer,
+    MetaData,
+    Table,
+    create_engine,
+    inspect,
+)
+from sqlalchemy.dialects.sqlite import insert
 
 from dtse.setup_logger import logger as tse_logger
 
@@ -31,7 +40,7 @@ class TSECache:
         self._prices_merged: pd.DataFrame | None = None
         self._last_devens: pd.DataFrame | None = None
         self.merged_instruments: pd.DataFrame | None = None
-        self._cnx: Connection | None = None
+        self._engine: Engine | None = None
         self._last_possible_deven: str = ""
         self._last_instrument_update: str = ""
         self.cache_to_db = (
@@ -48,9 +57,9 @@ class TSECache:
         and reads read_last_possible_deven from database if available.
         """
 
-        if self._cnx:
+        if self._engine:
             table_name = "metadata"
-            metadata = self._read_table(table=table_name, index_col=["index"])
+            metadata = self._read_table(table_name=table_name, index_col=["index"])
             if metadata is not None and (not metadata.empty):
                 if "last_possible_deven" in metadata.columns:
                     self._last_possible_deven = metadata.loc[
@@ -76,7 +85,17 @@ class TSECache:
             self.cache_to_db
             or (self._data_dir / self.settings["DB_FILE_NAME"]).is_file()
         ):
-            self._cnx = connect(self._data_dir / self.settings["DB_FILE_NAME"])
+            self._engine = create_engine(
+                "sqlite:///" + str(self._data_dir / self.settings["DB_FILE_NAME"])
+            )
+
+            last_deven_sql = Table(
+                "last_devens",
+                MetaData(),
+                Column("InsCode", BigInteger, primary_key=True),
+                Column("LastDEven", Integer),
+            )
+            last_deven_sql.create(checkfirst=True, bind=self._engine)
 
     @property
     def cache_dir(self):
@@ -175,7 +194,7 @@ class TSECache:
         self.prices and self.prices_merged
         """
 
-        if self._cnx:
+        if self._engine:
             prices = self._read_prc(codes=selected_syms.index.tolist())
             if not prices.empty:
                 self._prices = prices.sort_index()
@@ -189,20 +208,17 @@ class TSECache:
         :return: pd.DataFrame
         """
 
-        table = "daily_prices"
-        # check if table exists in db
-        check_query = (
-            f"SELECT name FROM sqlite_schema WHERE type='table' AND name='{table}';"
-        )
-        find_table = pd.read_sql(sql=check_query, con=self._cnx)
-        if find_table.empty:
-            return find_table
-        else:
+        table_name = "daily_prices"
+        if inspect(self._engine).has_table(table_name):
             # TODO: is it a safe query?
             codes = ", ".join(str(code) for code in codes)
-            query = f"SELECT * FROM {table} WHERE InsCode In ({codes});"
-            data = pd.read_sql(sql=query, con=self._cnx, index_col=["InsCode", "DEven"])
+            query = f"SELECT * FROM {table_name} WHERE InsCode In ({codes});"
+            with self._engine.connect() as conn:
+                data = pd.read_sql(sql=query, con=conn, index_col=["InsCode", "DEven"])
             return data
+        else:
+            # TODO: return None?
+            return pd.DataFrame()
 
     def _read_instrums(self):
         """
@@ -210,9 +226,11 @@ class TSECache:
         and updates "instruments" and "merged_instruments" properties
         """
 
-        if self._cnx:
+        if self._engine:
             inst_table_name = "instruments"
-            instrums = self._read_table(table=inst_table_name, index_col=["InsCode"])
+            instrums = self._read_table(
+                table_name=inst_table_name, index_col=["InsCode"]
+            )
             if (instrums is not None) and (not instrums.empty):
                 self._instruments = instrums
                 # TODO: are these columns needed?
@@ -223,7 +241,9 @@ class TSECache:
                     keep="first"
                 )
             ld_table_name = "last_devens"
-            last_devens = self._read_table(table=ld_table_name, index_col=["InsCode"])
+            last_devens = self._read_table(
+                table_name=ld_table_name, index_col=["InsCode"]
+            )
             if (last_devens is not None) and (not last_devens.empty):
                 self._last_devens = last_devens
 
@@ -232,9 +252,11 @@ class TSECache:
         reads stock splits from database and updates splits property
         """
 
-        if self._cnx:
+        if self._engine:
             table_name = "splits"
-            splits = self._read_table(table=table_name, index_col=["InsCode", "DEven"])
+            splits = self._read_table(
+                table_name=table_name, index_col=["InsCode", "DEven"]
+            )
             if splits is not None and (not splits.empty):
                 self._splits = splits
 
@@ -259,9 +281,10 @@ class TSECache:
                     "last_inst_upd": [self._last_instrument_update],
                 }
             )
-            metadata.to_sql(t_name, self._cnx, if_exists="replace")
+            with self._engine.connect() as conn:
+                metadata.to_sql(t_name, conn, if_exists="replace")
 
-    def _read_table(self, table: str, index_col: list[str]) -> pd.DataFrame | None:
+    def _read_table(self, table_name: str, index_col: list[str]) -> pd.DataFrame | None:
         """
         reads a table from database and returns its data
 
@@ -271,17 +294,13 @@ class TSECache:
         returns 'None' if the table doesn't exist.
         """
 
-        # check if table exists in db
-        check_query = (
-            f"SELECT name FROM sqlite_schema WHERE type='table' AND name='{table}';"
-        )
-        find_table = pd.read_sql(sql=check_query, con=self._cnx)
-        if find_table.empty:
-            return None
-        else:
-            query = f"SELECT * FROM {table}"
-            data = pd.read_sql(sql=query, con=self._cnx, index_col=index_col)
+        if inspect(self._engine).has_table(table_name):
+            query = f"SELECT * FROM {table_name}"
+            with self._engine.connect() as conn:
+                data = pd.read_sql(sql=query, con=conn, index_col=index_col)
             return data
+        else:
+            return None
 
     # TODO: this is not called anywhere
     def prices_by_symbol(self, symbols: list[str], settings: dict) -> dict:
@@ -301,37 +320,6 @@ class TSECache:
             for symbol in symbols
             if symbol in self.instruments["Symbol"].unique()
         }
-
-        # TODO: delete
-        """
-        merges = self._instruments[self._instruments["Duplicated"]]
-        prices_merged = self._prices_merged
-
-        prices = pd.DataFrame()
-        ins_codes = []
-
-        if not instrument["IsRoot"]:
-            # Old and inactive instruments
-            if settings["merge_similar_symbols"]:
-                return pd.DataFrame()
-            prices = self.prices[ins_code]
-            ins_codes = [ins_code]
-        else:
-            # Active instrument with similar inactive symbols
-            is_head = instrument["InsCode"] in merges.InsCode.values
-            if is_head and settings["merge_similar_symbols"]:
-                # TODO: why is this "if" needed?
-                if ins_code in prices_merged:
-                    prices = prices_merged[ins_code]
-                ins_codes = merges[merges["Symbol"] == instrument["Symbol"]][
-                    "InsCode"
-                ].values
-            else:
-                # TODO: why is this "if" needed?
-                if ins_code in self._prices:
-                    prices = self._prices[ins_code]
-                    ins_codes = [ins_code]
-        """
 
         prices = {
             sym: self.adjust(settings["adjust_prices"], list(sym_codes.index))
@@ -460,7 +448,9 @@ class TSECache:
         """
 
         if self.prices is not None:
-            for sym, sym_prcs in prices.items:
+            tse_logger.info("Writing data to csv files.")
+            # TODO: columns should be selected by user or config file. ie jalali date
+            for sym, sym_prcs in prices.items():
                 prc_data = sym_prcs
                 f_name = sym
                 self.write_tse_csv(
@@ -468,6 +458,7 @@ class TSECache:
                     data=prc_data,
                     subdir=self.settings["PRICES_DIR"],
                 )
+                tse_logger.info("%s.csv finished", f_name)
 
     def write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
         """
@@ -495,10 +486,6 @@ class TSECache:
         write cached price data to database file
         """
 
-        from sqlalchemy import create_engine
-        from sqlalchemy.dialects.sqlite import insert
-        from sqlalchemy.orm import declarative_base
-
         def sqlite_upsert(table, conn, keys, data_iter):
             """
             update columns on primary key conflict
@@ -506,54 +493,38 @@ class TSECache:
             data = [dict(zip(keys, row)) for row in data_iter]
             insert_stmt = insert(table.table).values(data)
             # create update statement for excluded fields on conflict
-            # update_stmt = {exc_k.key: exc_k for exc_k in insert_stmt.excluded}
             upsert_stmt = insert_stmt.on_conflict_do_update(
-                index_elements=["InsCode"],
-                set_=dict(LastDEven=insert_stmt.excluded["LastDEven"]),
+                index_elements=table.index,
+                set_={
+                    c.name: c for c in insert_stmt.excluded if not c.name in table.index
+                },
             )
             result = conn.execute(upsert_stmt)
             return result.rowcount
 
         if self._prices is not None and not self._prices.empty:
             t_name = "daily_prices"
-            new_prcs.to_sql(
-                name=t_name,
-                con=self._cnx,
-                if_exists="append",
-                index=True,
-                method="multi",
-                chunksize=5000,
-                index_label=["InsCode", "DEven"],
-            )
-
-        engine = create_engine(
-            "sqlite:///" + str(self._data_dir / self.settings["DB_FILE_NAME"])
-        )
-        Base = declarative_base()
-
-        class LastDeven(Base):
-            __tablename__ = "last_devens"
-
-            InsCode = Column(Integer, primary_key=True)  # , unique=True)
-            # will create "model_num_key" UNIQUE CONSTRAINT, btree (num)
-            # num = Column(Integer, unique=True)
-            # same with UniqueConstraint:
-            LastDEven = Column(INTEGER)
-            # __table_args__ = (UniqueConstraint("InsCode", name="model_InsCode_key"),)
-            # for multiple columns:
-            # __table_args__ = (UniqueConstraint("num", "LastDEven", name="two_columns"),)
-
-        Base.metadata.create_all(bind=engine)
+            with self._engine.connect() as conn:
+                new_prcs.to_sql(
+                    name=t_name,
+                    con=conn,
+                    if_exists="append",
+                    index=True,
+                    method="multi",
+                    chunksize=5000,
+                    index_label=["InsCode", "DEven"],
+                )
 
         if self._last_devens is not None:
             t_name = "last_devens"
-            self.last_devens.to_sql(
-                name=t_name,
-                con=engine,
-                if_exists="append",
-                method=sqlite_upsert,
-                index_label=["InsCode"],
-            )
+            with self._engine.connect() as conn:
+                self.last_devens.to_sql(
+                    name=t_name,
+                    con=conn,
+                    if_exists="append",
+                    method=sqlite_upsert,
+                    index_label=["InsCode"],
+                )
 
     def instruments_to_db(self):
         """
@@ -563,24 +534,26 @@ class TSECache:
         # TODO: should "if_exists" be "replace"?
         if self._instruments is not None and not self._instruments.empty:
             t_name = "instruments"
-            self._instruments.to_sql(
-                name=t_name,
-                con=self._cnx,
-                if_exists="replace",
-                index=True,
-                method="multi",
-                index_label="InsCode",
-            )
+            with self._engine.connect() as conn:
+                self._instruments.to_sql(
+                    name=t_name,
+                    con=conn,
+                    if_exists="replace",
+                    index=True,
+                    method="multi",
+                    index_label="InsCode",
+                )
         if self._splits is not None and not self._splits.empty:
             t_name = "splits"
-            self._splits.to_sql(
-                name=t_name,
-                con=self._cnx,
-                if_exists="replace",
-                index=True,
-                method="multi",
-                index_label=["InsCode", "DEven"],
-            )
+            with self._engine.connect() as conn:
+                self._splits.to_sql(
+                    name=t_name,
+                    con=conn,
+                    if_exists="replace",
+                    index=True,
+                    method="multi",
+                    index_label=["InsCode", "DEven"],
+                )
         self._upd_metadata()
 
     @property
