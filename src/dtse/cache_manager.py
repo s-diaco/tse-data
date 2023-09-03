@@ -4,6 +4,7 @@ manage cached data
 
 from datetime import datetime
 from pathlib import Path
+from time import sleep
 
 import pandas as pd
 from sqlalchemy import (
@@ -17,6 +18,7 @@ from sqlalchemy import (
     inspect,
 )
 from sqlalchemy.dialects.sqlite import insert
+from tqdm import tqdm
 
 from dtse.setup_logger import logger as tse_logger
 
@@ -302,7 +304,6 @@ class TSECache:
         else:
             return None
 
-    # TODO: this is not called anywhere
     def prices_by_symbol(self, symbols: list[str], settings: dict) -> dict:
         """
         get cached instrument prices
@@ -327,9 +328,6 @@ class TSECache:
         }
         if not prices:
             return prices
-
-        # TODO: delete
-        # prices = self.adjust(settings["adjust_prices"], ins_codes)
 
         for sym in prices:
             prices[sym] = prices[sym][
@@ -450,25 +448,25 @@ class TSECache:
         if self.prices is not None:
             tse_logger.info("Writing data to csv files.")
             # TODO: columns should be selected by user or config file. ie jalali date
-            for sym, sym_prcs in prices.items():
+            for sym, sym_prcs in tqdm(
+                prices.items(), desc="Writing data", ncols=80, delay=1
+            ):
                 prc_data = sym_prcs
                 f_name = sym
-                self.write_tse_csv(
+                self._write_tse_csv(
                     f_name=f_name,
                     data=prc_data,
                     subdir=self.settings["PRICES_DIR"],
                 )
-                tse_logger.info("%s.csv finished", f_name)
+            tse_logger.info("writing to csv finished")
 
-    def write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
+    def _write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
         """
         Write data to csv file.
 
         :f_name: str, File name
         :data: pd.DataFrame, Stock price data
         """
-
-        # TODO: file names should change to symbol
 
         if "subdir" in kwargs:
             tse_dir = self._data_dir / str(kwargs.get("subdir"))
@@ -486,13 +484,13 @@ class TSECache:
         write cached price data to database file
         """
 
+        # TODO: should also use this for prices?
         def sqlite_upsert(table, conn, keys, data_iter):
             """
             update columns on primary key conflict
             """
             data = [dict(zip(keys, row)) for row in data_iter]
             insert_stmt = insert(table.table).values(data)
-            # create update statement for excluded fields on conflict
             upsert_stmt = insert_stmt.on_conflict_do_update(
                 index_elements=table.index,
                 set_={

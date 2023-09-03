@@ -1,5 +1,4 @@
-pytest
+pytest>=7.4.0
 pytest-asyncio
 pytest-vcr
 pytest-mock
-setuptools
