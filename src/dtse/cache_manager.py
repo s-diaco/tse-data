@@ -523,6 +523,7 @@ class TSECache:
                     con=conn,
                     if_exists="append",
                     method=sqlite_upsert,
+                    chunksize=4000,
                     index_label=["InsCode"],
                 )
 
