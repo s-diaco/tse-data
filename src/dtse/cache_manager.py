@@ -148,12 +148,13 @@ class TSECache:
         dfs = [data for data in dfs if not data.empty]
 
         if dfs:
+            new_prices = pd.concat(dfs)
             if self._prices is None:
-                self._prices = pd.concat(dfs)
+                self._prices = new_prices
             else:
-                tot_prices = [self._prices]
-                tot_prices.extend(dfs)
-                self._prices = pd.concat(tot_prices)
+                self._prices = pd.concat([new_prices, self._prices])
+            if self.cache_to_db:
+                self._prices_to_db(new_prcs=new_prices)
             return True
         else:
             return False
@@ -283,7 +284,7 @@ class TSECache:
             return data
 
     # TODO: this is not called anywhere
-    def get_instrum_prcs(self, symbols: list[str], settings: dict) -> dict:
+    def prices_by_symbol(self, symbols: list[str], settings: dict) -> dict:
         """
         get cached instrument prices
 
@@ -489,7 +490,7 @@ class TSECache:
         file_path = tse_dir / f"{f_name}.csv"
         data.to_csv(file_path, encoding="utf-8")
 
-    def prices_to_db(self):
+    def _prices_to_db(self, new_prcs):
         """
         write cached price data to database file
         """
@@ -515,7 +516,7 @@ class TSECache:
 
         if self._prices is not None and not self._prices.empty:
             t_name = "daily_prices"
-            self.prices.to_sql(
+            new_prcs.to_sql(
                 name=t_name,
                 con=self._cnx,
                 if_exists="append",
@@ -530,27 +531,28 @@ class TSECache:
         )
         Base = declarative_base()
 
-        class Model(Base):
-            __tablename__ = "model"
+        class LastDeven(Base):
+            __tablename__ = "last_devens"
 
-            InsCode = Column(BIGINT, primary_key=True, unique=True)
+            InsCode = Column(Integer, primary_key=True)  # , unique=True)
             # will create "model_num_key" UNIQUE CONSTRAINT, btree (num)
             # num = Column(Integer, unique=True)
             # same with UniqueConstraint:
             LastDEven = Column(INTEGER)
-            __table_args__ = (UniqueConstraint("InsCode", name="model_InsCode_key"),)
+            # __table_args__ = (UniqueConstraint("InsCode", name="model_InsCode_key"),)
             # for multiple columns:
             # __table_args__ = (UniqueConstraint("num", "LastDEven", name="two_columns"),)
 
-        Model.metadata.reflect(engine)
+        Base.metadata.create_all(bind=engine)
+
         if self._last_devens is not None:
             t_name = "last_devens"
-            self.last_devens.reset_index().to_sql(
+            self.last_devens.to_sql(
                 name=t_name,
                 con=engine,
                 if_exists="append",
                 method=sqlite_upsert,
-                index=False,
+                index_label=["InsCode"],
             )
 
     def instruments_to_db(self):

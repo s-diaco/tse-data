@@ -100,24 +100,25 @@ class TSE:
 
         self.cache.read_prices(selected_syms=selected_syms)
         to_update = await self._get_expired_prices()
-        price_manager = PriceUpdater(cache_manager=self.cache)
-        update_result = await price_manager.start(
-            upd_needed=to_update,
-            settings=self.settings,
-        )
-        tse_logger.info(
-            "Data download completed for codes: %s",
-            ", ".join([str(x) for x in update_result["succs"]]),
-        )
-        if self.settings["cache_to_db"]:
-            self.cache.prices_to_db()
-        if not update_result["succs"]:
-            tse_logger.info("No data downloaded.")
-        if update_result["fails"]:
-            tse_logger.warning(
-                "Failed to get some data. codes: %s", ",".join(update_result["fails"])
+        if not to_update.empty:
+            price_manager = PriceUpdater(cache_manager=self.cache)
+            update_result = await price_manager.start(
+                upd_needed=to_update,
+                settings=self.settings,
             )
-        res = self.cache.get_instrum_prcs(symbols=symbols, settings=self.settings)
+            if complete_dl := update_result["succs"]:
+                tse_logger.info(
+                    "Data download completed for codes: %s",
+                    ", ".join([str(x) for x in complete_dl]),
+                )
+            else:
+                tse_logger.info("No data downloaded.")
+            if update_result["fails"]:
+                tse_logger.warning(
+                    "Failed to get some data. codes: %s",
+                    ",".join(update_result["fails"]),
+                )
+        res = self.cache.prices_by_symbol(symbols=symbols, settings=self.settings)
 
         if self.settings["write_csv"]:
             self.cache.write_prc_csv(res)

@@ -63,8 +63,9 @@ class PriceUpdater:
                 for resp in resp_list
                 if resp
             ]
-            self.cache.add_to_prices(new_prc_df_list)
             self.succs.extend(ins_codes)
+            self.cache.update_last_devens(self.succs)
+            self.cache.add_to_prices(new_prc_df_list)
             self.timeouts.pop(on_result_id)
         else:
             self.fails.extend(ins_codes)
@@ -131,5 +132,4 @@ class PriceUpdater:
         n_rows = cfg.PRICES_UPDATE_CHUNK
         chunks = [upd_needed[i : i + n_rows] for i in range(0, len(upd_needed), n_rows)]
         await self._batch(chunks)
-        self.cache.update_last_devens(self.succs)
         return {"succs": self.succs, "fails": self.fails}
