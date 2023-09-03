@@ -5,6 +5,7 @@ import pytest
 
 from dtse import tse_utils
 
+# TODO: https://hypothesis.readthedocs.io/en/latest/quickstart.html
 sample_texts = [
     ("ی\u200B\u200C\u200D\uFEFFكي", "ی کی"),
     ("السلام عليكم", "السلام علیکم"),
