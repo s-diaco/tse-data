@@ -135,7 +135,7 @@ class TSECache:
 
     @property
     def prices(self):
-        """Price data. Can be None or pd.DataFrame"""
+        """Price data indexed by code and date. Can be None or pd.DataFrame"""
         if self._prices is not None:
             if not self._prices.empty:
                 return self._prices.sort_index()
@@ -144,7 +144,7 @@ class TSECache:
     # TODO: delete?
     @property
     def prices_merged(self):
-        """Price data. Can be None or pd.DataFrame"""
+        """Price data indexed by symbol an date. Can be None or pd.DataFrame"""
         if self._prices_merged is not None:
             return self._prices_merged.sort_index()
         return None
@@ -309,28 +309,44 @@ class TSECache:
             self._prices.loc[:, "date_jalali"] = self._prices.index.get_level_values(
                 "DEven"
             ).map(convert_to_shamsi)
+
+        self._prices_merged = (
+            self._prices.join(self._instruments["Symbol"])
+            .reset_index()
+            .set_index(["Symbol", "DEven"])
+        )
+
         symbol_dict = {
             symbol: self.instruments[self.instruments["Symbol"].isin([symbol])]
             for symbol in symbols
             if symbol in self.instruments["Symbol"].unique()
         }
 
-        prices = {
-            sym: self.adjust(settings["adjust_prices"], list(sym_codes.index))
-            for sym, sym_codes in symbol_dict.items()
-        }
-        if not prices:
-            return prices
-
-        for sym in prices:
-            prices[sym] = prices[sym][
-                prices[sym].index.levels[1] > int(settings["start_date"])
+        # TODO: does adjust change self.prices? if so, fix adjust().
+        # merged_prices are not sorted
+        for sym, sym_codes in symbol_dict.items():
+            idx = pd.IndexSlice
+            self._prices_merged.loc[idx[sym, :], :] = pd.concat(
+                {
+                    sym: self.adjust(
+                        settings["adjust_prices"], list(sym_codes.index)
+                    ).reset_index(level=[0])
+                },
+                names=["Symbol"],
+            )
+        self._prices_merged = self._prices_merged[
+            self._prices_merged.index.get_level_values("DEven")
+            > int(settings["start_date"])
+        ]
+        if not settings["days_without_trade"]:
+            self._prices_merged = self._prices_merged[
+                self._prices_merged["ZTotTran"] > 0
             ]
-            if not settings["days_without_trade"]:
-                prices[sym] = prices[sym][prices[sym]["ZTotTran"] > 0]
-            if columns:
-                prices[sym] = prices[sym][columns]
+        if columns:
+            self._prices_merged = self._prices_merged[columns]
 
+        grouper = "Symbol"
+        prices = dict(tuple(self._prices_merged.groupby(grouper)))
         return prices
 
     def adjust(self, cond: int, ins_codes: list[int]) -> pd.DataFrame:
@@ -569,6 +585,6 @@ class TSECache:
                 )
             else:
                 self._last_devens = self._last_devens.reindex(
-                    codes.extend(self._last_devens.index)
+                    codes + list(self._last_devens.index)
                 )
                 self._last_devens.loc[codes, "LastDEven"] = today_str

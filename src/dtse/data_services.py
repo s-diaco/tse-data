@@ -5,13 +5,11 @@ import re
 from datetime import datetime
 from io import StringIO
 
-import jdatetime
 import pandas as pd
-
-from dtse.cache_manager import TSECache
 
 from dtse import config as cfg
 from dtse import tse_utils
+from dtse.cache_manager import TSECache
 from dtse.setup_logger import logger as tse_logger
 from dtse.tse_request import TSERequest
 
@@ -89,8 +87,11 @@ async def update_instruments(cache: TSECache) -> None:
     """
 
     last_update = cache.last_instrument_update
-    last_cached_instrum_date: str = ""
+
+    # Server needs "0" as default value.
+    last_cached_instrum_date: str = "0"
     last_cached_split_id: int = 0
+
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     line_terminator = cfg.RESP_LN_TERMINATOR
