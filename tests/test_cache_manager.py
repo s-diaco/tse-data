@@ -10,6 +10,7 @@ import pytest
 
 from dtse import config as cfg
 from dtse.cache_manager import TSECache
+from sqlalchemy import create_engine
 
 
 @pytest.fixture(name="test_cache")
@@ -62,7 +63,8 @@ def test_read_prices(mocker, codes, test_cache):
     ]
     expected_res = pd.concat(daily_prices_list).sort_index()
     cache = test_cache
-    _ = mocker.patch.object(cache, "_cnx", new=True)
+    engine = create_engine("sqlite://", echo=True)
+    _ = mocker.patch.object(cache, "_engine", new=engine)
     mock_sql = mocker.patch("dtse.cache_manager.pd.read_sql")
     mock_sql.return_value = expected_res
     selected_syms_file = "sample_data/sample_selected_syms.csv"

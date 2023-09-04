@@ -1,0 +1,290 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Host:
+      - service.tsetmc.com
+      User-Agent:
+      - Python/3.11 aiohttp/3.8.5
+    method: GET
+    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=0,68635710163497089,20230514,0%3B1,71483646978964608,20230514,0%3B2,46348559193224090,20230514,0%3B3,38568786927478796,20230514,0%3B4,778253364357513,20230514,0%3B5,35796086458096255,20230514,0%3B6,26787658273107220,20130818,0%3B7,9211775239375291,20211213,0
+  response:
+    body: {}
+    headers:
+      Cache-Control:
+      - public, max-age=900
+      Content-Length:
+      - '177'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 04 Sep 2023 08:34:42 GMT
+      Expires:
+      - Mon, 04 Sep 2023 08:49:42 GMT
+      Last-Modified:
+      - Mon, 04 Sep 2023 08:34:42 GMT
+      Location:
+      - /GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+      Server:
+      - Microsoft-IIS/10.0
+      Vary:
+      - '*'
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 302
+      message: Found
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=0,68635710163497089,20230514,0%3B1,71483646978964608,20230514,0%3B2,46348559193224090,20230514,0%3B3,38568786927478796,20230514,0%3B4,778253364357513,20230514,0%3B5,35796086458096255,20230514,0%3B6,26787658273107220,20130818,0%3B7,9211775239375291,20211213,0
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Host:
+      - service.tsetmc.com
+      User-Agent:
+      - Python/3.11 aiohttp/3.8.5
+    method: GET
+    uri: http://service.tsetmc.com/GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+  response:
+    body:
+      string: "\r\n<!DOCTYPE html>\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head><title>\r\n\tGeneral
+        Error Detected\r\n</title></head>\r\n<body>\r\n    <form method=\"post\" action=\"./GeneralError.aspx?aspxerrorpath=%2ftsev2%2fdata%2fTseClient2.aspx\"
+        id=\"form1\">\r\n<input type=\"hidden\" name=\"__VIEWSTATE\" id=\"__VIEWSTATE\"
+        value=\"/wEPDwUJNzgzNDMwNTMzZGTf8IZiPIETGQBgz4klKGlKRC+hCw+my3PRpEfo+93vPw==\"
+        />\r\n\r\n<input type=\"hidden\" name=\"__VIEWSTATEGENERATOR\" id=\"__VIEWSTATEGENERATOR\"
+        value=\"08A9DA7C\" />\r\n    <div>\r\n        <table width=\"50%\" style=\"border:
+        1px solid #808080;margin-left:auto;margin-right:auto;\"><tr><td align=center>General
+        Error Detected<br />Please Try Later</td></tr></table>\r\n    </div>\r\n    </form>\r\n</body>\r\n</html>\r\n"
+    headers:
+      Cache-Control:
+      - private
+      Content-Length:
+      - '715'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 04 Sep 2023 08:34:42 GMT
+      Server:
+      - Microsoft-IIS/10.0
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 500
+      message: Internal Server Error
+    url: http://service.tsetmc.com/GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Host:
+      - service.tsetmc.com
+      User-Agent:
+      - Python/3.11 aiohttp/3.8.5
+    method: GET
+    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=0,68635710163497089,20230514,0%3B1,71483646978964608,20230514,0%3B2,46348559193224090,20230514,0%3B3,38568786927478796,20230514,0%3B4,778253364357513,20230514,0%3B5,35796086458096255,20230514,0%3B6,26787658273107220,20130818,0%3B7,9211775239375291,20211213,0
+  response:
+    body: {}
+    headers:
+      Cache-Control:
+      - public, max-age=900
+      Content-Length:
+      - '177'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 04 Sep 2023 08:34:43 GMT
+      Expires:
+      - Mon, 04 Sep 2023 08:49:43 GMT
+      Last-Modified:
+      - Mon, 04 Sep 2023 08:34:43 GMT
+      Location:
+      - /GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+      Server:
+      - Microsoft-IIS/10.0
+      Vary:
+      - '*'
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 302
+      message: Found
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=0,68635710163497089,20230514,0%3B1,71483646978964608,20230514,0%3B2,46348559193224090,20230514,0%3B3,38568786927478796,20230514,0%3B4,778253364357513,20230514,0%3B5,35796086458096255,20230514,0%3B6,26787658273107220,20130818,0%3B7,9211775239375291,20211213,0
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Host:
+      - service.tsetmc.com
+      User-Agent:
+      - Python/3.11 aiohttp/3.8.5
+    method: GET
+    uri: http://service.tsetmc.com/GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+  response:
+    body:
+      string: "\r\n<!DOCTYPE html>\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head><title>\r\n\tGeneral
+        Error Detected\r\n</title></head>\r\n<body>\r\n    <form method=\"post\" action=\"./GeneralError.aspx?aspxerrorpath=%2ftsev2%2fdata%2fTseClient2.aspx\"
+        id=\"form1\">\r\n<input type=\"hidden\" name=\"__VIEWSTATE\" id=\"__VIEWSTATE\"
+        value=\"/wEPDwUJNzgzNDMwNTMzZGTf8IZiPIETGQBgz4klKGlKRC+hCw+my3PRpEfo+93vPw==\"
+        />\r\n\r\n<input type=\"hidden\" name=\"__VIEWSTATEGENERATOR\" id=\"__VIEWSTATEGENERATOR\"
+        value=\"08A9DA7C\" />\r\n    <div>\r\n        <table width=\"50%\" style=\"border:
+        1px solid #808080;margin-left:auto;margin-right:auto;\"><tr><td align=center>General
+        Error Detected<br />Please Try Later</td></tr></table>\r\n    </div>\r\n    </form>\r\n</body>\r\n</html>\r\n"
+    headers:
+      Cache-Control:
+      - private
+      Content-Length:
+      - '715'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 04 Sep 2023 08:34:43 GMT
+      Server:
+      - Microsoft-IIS/10.0
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 500
+      message: Internal Server Error
+    url: http://service.tsetmc.com/GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Host:
+      - service.tsetmc.com
+      User-Agent:
+      - Python/3.11 aiohttp/3.8.5
+    method: GET
+    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=0,68635710163497089,20230514,0%3B1,71483646978964608,20230514,0%3B2,46348559193224090,20230514,0%3B3,38568786927478796,20230514,0%3B4,778253364357513,20230514,0%3B5,35796086458096255,20230514,0%3B6,26787658273107220,20130818,0%3B7,9211775239375291,20211213,0
+  response:
+    body: {}
+    headers:
+      Cache-Control:
+      - public, max-age=900
+      Content-Length:
+      - '177'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 04 Sep 2023 08:34:45 GMT
+      Expires:
+      - Mon, 04 Sep 2023 08:49:45 GMT
+      Last-Modified:
+      - Mon, 04 Sep 2023 08:34:45 GMT
+      Location:
+      - /GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+      Server:
+      - Microsoft-IIS/10.0
+      Vary:
+      - '*'
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 302
+      message: Found
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=0,68635710163497089,20230514,0%3B1,71483646978964608,20230514,0%3B2,46348559193224090,20230514,0%3B3,38568786927478796,20230514,0%3B4,778253364357513,20230514,0%3B5,35796086458096255,20230514,0%3B6,26787658273107220,20130818,0%3B7,9211775239375291,20211213,0
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Host:
+      - service.tsetmc.com
+      User-Agent:
+      - Python/3.11 aiohttp/3.8.5
+    method: GET
+    uri: http://service.tsetmc.com/GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+  response:
+    body:
+      string: "\r\n<!DOCTYPE html>\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head><title>\r\n\tGeneral
+        Error Detected\r\n</title></head>\r\n<body>\r\n    <form method=\"post\" action=\"./GeneralError.aspx?aspxerrorpath=%2ftsev2%2fdata%2fTseClient2.aspx\"
+        id=\"form1\">\r\n<input type=\"hidden\" name=\"__VIEWSTATE\" id=\"__VIEWSTATE\"
+        value=\"/wEPDwUJNzgzNDMwNTMzZGTf8IZiPIETGQBgz4klKGlKRC+hCw+my3PRpEfo+93vPw==\"
+        />\r\n\r\n<input type=\"hidden\" name=\"__VIEWSTATEGENERATOR\" id=\"__VIEWSTATEGENERATOR\"
+        value=\"08A9DA7C\" />\r\n    <div>\r\n        <table width=\"50%\" style=\"border:
+        1px solid #808080;margin-left:auto;margin-right:auto;\"><tr><td align=center>General
+        Error Detected<br />Please Try Later</td></tr></table>\r\n    </div>\r\n    </form>\r\n</body>\r\n</html>\r\n"
+    headers:
+      Cache-Control:
+      - private
+      Content-Length:
+      - '715'
+      Content-Security-policy:
+      - defult-Src 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Mon, 04 Sep 2023 08:34:45 GMT
+      Server:
+      - Microsoft-IIS/10.0
+      X-Content-Type-Options:
+      - nosniff
+      X-Farams-Options:
+      - DENY
+      X-Powered-By:
+      - ASP.NET
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 500
+      message: Internal Server Error
+    url: http://service.tsetmc.com/GeneralError.aspx?aspxerrorpath=/tsev2/data/TseClient2.aspx
+version: 1

@@ -4,19 +4,20 @@ build-backend = "pdm.backend"
 
 [project]
 name = "tse-data"
-version = "0.9.0"
+version = "0.9.1"
 description = "client for tsetmc api"
 authors = [
     {name = "s.diaco", email = "dyaco8464@yahoo.com"},
 ]
 dependencies = [
-    "aiohttp>=3.8.5",
-    "jdatetime>=4.1.1",
+    "aiohttp>=3.8.3",
+    "jdatetime>=4.1.0",
     "pandas>=2.0.3",
     "SQLAlchemy>=2.0.20",
-    "tqdm>=4.66.1",
+    "rich>=13.5.2",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "MIT"}
-
+[project.scripts]
+dtse = "dtse.__main__:main"

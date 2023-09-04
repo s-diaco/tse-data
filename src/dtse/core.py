@@ -1,14 +1,16 @@
-#!/usr/bin/env python
+"""client for tsetmc api"""
 
 import asyncio
 import sys
 from time import sleep
 
-from tqdm import tqdm
+from rich.progress import track
 
 from dtse.tse_data import TSE
 
-if __name__ == "__main__":
+
+def main():
+    """client for tsetmc api"""
     args = sys.argv
     if len(args) == 1:
         print("you have to pass an option:")
@@ -28,7 +30,7 @@ if __name__ == "__main__":
         asyncio.run(main())
 
     elif args[1] == "upgrade":
-        for char in tqdm(range(100)):
+        for char in track(range(100)):
             sleep(0.05)
 
     elif args[1] == "reset cache":

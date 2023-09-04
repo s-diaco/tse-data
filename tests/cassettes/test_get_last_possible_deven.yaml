@@ -3,31 +3,31 @@ interactions:
     body: null
     headers: {}
     method: GET
-    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=9211775239375291,20211213,0%3B26787658273107220,20130818,0
+    uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
   response:
     body:
-      string: '@'
+      string: 20230903;20230903
     headers:
       Cache-Control:
       - public, no-cache="Set-Cookie", max-age=900
       Content-Encoding:
       - gzip
       Content-Length:
-      - '121'
+      - '131'
       Content-Security-policy:
       - defult-Src 'self'
       Content-Type:
       - text/html; charset=utf-8
       Date:
-      - Sat, 10 Jun 2023 21:40:02 GMT
+      - Mon, 04 Sep 2023 08:31:21 GMT
       Expires:
-      - Sat, 10 Jun 2023 21:55:02 GMT
+      - Mon, 04 Sep 2023 08:46:21 GMT
       Last-Modified:
-      - Sat, 10 Jun 2023 21:40:02 GMT
+      - Mon, 04 Sep 2023 08:31:21 GMT
       Server:
       - Microsoft-IIS/10.0
       Set-Cookie:
-      - ASP.NET_SessionId=n3af53k0n4lloc4iagmqhrsz; domain=.tsetmc.com; path=/; HttpOnly;
+      - ASP.NET_SessionId=bfsdigupxz4rc5pgvgbztdw3; domain=.tsetmc.com; path=/; HttpOnly;
         SameSite=Lax
       Vary:
       - '*'
@@ -42,5 +42,5 @@ interactions:
     status:
       code: 200
       message: OK
-    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=9211775239375291,20211213,0%3B26787658273107220,20130818,0
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
 version: 1

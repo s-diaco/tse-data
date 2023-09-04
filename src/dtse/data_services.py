@@ -40,7 +40,7 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
     in_weekend = today.weekday() in [4, 5]
     last_update_weekday = datetime.strptime(last_possible_deven, "%Y%m%d").weekday()
     today_is_lpd = today_str == last_possible_deven
-    shd_upd = (
+    is_outdated = (
         days_passed >= cfg.UPDATE_INTERVAL
         and
         # wait until the end of trading session
@@ -50,14 +50,16 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
         # on last day (wednesday) of THIS week
         not (in_weekend and last_update_weekday != 3 and days_passed <= 3)
     )
-    return shd_upd
+    return is_outdated
 
 
 async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
     """
     Get last possible update date
 
-    :return: str, last possible update date
+    :param cached_last_possible_deven: str, local value for last possible update date.
+
+    :return: str, server value for last possible update date
     """
 
     last_possible_deven = cached_last_possible_deven
@@ -83,12 +85,12 @@ async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
 
 async def update_instruments(cache: TSECache) -> None:
     """
-    Get data from tsetmc.com API (if needed) and save to the cache
+    Get data about instruments from web service (if needed) and fill cache.instruments
     """
 
     last_update = cache.last_instrument_update
-    last_cached_instrum_date: str = "0"
-    last_cached_split_id = 0
+    last_cached_instrum_date: str = ""
+    last_cached_split_id: int = 0
     inst_col_names = cfg.tse_instrument_info
     share_col_names = cfg.tse_share_info
     line_terminator = cfg.RESP_LN_TERMINATOR

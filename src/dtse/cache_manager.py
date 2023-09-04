@@ -4,23 +4,19 @@ manage cached data
 
 from datetime import datetime
 from pathlib import Path
-from time import sleep
 
 import pandas as pd
-from sqlalchemy import (
-    BigInteger,
-    Column,
-    Engine,
-    Integer,
-    MetaData,
-    Table,
-    create_engine,
-    inspect,
-)
+from rich.progress import track
+
+# fmt: off
+from sqlalchemy import (BigInteger, Column, Engine, Integer, MetaData, Table,
+                        create_engine, inspect)
+# fmt: on
 from sqlalchemy.dialects.sqlite import insert
-from tqdm import tqdm
 
 from dtse.setup_logger import logger as tse_logger
+
+from dtse.tse_utils import convert_to_shamsi
 
 
 class TSECache:
@@ -59,19 +55,16 @@ class TSECache:
         and reads read_last_possible_deven from database if available.
         """
 
-        if self._engine:
-            table_name = "metadata"
-            metadata = self._read_table(table_name=table_name, index_col=["index"])
-            if metadata is not None and (not metadata.empty):
-                if "last_possible_deven" in metadata.columns:
-                    self._last_possible_deven = metadata.loc[
-                        :, "last_possible_deven"
-                    ].iloc[-1]
-                # TODO: 'last_inst_upd' is never updated (always "0")
-                if "last_inst_upd" in metadata.columns:
-                    self._last_instrument_update = metadata.loc[
-                        :, "last_inst_upd"
-                    ].iloc[-1]
+        table_name = "metadata"
+        metadata = self._read_table(table_name=table_name, index_col=["index"])
+        if metadata is not None and (not metadata.empty):
+            if "last_possible_deven" in metadata.columns:
+                self._last_possible_deven = metadata.loc[:, "last_possible_deven"].iloc[
+                    -1
+                ]
+            # TODO: 'last_inst_upd' is never updated (always "0")
+            if "last_inst_upd" in metadata.columns:
+                self._last_instrument_update = metadata.loc[:, "last_inst_upd"].iloc[-1]
 
     def _init_cache_dir(self) -> None:
         if "tse_dir" in self.settings:
@@ -228,39 +221,31 @@ class TSECache:
         and updates "instruments" and "merged_instruments" properties
         """
 
-        if self._engine:
-            inst_table_name = "instruments"
-            instrums = self._read_table(
-                table_name=inst_table_name, index_col=["InsCode"]
+        ins_tbl_name = "instruments"
+        instrums = self._read_table(table_name=ins_tbl_name, index_col=["InsCode"])
+        if (instrums is not None) and (not instrums.empty):
+            self._instruments = instrums
+            # TODO: are these columns needed?
+            self._instruments["Duplicated"] = self._instruments["Symbol"].duplicated(
+                keep=False
             )
-            if (instrums is not None) and (not instrums.empty):
-                self._instruments = instrums
-                # TODO: are these columns needed?
-                self._instruments["Duplicated"] = self._instruments[
-                    "Symbol"
-                ].duplicated(keep=False)
-                self._instruments["IsRoot"] = ~self._instruments["Symbol"].duplicated(
-                    keep="first"
-                )
-            ld_table_name = "last_devens"
-            last_devens = self._read_table(
-                table_name=ld_table_name, index_col=["InsCode"]
+            self._instruments["IsRoot"] = ~self._instruments["Symbol"].duplicated(
+                keep="first"
             )
-            if (last_devens is not None) and (not last_devens.empty):
-                self._last_devens = last_devens
+        lds_tbl_name = "last_devens"
+        last_devens = self._read_table(table_name=lds_tbl_name, index_col=["InsCode"])
+        if (last_devens is not None) and (not last_devens.empty):
+            self._last_devens = last_devens
 
     def _read_splits(self):
         """
         reads stock splits from database and updates splits property
         """
 
-        if self._engine:
-            table_name = "splits"
-            splits = self._read_table(
-                table_name=table_name, index_col=["InsCode", "DEven"]
-            )
-            if splits is not None and (not splits.empty):
-                self._splits = splits
+        table_name = "splits"
+        splits = self._read_table(table_name=table_name, index_col=["InsCode", "DEven"])
+        if (splits is not None) and (not splits.empty):
+            self._splits = splits
 
     @property
     def last_possible_deven(self):
@@ -296,26 +281,34 @@ class TSECache:
         returns 'None' if the table doesn't exist.
         """
 
-        if inspect(self._engine).has_table(table_name):
-            query = f"SELECT * FROM {table_name}"
+        if self._engine is not None and inspect(self._engine).has_table(table_name):
             with self._engine.connect() as conn:
-                data = pd.read_sql(sql=query, con=conn, index_col=index_col)
+                data = pd.read_sql_table(
+                    table_name=table_name, con=conn, index_col=index_col
+                )
             return data
         else:
             return None
 
-    def prices_by_symbol(self, symbols: list[str], settings: dict) -> dict:
+    def prices_by_symbol(
+        self, symbols: list[str], settings: dict, columns: list[str] = []
+    ) -> dict:
         """
         get cached instrument prices
 
         :symbols: list[str], symbols to get prices for
         :settings: dict, app config from the config file or user input
 
-        :return: dict, prices for symbols
+        :return: dict, a dict with symbols as keys and symbol prices DataFrame as values
         """
 
+        # TODO: the sequence of the operations is costly
         if self._prices is None or self._instruments is None:
             raise AttributeError("Some required data is missing in cache.")
+        if not columns or "date_jalali" in columns:
+            self._prices.loc[:, "date_jalali"] = self._prices.index.get_level_values(
+                "DEven"
+            ).map(convert_to_shamsi)
         symbol_dict = {
             symbol: self.instruments[self.instruments["Symbol"].isin([symbol])]
             for symbol in symbols
@@ -335,6 +328,8 @@ class TSECache:
             ]
             if not settings["days_without_trade"]:
                 prices[sym] = prices[sym][prices[sym]["ZTotTran"] > 0]
+            if columns:
+                prices[sym] = prices[sym][columns]
 
         return prices
 
@@ -448,9 +443,7 @@ class TSECache:
         if self.prices is not None:
             tse_logger.info("Writing data to csv files.")
             # TODO: columns should be selected by user or config file. ie jalali date
-            for sym, sym_prcs in tqdm(
-                prices.items(), desc="Writing data", ncols=80, delay=1
-            ):
+            for sym, sym_prcs in track(prices.items(), description="Writing data"):
                 prc_data = sym_prcs
                 f_name = sym
                 self._write_tse_csv(
@@ -565,6 +558,8 @@ class TSECache:
     def update_last_devens(self, codes: list[int]):
         """
         update last_devens table
+
+        :param codes: list[int], codes which their last_devens has to be added/updated.
         """
         if codes:
             today_str = datetime.today().strftime("%Y%m%d")
@@ -573,4 +568,7 @@ class TSECache:
                     today_str, index=codes, columns=["LastDEven"]
                 )
             else:
+                self._last_devens = self._last_devens.reindex(
+                    codes.extend(self._last_devens.index)
+                )
                 self._last_devens.loc[codes, "LastDEven"] = today_str
