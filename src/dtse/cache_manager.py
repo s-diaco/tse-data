@@ -10,12 +10,12 @@ from rich.progress import track
 
 # fmt: off
 from sqlalchemy import (BigInteger, Column, Engine, Integer, MetaData, Table,
-                        create_engine, inspect)
+                        create_engine, inspect, select)
 # fmt: on
+
 from sqlalchemy.dialects.sqlite import insert
 
 from dtse.setup_logger import logger as tse_logger
-
 from dtse.tse_utils import convert_to_shamsi
 
 
@@ -191,29 +191,27 @@ class TSECache:
 
         if self._engine:
             prices = self._read_prc(codes=selected_syms.index.tolist())
-            if not prices.empty:
+            if (prices is not None) and (not prices.empty):
                 self._prices = prices.sort_index()
 
-    def _read_prc(self, codes: list[str]) -> pd.DataFrame:
+    def _read_prc(self, codes: list[int]) -> pd.DataFrame | None:
         """
         Reads selected instruments files from the cache dir and returns a dict.
 
-        :codes: list[str], list of codes to read from.
+        :codes: list[int], list of codes to read from.
 
         :return: pd.DataFrame
         """
 
         table_name = "daily_prices"
         if inspect(self._engine).has_table(table_name):
-            # TODO: is it a safe query?
-            codes = ", ".join(str(code) for code in codes)
-            query = f"SELECT * FROM {table_name} WHERE InsCode In ({codes});"
+            prcs_table = Table(table_name, MetaData(), autoload_with=self._engine)
+            qry = select(prcs_table).where(prcs_table.c.InsCode.in_(codes))
             with self._engine.connect() as conn:
-                data = pd.read_sql(sql=query, con=conn, index_col=["InsCode", "DEven"])
+                data = pd.read_sql_query(qry, conn, index_col=["InsCode", "DEven"])
             return data
         else:
-            # TODO: return None?
-            return pd.DataFrame()
+            return None
 
     def _read_instrums(self):
         """

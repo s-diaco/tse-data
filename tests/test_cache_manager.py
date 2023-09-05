@@ -64,6 +64,8 @@ def test_read_prices(mocker, codes, test_cache):
     expected_res = pd.concat(daily_prices_list).sort_index()
     cache = test_cache
     engine = create_engine("sqlite://", echo=True)
+    with engine.connect() as conn:
+        expected_res.to_sql(name="daily_prices", con=conn)
     _ = mocker.patch.object(cache, "_engine", new=engine)
     mock_sql = mocker.patch("dtse.cache_manager.pd.read_sql")
     mock_sql.return_value = expected_res
