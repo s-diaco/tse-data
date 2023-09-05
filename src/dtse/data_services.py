@@ -1,6 +1,5 @@
-"""
-functions to manage tse data
-"""
+"""functions to manage tse data"""
+
 import re
 from datetime import datetime
 from io import StringIO
@@ -73,7 +72,7 @@ async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
             raise
         pattern = re.compile(r"^\d{8};\d{8}$")
         if not pattern.search(res):
-            raise Exception("Invalid response from server: LastPossibleDeven")
+            raise ValueError("Invalid response from server: LastPossibleDeven")
         last_possible_deven = res.split(";")[0] or res.split(";")[1]
     return last_possible_deven
 

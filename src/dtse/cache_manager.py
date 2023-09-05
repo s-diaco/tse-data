@@ -289,7 +289,10 @@ class TSECache:
             return None
 
     def prices_by_symbol(
-        self, symbols: list[str], settings: dict, columns: list[str] = []
+        self,
+        symbols: list[str],
+        settings: dict,
+        columns: list[str] | None = None,
     ) -> dict:
         """
         get cached instrument prices

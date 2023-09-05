@@ -8,7 +8,7 @@ import re
 from jdatetime import date as jdate
 
 
-def convert_to_shamsi(date):
+def convert_to_shamsi(date) -> str:
     """
     convert gregorian date to jalali date
 
@@ -19,7 +19,9 @@ def convert_to_shamsi(date):
 
     date = str(date)
     return jdate.fromgregorian(
-        day=int(date[-2:]), month=int(date[4:6]), year=int(date[:4])
+        day=int(date[-2:]),
+        month=int(date[4:6]),
+        year=int(date[:4]),
     ).strftime("%Y/%m/%d")
 
 
