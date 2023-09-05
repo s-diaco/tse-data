@@ -62,7 +62,7 @@ last_poss_date = ["20220809"]
 
 
 @pytest.mark.parametrize("last_p_d", last_poss_date)
-@pytest.mark.vcr(record_mode="new_episodes")
+@pytest.mark.vcr()
 async def test_update_instruments(test_cache, mocker, last_p_d):
     """
     Test the update_instruments function.
