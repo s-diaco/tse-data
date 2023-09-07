@@ -9,7 +9,22 @@ from rich.progress import track
 
 from dtse.tse_data import TSE
 from dtse.config import storage as settings
-from dtse.setup_logger import logger as tse_logger
+from dtse.logger import logger as tse_logger
+
+
+def update_daily_prices(symbols: list[str], **kwconf):
+    """
+    run get_prices async
+    """
+
+    async def update():
+        """
+        create get_prices task
+        """
+        get_prices = TSE().get_prices(symbols, **kwconf)
+        await get_prices
+
+    asyncio.run(update())
 
 
 def main():
@@ -22,16 +37,7 @@ def main():
     if args[1] == "get all":
         print("Not implemented yet!")
     elif args[1] == "update":
-
-        async def main():
-            """
-            create get_prices task
-            """
-            get_prices = TSE().get_prices(symbols=["همراه"])
-            await get_prices
-
-        asyncio.run(main())
-
+        update_daily_prices(symbols=["همراه"])
     elif args[1] == "upgrade":
         for _ in track(range(100)):
             sleep(0.05)
@@ -48,7 +54,7 @@ def main():
             else:
                 tse_logger.error("database not found.")
         else:
-            tse_logger.warn("cache dir not found")
+            tse_logger.warning("cache dir not found")
 
     elif args[1] == "redownload":
         print("Not implemented yet!")

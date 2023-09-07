@@ -1,16 +1,14 @@
-"""
-test chache_manager
-"""
+"""test chache_manager"""
 
 from collections.abc import Generator
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from sqlalchemy import create_engine
 
 from dtse import config as cfg
 from dtse.cache_manager import TSECache
-from sqlalchemy import create_engine
 
 
 @pytest.fixture(name="test_cache")

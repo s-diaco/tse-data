@@ -71,8 +71,6 @@ PRICES_UPDATE_CHUNK = 50
 PRICES_UPDATE_CHUNK_DELAY = 0.5
 PRICES_UPDATE_RETRY_COUNT = 3
 PRICES_UPDATE_RETRY_DELAY = 1
-SYMBOL_RENAME_STRING = "-ق"
-MERGED_SYMBOL_CONTENT = "merged"
 default_settings = {
     "columns": [0, 2, 3, 4, 5, 6, 7, 8, 9],
     "adjust_prices": 0,
@@ -83,8 +81,6 @@ default_settings = {
     "write_csv": True,
     "csv_headers": True,
     "csv_delimiter": ",",
-    "on_progress": None,
-    "progress_tot": 100,
 }
 TRADING_SEASSON_END = 16
 

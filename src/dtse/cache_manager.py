@@ -2,7 +2,7 @@
 manage cached data
 """
 
-from datetime import datetime
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -15,13 +15,13 @@ from sqlalchemy import (BigInteger, Column, Engine, Integer, MetaData, Table,
 
 from sqlalchemy.dialects.sqlite import insert
 
-from dtse.setup_logger import logger as tse_logger
-from dtse.tse_utils import convert_to_shamsi
+from dtse.logger import logger as tse_logger
+from dtse.tse_utils import to_jalali_date
 
 
 class TSECache:
     """
-    Manage TSE data cached in memory and/or files
+    Manage TSE data cached in memory and/or Database
     """
 
     def __init__(self, settings) -> None:
@@ -37,7 +37,6 @@ class TSECache:
         self._prices: pd.DataFrame | None = None
         self._prices_merged: pd.DataFrame | None = None
         self._last_devens: pd.DataFrame | None = None
-        self.merged_instruments: pd.DataFrame | None = None
         self._engine: Engine | None = None
         self._last_possible_deven: str = ""
         self._last_instrument_update: str = ""
@@ -50,10 +49,7 @@ class TSECache:
         self._read_splits()
 
     def _read_metadata(self):
-        """
-        Reads last_instrument_update from cache dir
-        and reads read_last_possible_deven from database if available.
-        """
+        # get last_instrument_update and last_possible_deven from database if available.
 
         table_name = "metadata"
         metadata = self._read_table(table_name=table_name, index_col=["index"])
@@ -66,7 +62,9 @@ class TSECache:
             if "last_inst_upd" in metadata.columns:
                 self._last_instrument_update = metadata.loc[:, "last_inst_upd"].iloc[-1]
 
-    def _init_cache_dir(self) -> None:
+    def _init_cache_dir(self):
+        # create cache dir and database file if needed.
+
         if "tse_dir" in self.settings:
             self._data_dir = Path(self.settings["tse_dir"])
         else:
@@ -115,10 +113,12 @@ class TSECache:
         if not value.empty:
             self._instruments = value
             # TODO: is "_save_last_inst_upd" called too many times?
-            self._save_last_inst_upd()
+            self._set_last_inst_upd()
 
-    def _save_last_inst_upd(self):
-        today = datetime.now().strftime("%Y%m%d")
+    def _set_last_inst_upd(self):
+        # update last_instrument_update
+
+        today = date.today().strftime("%Y%m%d")
         if self._last_instrument_update != today:
             self.last_instrument_update = today
 
@@ -131,7 +131,7 @@ class TSECache:
     def splits(self, value: pd.DataFrame):
         if not value.empty:
             self._splits = value
-            self._save_last_inst_upd()
+            self._set_last_inst_upd()
 
     @property
     def prices(self):
@@ -196,7 +196,7 @@ class TSECache:
 
     def _read_prc(self, codes: list[int]) -> pd.DataFrame | None:
         """
-        Reads selected instruments files from the cache dir and returns a dict.
+        Read selected instruments files from the cache dir and return a pd.DataFrame.
 
         :codes: list[int], list of codes to read from.
 
@@ -214,10 +214,7 @@ class TSECache:
             return None
 
     def _read_instrums(self):
-        """
-        reads list of all cached instruments
-        and updates "instruments" and "merged_instruments" properties
-        """
+        # read list of all cached instruments from db and update "instruments"
 
         ins_tbl_name = "instruments"
         instrums = self._read_table(table_name=ins_tbl_name, index_col=["InsCode"])
@@ -236,9 +233,7 @@ class TSECache:
             self._last_devens = last_devens
 
     def _read_splits(self):
-        """
-        reads stock splits from database and updates splits property
-        """
+        # read stock splits from database and update splits property.
 
         table_name = "splits"
         splits = self._read_table(table_name=table_name, index_col=["InsCode", "DEven"])
@@ -258,6 +253,8 @@ class TSECache:
             self._last_possible_deven = value
 
     def _upd_metadata(self):
+        # update "metadata" table in db
+
         if self.cache_to_db:
             t_name = "metadata"
             metadata = pd.DataFrame.from_dict(
@@ -270,14 +267,7 @@ class TSECache:
                 metadata.to_sql(t_name, conn, if_exists="replace")
 
     def _read_table(self, table_name: str, index_col: list[str]) -> pd.DataFrame | None:
-        """
-        reads a table from database and returns its data
-
-        :table: str, name of the table
-
-        :return: pd.DataFrame, data read from the table.
-        returns 'None' if the table doesn't exist.
-        """
+        # read a table from db and return its data
 
         if self._engine is not None and inspect(self._engine).has_table(table_name):
             with self._engine.connect() as conn:
@@ -309,7 +299,7 @@ class TSECache:
         if not columns or "date_jalali" in columns:
             self._prices.loc[:, "date_jalali"] = self._prices.index.get_level_values(
                 "DEven"
-            ).map(convert_to_shamsi)
+            ).map(to_jalali_date)
 
         self._prices_merged = (
             self._prices.join(self._instruments["Symbol"])
@@ -470,7 +460,7 @@ class TSECache:
                 )
             tse_logger.info("writing to csv finished")
 
-    def _write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs) -> None:
+    def _write_tse_csv(self, f_name: str, data: pd.DataFrame, **kwargs):
         """
         Write data to csv file.
 
@@ -490,9 +480,7 @@ class TSECache:
         data.to_csv(file_path, encoding="utf-8")
 
     def _prices_to_db(self, new_prcs):
-        """
-        write cached price data to database file
-        """
+        # write cached price data to database.
 
         # TODO: should also use this for prices?
         def sqlite_upsert(table, conn, keys, data_iter):
@@ -579,13 +567,13 @@ class TSECache:
         :param codes: list[int], codes which their last_devens has to be added/updated.
         """
         if codes:
-            today_str = datetime.today().strftime("%Y%m%d")
+            today = date.today().strftime("%Y%m%d")
             if self._last_devens is None:
                 self._last_devens = pd.DataFrame(
-                    today_str, index=codes, columns=["LastDEven"]
+                    today, index=codes, columns=["LastDEven"]
                 )
             else:
                 self._last_devens = self._last_devens.reindex(
                     codes + list(self._last_devens.index)
                 )
-                self._last_devens.loc[codes, "LastDEven"] = today_str
+                self._last_devens.loc[codes, "LastDEven"] = today

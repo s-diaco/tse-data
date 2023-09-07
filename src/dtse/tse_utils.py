@@ -8,11 +8,11 @@ import re
 from jdatetime import date as jdate
 
 
-def convert_to_shamsi(date) -> str:
+def to_jalali_date(date) -> str:
     """
     convert gregorian date to jalali date
 
-    :param date: str or date, date object or srting in form yyyymmdd
+    :param date: str or int, gregorian date formatted like yyyymmdd
 
     :return: str, date in jalali calendar formatted like yyyy/mm/dd
     """

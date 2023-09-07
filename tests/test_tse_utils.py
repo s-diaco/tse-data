@@ -1,6 +1,5 @@
-"""
-test tse_utils.py
-"""
+"""test tse_utils.py"""
+
 import pytest
 
 from dtse import tse_utils

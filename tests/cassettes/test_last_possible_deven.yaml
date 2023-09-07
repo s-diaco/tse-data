@@ -6,7 +6,7 @@ interactions:
     uri: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
   response:
     body:
-      string: 20230903;20230903
+      string: 20230905;20230905
     headers:
       Cache-Control:
       - public, no-cache="Set-Cookie", max-age=900
@@ -19,15 +19,15 @@ interactions:
       Content-Type:
       - text/html; charset=utf-8
       Date:
-      - Mon, 04 Sep 2023 08:31:34 GMT
+      - Tue, 05 Sep 2023 20:27:16 GMT
       Expires:
-      - Mon, 04 Sep 2023 08:46:35 GMT
+      - Tue, 05 Sep 2023 20:42:16 GMT
       Last-Modified:
-      - Mon, 04 Sep 2023 08:31:35 GMT
+      - Tue, 05 Sep 2023 20:27:16 GMT
       Server:
       - Microsoft-IIS/10.0
       Set-Cookie:
-      - ASP.NET_SessionId=jj4yjsylnlkxaxcdeak4q3dy; domain=.tsetmc.com; path=/; HttpOnly;
+      - ASP.NET_SessionId=4kzwcpo3g3eyqrffotvxllxa; domain=.tsetmc.com; path=/; HttpOnly;
         SameSite=Lax
       Vary:
       - '*'
@@ -42,5 +42,4 @@ interactions:
     status:
       code: 200
       message: OK
-    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
 version: 1

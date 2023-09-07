@@ -61,10 +61,8 @@ async def test_start(resp_data, test_catch):
     selected_syms = instruments[instruments["Symbol"].isin(sample_data)]
     cache.read_prices(selected_syms)
     pu_helper = PriceUpdater(cache)
-    update_needed = pd.DataFrame(
+    outdated_insts = pd.DataFrame(
         resp_data, columns=["InsCode", "DEven", "NotInNoMarket"]
-    )
-    await pu_helper.start(
-        upd_needed=update_needed,
-        settings={"cache_to_db": False, "merge_similar_symbols": True},
-    )
+    ).set_index("InsCode")
+    ret_val = await pu_helper.update_prices(outdated_insts=outdated_insts)
+    assert set(["succs", "fails"]) == set(ret_val)

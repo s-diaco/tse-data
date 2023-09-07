@@ -8,7 +8,7 @@ from dtse import config as cfg
 from dtse import data_services as data_svs
 from dtse.cache_manager import TSECache
 from dtse.price_updater import PriceUpdater
-from dtse.setup_logger import logger as tse_logger
+from dtse.logger import logger as tse_logger
 
 
 class TSE:
@@ -104,11 +104,8 @@ class TSE:
         self.cache.read_prices(selected_syms=selected_syms)
         to_update = await self._get_expired_prices()
         if not to_update.empty:
-            price_manager = PriceUpdater(cache_manager=self.cache)
-            update_result = await price_manager.start(
-                upd_needed=to_update,
-                settings=self.settings,
-            )
+            price_manager = PriceUpdater(cache=self.cache)
+            update_result = await price_manager.update_prices(outdated_insts=to_update)
             if complete_dl := update_result["succs"]:
                 tse_logger.info(
                     "Data download completed for codes: %s",

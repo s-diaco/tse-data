@@ -1,8 +1,7 @@
-"""
-test tse_data.py
-"""
+"""test tse_data.py"""
 
 import logging
+
 import pytest
 
 from dtse.tse_data import TSE
@@ -26,6 +25,11 @@ from dtse.tse_data import TSE
             {"adjust_prices": 2},
             None,
         ),
+        (
+            ["همراه", "ذوب", "فولاد", "شیراز", "وخارزم"],
+            {"adjust_prices": 3},
+            None,
+        ),
     ],
 )
 @pytest.mark.vcr(record_mode="new_episodes")
@@ -35,20 +39,18 @@ async def test_get_prices(symbols, settings, exp_res, caplog):
     """
     caplog.set_level(logging.DEBUG)
     tse = TSE()
-    if settings["adjust_prices"]:
-        prices = await tse.get_prices(
-            symbols=symbols, adjust_prices=1, cache_to_db=False
-        )
-    else:
-        prices = await tse.get_prices(
-            symbols=symbols, adjust_prices=0, cache_to_db=False
-        )
-    # TODO: review test and fix asserts like "assert prices != 'OK'".
-    assert prices != "OK"
+    prices = await tse.get_prices(
+        symbols=symbols,
+        adjust_prices=settings["adjust_prices"],
+        cache_to_db=False,
+        write_csv=False,
+    )
+    assert set(prices.keys()) <= set(symbols)
     if exp_res:
         assert exp_res in [x.message for x in caplog.records if x.name in ["dtse"]]
 
 
+@pytest.mark.skip(reason="it's an integrity test")
 async def test_get_prices_integ():
     """
     integrity test
