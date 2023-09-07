@@ -9,7 +9,7 @@ import pandas as pd
 from dtse import config as cfg
 from dtse import tse_utils
 from dtse.cache_manager import TSECache
-from dtse.setup_logger import logger as tse_logger
+from dtse.logger import logger as tse_logger
 from dtse.tse_request import TSERequest
 
 
@@ -35,7 +35,8 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
         ).days
     )
     in_weekend = today.weekday() in [4, 5]
-    last_update_weekday = datetime.strptime(last_possible_deven, "%Y%m%d").weekday()
+    last_update_weekday = datetime.strptime(
+        last_possible_deven, "%Y%m%d").weekday()
     today_is_lpd = today_str == last_possible_deven
     is_outdated = (
         days_passed >= cfg.UPDATE_INTERVAL

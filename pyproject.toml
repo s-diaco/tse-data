@@ -21,3 +21,5 @@ readme = "README.md"
 license = {text = "MIT"}
 [project.scripts]
 dtse = "dtse.__main__:main"
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

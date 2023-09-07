@@ -5,7 +5,7 @@ send api request to tse and return string data
 import aiohttp
 
 from dtse import config as settings
-from dtse.setup_logger import logger as tse_logger
+from dtse.logger import logger as tse_logger
 
 
 class TSERequest:
@@ -35,7 +35,8 @@ class TSERequest:
         :return: str, instrument and their share data
         """
         tse_logger.info("Checking for new instruments…")
-        params = {"t": "InstrumentAndShare", "a": last_date, "a2": str(last_id)}
+        params = {"t": "InstrumentAndShare",
+                  "a": last_date, "a2": str(last_id)}
         return await self._make_request(params)
 
     async def last_possible_deven(self):

@@ -17,7 +17,7 @@ async def test_closing_prices():
     pattern = re.compile(r"^[\d.,;@-]+$")
     instance = TSERequest()
     resp = await instance.closing_prices("67126881188552864,20220321,0")
-    assert pattern.match(resp) is not None
+    assert pattern.match(resp)
 
 
 @pytest.mark.vcr()
@@ -46,7 +46,7 @@ async def test_last_possible_deven():
     pattern = re.compile(r"^\d{8};\d{8}$")
     instance = TSERequest()
     resp = await instance.last_possible_deven()
-    assert pattern.match(resp) is not None
+    assert pattern.match(resp)
 
 
 @pytest.mark.vcr()

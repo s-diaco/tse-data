@@ -19,15 +19,15 @@ interactions:
       Content-Type:
       - text/html; charset=utf-8
       Date:
-      - Tue, 05 Sep 2023 20:07:18 GMT
+      - Thu, 07 Sep 2023 07:45:33 GMT
       Expires:
-      - Tue, 05 Sep 2023 20:22:18 GMT
+      - Thu, 07 Sep 2023 08:00:33 GMT
       Last-Modified:
-      - Tue, 05 Sep 2023 20:07:18 GMT
+      - Thu, 07 Sep 2023 07:45:33 GMT
       Server:
       - Microsoft-IIS/10.0
       Set-Cookie:
-      - ASP.NET_SessionId=jrvlgf25bu4e0cky40u4f5s2; domain=.tsetmc.com; path=/; HttpOnly;
+      - ASP.NET_SessionId=z3qmhpdtnowi2aqkqxkugybl; domain=.tsetmc.com; path=/; HttpOnly;
         SameSite=Lax
       Vary:
       - '*'
@@ -42,4 +42,5 @@ interactions:
     status:
       code: 200
       message: OK
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=ClosingPrices&a=67126881188552864,20220321,0
 version: 1

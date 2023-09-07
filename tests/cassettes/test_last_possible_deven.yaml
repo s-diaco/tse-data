@@ -19,15 +19,15 @@ interactions:
       Content-Type:
       - text/html; charset=utf-8
       Date:
-      - Tue, 05 Sep 2023 20:27:16 GMT
+      - Thu, 07 Sep 2023 07:42:28 GMT
       Expires:
-      - Tue, 05 Sep 2023 20:42:16 GMT
+      - Thu, 07 Sep 2023 07:57:28 GMT
       Last-Modified:
-      - Tue, 05 Sep 2023 20:27:16 GMT
+      - Thu, 07 Sep 2023 07:42:28 GMT
       Server:
       - Microsoft-IIS/10.0
       Set-Cookie:
-      - ASP.NET_SessionId=4kzwcpo3g3eyqrffotvxllxa; domain=.tsetmc.com; path=/; HttpOnly;
+      - ASP.NET_SessionId=egt0w45sj0gmcuc0sfal330y; domain=.tsetmc.com; path=/; HttpOnly;
         SameSite=Lax
       Vary:
       - '*'
@@ -42,4 +42,5 @@ interactions:
     status:
       code: 200
       message: OK
+    url: http://service.tsetmc.com/tsev2/data/TseClient2.aspx?t=LastPossibleDeven
 version: 1
