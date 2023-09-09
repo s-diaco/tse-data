@@ -22,6 +22,7 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
 
     :return: bool, True if the database should be updated, False otherwise
     """
+
     if (not deven) or (not last_possible_deven) or deven == "0":
         return True  # first time. never updated
     if deven > last_possible_deven:
@@ -34,9 +35,8 @@ def should_update(deven: str, last_possible_deven: str) -> bool:
             - datetime.strptime(deven, "%Y%m%d")
         ).days
     )
-    in_weekend = today.weekday() in [4, 5]
-    last_update_weekday = datetime.strptime(
-        last_possible_deven, "%Y%m%d").weekday()
+    in_weekend = today.weekday() in [3, 4]
+    last_update_weekday = datetime.strptime(last_possible_deven, "%Y%m%d").weekday()
     today_is_lpd = today_str == last_possible_deven
     is_outdated = (
         days_passed >= cfg.UPDATE_INTERVAL

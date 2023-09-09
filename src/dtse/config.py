@@ -227,4 +227,4 @@ class PriceColYahoo:
     adj_close: str = "Adj Close"
 
 
-PRICE_COL_NAMES = PriceColTypical
+PriceColNames = PriceColOrig
