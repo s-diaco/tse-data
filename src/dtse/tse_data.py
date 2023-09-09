@@ -118,7 +118,7 @@ class TSE:
                     "Failed to get some data. codes: %s",
                     ",".join(update_result["fails"]),
                 )
-        res = self.cache.prices_by_symbol(symbols=symbols, settings=self.settings)
+        res = self.cache.prices_by_symbol(symbols=symbols)
 
         if self.settings["write_csv"]:
             self.cache.write_prc_csv(res)

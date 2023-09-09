@@ -283,27 +283,22 @@ class TSECache:
                 )
             return data
         else:
-            return None
+            return
 
-    def prices_by_symbol(
-        self,
-        symbols: list[str],
-        settings: dict,
-        columns: list[str] | None = None,
-    ) -> dict:
+    def prices_by_symbol(self, symbols: list[str]) -> dict:
         """
-        get cached instrument prices
+        get cached prices by list of symbols.
 
         :symbols: list[str], symbols to get prices for
         :settings: dict, app config from the config file or user input
 
-        :return: dict, a dict with symbols as keys and symbol prices DataFrame as values
+        :return: dict, a dict with symbols as keys and prices (DataFrame) as values
         """
 
         # TODO: the sequence of the operations is costly
         if self._prices is None or self._instruments is None:
             raise AttributeError("Some required data is missing in cache.")
-        if not columns or "date_jalali" in columns:
+        if not self.settings['columns'] or "date_jalali" in self.settings['columns']:
             self._prices.loc[:, "date_jalali"] = self._prices.index.get_level_values(
                 "DEven"
             ).map(to_jalali_date)
@@ -328,21 +323,21 @@ class TSECache:
             self._prices_merged.loc[idx[sym, :], :] = pd.concat(
                 {
                     sym: self.adjust(
-                        settings["adjust_prices"], sym_codes
+                        self.settings["adjust_prices"], sym_codes
                     ).reset_index(level=[0])
                 },
                 names=["Symbol"],
             )
         self._prices_merged = self._prices_merged[
             self._prices_merged.index.get_level_values("DEven")
-            > int(settings["start_date"])
+            > int(self.settings["start_date"])
         ]
-        if not settings["days_without_trade"]:
+        if not self.settings["days_without_trade"]:
             self._prices_merged = self._prices_merged[
                 self._prices_merged["ZTotTran"] > 0
             ]
-        if columns:
-            self._prices_merged = self._prices_merged[columns]
+        if self.settings['columns']:
+            self._prices_merged = self._prices_merged[self.settings['columns']]
 
         grouper = "Symbol"
         prices = dict(tuple(self._prices_merged.groupby(grouper)))
