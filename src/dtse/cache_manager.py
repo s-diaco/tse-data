@@ -62,7 +62,8 @@ class TSECache:
                 ]
             # TODO: 'last_inst_upd' is never updated (always "0")
             if "last_inst_upd" in metadata.columns:
-                self._last_instrument_update = metadata.loc[:, "last_inst_upd"].iloc[-1]
+                self._last_instrument_update = metadata.loc[:,
+                                                            "last_inst_upd"].iloc[-1]
 
     def _init_cache_dir(self):
         # create cache dir and database file if needed.
@@ -81,7 +82,8 @@ class TSECache:
             or (self._data_dir / self.settings["DB_FILE_NAME"]).is_file()
         ):
             self._engine = create_engine(
-                "sqlite:///" + str(self._data_dir / self.settings["DB_FILE_NAME"])
+                "sqlite:///" + str(self._data_dir /
+                                   self.settings["DB_FILE_NAME"])
             )
 
             last_deven_sql = Table(
@@ -207,10 +209,12 @@ class TSECache:
 
         table_name = "daily_prices"
         if inspect(self._engine).has_table(table_name):
-            prcs_table = Table(table_name, MetaData(), autoload_with=self._engine)
+            prcs_table = Table(table_name, MetaData(),
+                               autoload_with=self._engine)
             qry = select(prcs_table).where(prcs_table.c.InsCode.in_(codes))
             with self._engine.connect() as conn:
-                data = pd.read_sql_query(qry, conn, index_col=["InsCode", "DEven"])
+                data = pd.read_sql_query(
+                    qry, conn, index_col=["InsCode", "DEven"])
             return data
         else:
             return None
@@ -219,7 +223,8 @@ class TSECache:
         # read list of all cached instruments from db and update "instruments"
 
         ins_tbl_name = "instruments"
-        instrums = self._read_table(table_name=ins_tbl_name, index_col=["InsCode"])
+        instrums = self._read_table(
+            table_name=ins_tbl_name, index_col=["InsCode"])
         if (instrums is not None) and (not instrums.empty):
             self._instruments = instrums
             # TODO: are these columns needed?
@@ -230,7 +235,8 @@ class TSECache:
                 keep="first"
             )
         lds_tbl_name = "last_devens"
-        last_devens = self._read_table(table_name=lds_tbl_name, index_col=["InsCode"])
+        last_devens = self._read_table(
+            table_name=lds_tbl_name, index_col=["InsCode"])
         if (last_devens is not None) and (not last_devens.empty):
             self._last_devens = last_devens
 
@@ -238,7 +244,8 @@ class TSECache:
         # read stock splits from database and update splits property.
 
         table_name = "splits"
-        splits = self._read_table(table_name=table_name, index_col=["InsCode", "DEven"])
+        splits = self._read_table(
+            table_name=table_name, index_col=["InsCode", "DEven"])
         if (splits is not None) and (not splits.empty):
             self._splits = splits
 
@@ -308,7 +315,8 @@ class TSECache:
 
         symbol_dict = {
             symbol: list(
-                self.instruments[self.instruments["Symbol"].isin([symbol])].index
+                self.instruments[self.instruments["Symbol"].isin(
+                    [symbol])].index
             )
             for symbol in symbols
             if symbol in self.instruments["Symbol"].unique()
@@ -318,7 +326,7 @@ class TSECache:
         # merged_prices are not sorted
         for sym, sym_codes in symbol_dict.items():
             idx = pd.IndexSlice
-            self._prices_merged.loc[idx[sym, :], :] = pd.concat(
+            self._prices_merged.loc[sym, :, :] = pd.concat(
                 {
                     sym: self.adjust(
                         self.settings["adjust_prices"], sym_codes
@@ -386,7 +394,8 @@ class TSECache:
                     # the price to replace nominal price
                     rep_pr = prices.loc[first_idx, "ShiftedClose"]
 
-                    prices.loc[first_idx:last_idx, "PClosing"].iloc[:-1] = rep_pr
+                    prices.loc[first_idx:last_idx,
+                               "PClosing"].iloc[:-1] = rep_pr
                     prices.loc[first_idx:last_idx, "PriceYesterday"] = rep_pr
                     prices.loc[first_idx:last_idx, "nom_pr"].iloc[0] = False
             if not cond:
@@ -401,7 +410,8 @@ class TSECache:
                     filtered_splits = self._splits.loc[ins_codes].eval(
                         expr="SplitMultiplr = NumberOfShareOld / NumberOfShareNew"
                     )
-                    prices = prices.join(filtered_splits[["SplitMultiplr"]]).fillna(1)
+                    prices = prices.join(
+                        filtered_splits[["SplitMultiplr"]]).fillna(1)
                 else:
                     prices["SplitMultiplr"] = 1
             if cond == 1:
