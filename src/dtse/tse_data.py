@@ -2,6 +2,7 @@
 Manage TSE Data
 """
 
+from dataclasses import asdict
 import pandas as pd
 
 from dtse import config as cfg
@@ -117,8 +118,10 @@ class TSE:
                 tse_logger.warning(
                     "Failed to get some data. codes: %s",
                     ",".join(update_result["fails"]),
-                )
-        res = self.cache.prices_by_symbol(symbols=symbols)
+                )  # drop index columns from the list of columns
+        cols = list(asdict(cfg.PriceColNames()).values())[2:]
+        cols.append("date_jalali")
+        res = self.cache.prices_by_symbol(symbols=symbols, cols=cols)
 
         if self.settings["write_csv"]:
             self.cache.write_prc_csv(res)
