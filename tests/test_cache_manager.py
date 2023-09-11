@@ -64,13 +64,13 @@ def test_read_prices(mocker, codes, test_cache):
     with engine.connect() as conn:
         expected_res.to_sql(name="daily_prices", con=conn)
     _ = mocker.patch.object(cache, "_engine", new=engine)
-    mock_sql = mocker.patch("dtse.cache_manager.pd.read_sql")
+    mock_sql = mocker.patch("dtse.cache_manager.pd.read_sql_query")
     mock_sql.return_value = expected_res
     selected_syms_file = "sample_data/sample_selected_syms.csv"
     selected_syms = pd.read_csv(
         selected_syms_file, encoding="utf-8", index_col="InsCode"
     )
-    cache.read_prices(selected_syms)
+    cache.read_prices(selected_syms.index.to_list())
     pd.testing.assert_frame_equal(cache.prices, expected_res)
 
 

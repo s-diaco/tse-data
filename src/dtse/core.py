@@ -37,7 +37,10 @@ def main():
     if args[1] == "get all":
         print("Not implemented yet!")
     elif args[1] == "update":
-        update_daily_prices(symbols=["همراه"])
+        if len(args) > 2:
+            update_daily_prices(symbols=args[2][1:-1].split(sep=","))
+        else:
+            update_daily_prices(symbols=["همراه"])
     elif args[1] == "upgrade":
         for _ in track(range(100)):
             sleep(0.05)

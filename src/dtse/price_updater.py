@@ -77,14 +77,16 @@ class PriceUpdater:
                 tse_req = TSERequest()
                 res = await tse_req.closing_prices(req_param)
                 retries = 0
-            except ClientResponseError as ex:
+            except ClientResponseError:
                 retries -= 1
                 if retries:
                     await asyncio.sleep(back_off)
-
-                    # TODO: write a better error msg
-                    tse_logger.warning(ex)
-
+                    tse_logger.warning(
+                        "No responce for codes: %s. Try %d of %d.",
+                        ", ".join(chunk.index.to_list()),
+                        cfg.PRICES_UPDATE_RETRY_COUNT - retries,
+                        cfg.PRICES_UPDATE_RETRY_COUNT,
+                    )
                     # Double the waiting time after each retry
                     back_off = back_off * 2
                 else:

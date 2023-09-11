@@ -26,7 +26,6 @@ async def test_instrument():
     test instruments
     """
     instance = TSERequest()
-    # TODO: await not needed
     resp = await instance.instrument("20230321")
     instrums_df = pd.read_csv(
         StringIO(resp),

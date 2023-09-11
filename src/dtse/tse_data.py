@@ -18,8 +18,9 @@ class TSE:
     """
 
     def __init__(self):
-        self.settings = cfg.default_settings
-        self.codes: list[int] = []
+        self._settings = cfg.default_settings
+        self._codes: list[int] = []
+        self._cache: TSECache | None = None
 
     async def _get_expired_prices(self) -> pd.DataFrame:
         """
@@ -31,11 +32,11 @@ class TSE:
         :return: pd.DataFrame, symbols to update
         """
 
-        first_possible_deven = self.settings["start_date"]
-        sel_insts = self.cache.instruments.loc[self.codes]
-        if self.cache.last_devens is not None and not self.cache.last_devens.empty:
+        first_possible_deven = self._settings["start_date"]
+        sel_insts = self._cache.instruments.loc[self._codes]
+        if self._cache.last_devens is not None and not self._cache.last_devens.empty:
             sel_insts = sel_insts.join(
-                self.cache.last_devens["LastDEven"]
+                self._cache.last_devens["LastDEven"]
                 .astype("Int64")
                 .rename("cached_DEven")
             ).fillna(int(first_possible_deven))
@@ -45,7 +46,7 @@ class TSE:
         sel_insts["outdated"] = sel_insts["cached_DEven"].map(
             lambda deven: data_svs.should_update(
                 str(deven),
-                self.cache.last_possible_deven,
+                self._cache.last_possible_deven,
             )
         )
         sel_insts["NotInNoMarket"] = (sel_insts.YMarNSC != "NO").astype(int)
@@ -66,41 +67,40 @@ class TSE:
         if not symbols:
             tse_logger.warning("No symbols requested")
             return {}
-        self.settings = cfg.default_settings
+        self._settings = cfg.default_settings
         if kwconf:
-            self.settings.update(kwconf)
+            self._settings.update(kwconf)
 
         # Initialize cache
         cache_cfg = cfg.storage
-        cache_cfg.update(self.settings)
-        self.cache = TSECache(cache_cfg)
+        cache_cfg.update(self._settings)
+        self._cache = TSECache(cache_cfg)
 
         # Get the latest instuments data
-        await data_svs.update_instruments(self.cache)
-        if self.cache.instruments is None:
+        await data_svs.update_instruments(self._cache)
+        if self._cache.instruments is None:
             raise ValueError("No instruments loaded.")
 
         # TODO: does it return the full list before 8:30 a.m.?
-        tse_logger.info("Loaded %s instruments.", len(self.cache.instruments))
-        selected_syms = self.cache.instruments.loc[
-            self.cache.instruments["Symbol"].isin(symbols)
-        ]
-        # TODO: use codes instead of selected_syms.
-        self.codes = list(selected_syms.index)
-        tse_logger.info("%s codes loaded.", len(selected_syms))
-        if selected_syms.empty:
+        tse_logger.info("Loaded %s instruments.", len(self._cache.instruments))
+        self._codes = self._cache.instruments.loc[
+            self._cache.instruments["Symbol"].isin(symbols)
+        ].index.to_list()
+        tse_logger.info("%s codes loaded.", len(self._codes))
+        if not self._codes:
             raise ValueError("No instruments found for any symbols.")
-        not_founds = [
-            sym for sym in symbols if sym not in selected_syms["Symbol"].values
-        ]
-        # TODO: does آ اس پ create any problems?
+        not_founds = set(symbols) - set(
+            self._cache.instruments.loc[self._codes, "Symbol"]
+        )
         if not_founds:
             tse_logger.warning("symbols not found: %s", ",".join(not_founds))
 
-        self.cache.read_prices(selected_syms=selected_syms)
+        self._cache.read_prices(codes=self._codes)
         to_update = await self._get_expired_prices()
-        if not to_update.empty:
-            price_manager = PriceUpdater(cache=self.cache)
+        if to_update.empty:
+            tse_logger.info("No download needed. Reading from database.")
+        else:
+            price_manager = PriceUpdater(cache=self._cache)
             update_result = await price_manager.update_prices(outdated_insts=to_update)
             if complete_dl := update_result["succs"]:
                 tse_logger.info(
@@ -116,9 +116,9 @@ class TSE:
                 )
         # drop index columns from the list of columns
         cols = list(asdict(cfg.PriceColNames()).values())[2:]
-        res = self.cache.prices_by_symbol(symbols=symbols, cols=cols)
+        res = self._cache.prices_by_symbol(symbols=symbols, cols=cols)
 
-        if self.settings["write_csv"]:
-            self.cache.write_prc_csv(res)
+        if self._settings["write_csv"]:
+            self._cache.write_prc_csv(res)
 
         return res

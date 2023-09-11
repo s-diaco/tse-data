@@ -177,14 +177,13 @@ class TSECache:
         if value:
             self._last_instrument_update = value
 
-    def read_prices(self, selected_syms: pd.DataFrame):
+    def read_prices(self, codes: list[int]):
         """
-        updates a dicts of prices for ins_codes in
-        self.prices and self.prices_merged
+        updates a dicts of prices for ins_codes in self.prices
         """
 
         if self._engine:
-            prices = self._read_prc(codes=selected_syms.index.tolist())
+            prices = self._read_prc(codes=codes)
             if (prices is not None) and (not prices.empty):
                 self._prices = prices.sort_index()
 
