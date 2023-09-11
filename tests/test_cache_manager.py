@@ -21,6 +21,7 @@ def fixture_read_prices() -> Generator[TSECache, None, None]:
         "merge_similar_symbols": True,
         "cache_to_db": False,
         "tse_dir": Path("sample_data/prices_not_adj"),
+        "start_date": cfg.default_settings["start_date"],
     }
     settings = cfg.storage
     settings.update(tse_cache_args)
@@ -47,9 +48,7 @@ read_prices_params = [
 
 @pytest.mark.parametrize("codes", read_prices_params)
 def test_read_prices(mocker, codes, test_cache):
-    """
-    test read_prcices
-    """
+    """test read_prices"""
 
     daily_prices_dir = "sample_data/"
     daily_prices_list = [

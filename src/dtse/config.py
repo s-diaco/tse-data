@@ -48,7 +48,8 @@ tse_instrument_itd_info = [
     "ZTitad",
     "BaseVol",
 ]
-tse_share_info = ["Idn", "InsCode", "DEven", "NumberOfShareNew", "NumberOfShareOld"]
+tse_share_info = ["Idn", "InsCode", "DEven",
+                  "NumberOfShareNew", "NumberOfShareOld"]
 tse_closing_prices_info = [
     "InsCode",
     "DEven",
@@ -190,6 +191,7 @@ class PriceColOrig:
     max: str = "PriceMax"
     yesterday: str = "PriceYesterday"
     first: str = "PriceFirst"
+    date_jalali = "date_jalali"
 
 
 @dataclass

@@ -78,9 +78,6 @@ async def get_last_possible_deven(cached_last_possible_deven: str) -> str:
     return last_possible_deven
 
 
-# TODO: complte
-
-
 async def update_instruments(cache: TSECache) -> None:
     """
     Get data about instruments from web service (if needed) and fill cache.instruments

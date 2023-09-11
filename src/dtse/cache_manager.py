@@ -58,7 +58,6 @@ class TSECache:
                 self._last_possible_deven = metadata.loc[:, "last_possible_deven"].iloc[
                     -1
                 ]
-            # TODO: 'last_inst_upd' is never updated (always "0")
             if "last_inst_upd" in metadata.columns:
                 self._last_instrument_update = metadata.loc[:, "last_inst_upd"].iloc[-1]
 
@@ -112,12 +111,10 @@ class TSECache:
     def instruments(self, value: pd.DataFrame):
         if not value.empty:
             self._instruments = value
-            # TODO: is "_save_last_inst_upd" called too many times?
             self._set_last_inst_upd()
 
     def _set_last_inst_upd(self):
         # update last_instrument_update
-
         today = date.today().strftime("%Y%m%d")
         if self._last_instrument_update != today:
             self.last_instrument_update = today
@@ -131,7 +128,6 @@ class TSECache:
     def splits(self, value: pd.DataFrame):
         if not value.empty:
             self._splits = value
-            self._set_last_inst_upd()
 
     @property
     def prices(self):
@@ -141,7 +137,6 @@ class TSECache:
                 return self._prices.sort_index()
         return None
 
-    # TODO: delete?
     @property
     def prices_merged(self):
         """Price data indexed by symbol an date. Can be None or pd.DataFrame"""
@@ -158,7 +153,6 @@ class TSECache:
         :return: bool, True if value added to prices, else False.
         """
 
-        # TODO: fix empty data frames price at first non trading days of each InsCode
         dfs = [data for data in dfs if not data.empty]
 
         if dfs:
@@ -206,7 +200,10 @@ class TSECache:
         table_name = "daily_prices"
         if inspect(self._engine).has_table(table_name):
             prcs_table = Table(table_name, MetaData(), autoload_with=self._engine)
-            qry = select(prcs_table).where(prcs_table.c.InsCode.in_(codes))
+            qry = select(prcs_table).where(
+                prcs_table.c.InsCode.in_(codes) & prcs_table.c.DEven
+                >= int(self.settings["start_date"])
+            )
             with self._engine.connect() as conn:
                 data = pd.read_sql_query(qry, conn, index_col=["InsCode", "DEven"])
             return data
@@ -220,13 +217,6 @@ class TSECache:
         instrums = self._read_table(table_name=ins_tbl_name, index_col=["InsCode"])
         if (instrums is not None) and (not instrums.empty):
             self._instruments = instrums
-            # TODO: are these columns needed?
-            self._instruments["Duplicated"] = self._instruments["Symbol"].duplicated(
-                keep=False
-            )
-            self._instruments["IsRoot"] = ~self._instruments["Symbol"].duplicated(
-                keep="first"
-            )
         lds_tbl_name = "last_devens"
         last_devens = self._read_table(table_name=lds_tbl_name, index_col=["InsCode"])
         if (last_devens is not None) and (not last_devens.empty):
@@ -302,8 +292,6 @@ class TSECache:
             for symbol in symbols
         }
 
-        # TODO: does adjust change self.prices? if so, fix adjust().
-        # merged_prices are not sorted
         prices_merged_lst = []
         for sym, sym_codes in symbol_dict.items():
             prices_merged_lst.append(
@@ -317,12 +305,6 @@ class TSECache:
                 )
             )
         self._prices_merged = pd.concat(prices_merged_lst).sort_index()
-
-        # TODO: move to where self.prices are loaded
-        self._prices_merged = self._prices_merged[
-            self._prices_merged.index.get_level_values("DEven")
-            > int(self.settings["start_date"])
-        ]
         if not self.settings["days_without_trade"]:
             self._prices_merged = self._prices_merged[
                 self._prices_merged["ZTotTran"] > 0
@@ -443,7 +425,6 @@ class TSECache:
 
         if self.prices is not None:
             tse_logger.info("Writing data to csv files.")
-            # TODO: columns should be selected by user or config file. ie jalali date
             for sym, sym_prcs in track(prices.items(), description="Writing data"):
                 prc_data = sym_prcs
                 f_name = sym
@@ -476,7 +457,6 @@ class TSECache:
     def _prices_to_db(self, new_prcs):
         # write cached price data to database.
 
-        # TODO: should also use this for prices?
         def sqlite_upsert(table, conn, keys, data_iter):
             """
             update columns on primary key conflict
@@ -522,7 +502,6 @@ class TSECache:
         write cached instruments and splits data to database file
         """
 
-        # TODO: should "if_exists" be "replace"?
         if self._instruments is not None and not self._instruments.empty:
             t_name = "instruments"
             with self._engine.connect() as conn:

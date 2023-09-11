@@ -13,9 +13,11 @@
     "editor.formatOnPaste": true,
     "editor.multiCursorModifier": "ctrlCmd",
     "editor.snippetSuggestions": "top",
-    "editor.rulers": [
-        88, // <- a ruler in the default color or as customized at column 0
-    ],
     "editor.formatOnSaveMode": "file",
-    "editor.defaultFormatter": "ms-python.black-formatter",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.rulers": [
+            88, // <- a ruler in the default color or as customized at column 0
+        ],
+    },
 }

@@ -34,7 +34,6 @@ class TSE:
         first_possible_deven = self.settings["start_date"]
         sel_insts = self.cache.instruments.loc[self.codes]
         if self.cache.last_devens is not None and not self.cache.last_devens.empty:
-            # TODO: test
             sel_insts = sel_insts.join(
                 self.cache.last_devens["LastDEven"]
                 .astype("Int64")
@@ -49,9 +48,6 @@ class TSE:
                 self.cache.last_possible_deven,
             )
         )
-
-        # TODO: price update helper Should update inscode_lastdeven file
-        # with new cached instruments in _on_result or do not read it from this file
         sel_insts["NotInNoMarket"] = (sel_insts.YMarNSC != "NO").astype(int)
         outdated_insts = sel_insts.loc[
             sel_insts["outdated"], ["cached_DEven", "NotInNoMarket"]
@@ -75,7 +71,6 @@ class TSE:
             self.settings.update(kwconf)
 
         # Initialize cache
-        # TODO: check the dict
         cache_cfg = cfg.storage
         cache_cfg.update(self.settings)
         self.cache = TSECache(cache_cfg)
@@ -118,9 +113,9 @@ class TSE:
                 tse_logger.warning(
                     "Failed to get some data. codes: %s",
                     ",".join(update_result["fails"]),
-                )  # drop index columns from the list of columns
+                )
+        # drop index columns from the list of columns
         cols = list(asdict(cfg.PriceColNames()).values())[2:]
-        cols.append("date_jalali")
         res = self.cache.prices_by_symbol(symbols=symbols, cols=cols)
 
         if self.settings["write_csv"]:
