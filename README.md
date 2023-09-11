@@ -19,5 +19,10 @@ dtse reset
 import dtse
 
 # dtse.get_tse_prices(symbols: list[str], **kwconf)
-dtse.get_tse_prices(symbols=["همراه"], {"adjust_prices": 2})
+dtse.get_tse_prices(
+        symbols=["همراه"], 
+        adjust_prices=2,
+        cache_to_db=False,
+        write_csv=False
+)
 ```
