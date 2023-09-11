@@ -16,9 +16,9 @@ dtse reset
 
 ### 2- python:
 
+```python
 import dtse
 
-```python
 # dtse.get_tse_prices(symbols: list[str], **kwconf)
 dtse.get_tse_prices(symbols=["همراه"])
 ```
