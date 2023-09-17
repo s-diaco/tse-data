@@ -4,6 +4,7 @@
 ![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fs-diaco%2Ftse-data%2Fmain%2Fpyproject.toml)
 ![GitHub](https://img.shields.io/github/license/s-diaco/tse-data)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/s-diaco/tse-data)
+[![Coverage Status](https://coveralls.io/repos/github/s-diaco/tse-data/badge.svg?branch=main)](https://coveralls.io/github/s-diaco/tse-data?branch=main)
 
 This is a python package that helps to access stock data from the Tehran Stock Exchange without any HTML parsing.
 
