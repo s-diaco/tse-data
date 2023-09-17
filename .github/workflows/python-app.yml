@@ -39,7 +39,7 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest pytest-cov
-        python -m pytest --cov=./dtse --cov-report xml
+        python -m pytest --cov=dtse --cov-report xml
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v2
             
